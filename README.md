@@ -80,19 +80,7 @@ Coming with the Day 1 scaffold. It will cover:
 | 1 | Oct 15 | Foundation: a Discord message becomes a proposed task in the right project and lands on the Kanban once approved |
 | 2 | Oct 16 | Work loop: a developer and a non-tech teammate both run their day from Noa |
 | 3 | Oct 17 | Shifts, KT, portfolio, staffing board and agent packs |
-| 4 | Oct 18 | Harden and ship: security and load pass, second-team onboarding, video, submission |
-
-## Team NotYourIdea
-
-| Person | Focus |
-| --- | --- |
-| Saish | Lead: design direction, extraction and agent, key pages |
-| Vedant | Backend, graph, platform |
-| Soha | Connectors, bots, supporting pages, docs |
-
-## Prior work
-
-Noa is a new codebase written during the hackathon. It builds on lessons and infrastructure patterns from **Tulpa v1**, NYI's earlier Discord memory product (auth, event store, identity resolution, decision extraction), which is cited here as prior work.
+| 4 | Oct 18 | Harden and ship: security and load pass, onboarding, video, submission |
 
 ## License
 

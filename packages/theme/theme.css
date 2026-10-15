@@ -1,0 +1,171 @@
+/*
+  Noa design tokens (item 0.17 / 0.18).
+  References: mio.xyz (layout and UI elements) and Saish's Elf site (~/code/dobby/web),
+  using Elf's palette and nature photography.
+
+  Usage in an app stylesheet:
+    @import "tailwindcss";
+    @import "@noa/theme/theme.css";
+*/
+
+@theme {
+  /* Elf / Mio palette: warm off-white, ink, forest green, sage. */
+  --color-bg: #f1f1ee;
+  --color-surface: #ffffff;
+  --color-deep: #16241e;
+  --color-ink: #111111;
+  --color-muted: #6b6b6b;
+  --color-line: #e2e2dc;
+
+  --color-accent: #1e3a2f;
+  --color-accent-soft: #2b4d3f;
+  /* Accent used for text and icons (same as accent on the light theme). */
+  --color-accent-fg: #1e3a2f;
+  /* Pale sage pill / selected surface. */
+  --color-mist: #dde8d8;
+  /* Warm highlight for "new" or "just changed". Use sparingly. */
+  --color-signal: #d9734e;
+
+  --color-good: #2f7d5b;
+  --color-warn: #b7801a;
+  --color-bad: #b9483f;
+
+  --radius-card: 28px;
+  --radius-chip: 16px;
+
+  --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --animate-marquee: marquee 44s linear infinite;
+  --animate-pulse-dot: pulse-dot 1.8s ease-in-out infinite;
+
+  @keyframes marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  @keyframes pulse-dot {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.45;
+      transform: scale(0.82);
+    }
+  }
+}
+
+@utility glass {
+  background: rgba(255, 255, 255, 0.55);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  backdrop-filter: blur(20px) saturate(140%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 0 0 1px rgba(255, 255, 255, 0.45);
+}
+
+@utility glass-dark {
+  background: rgba(17, 24, 20, 0.28);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  backdrop-filter: blur(20px) saturate(140%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 0 0 1px rgba(255, 255, 255, 0.14);
+}
+
+@utility liquid-glass {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.12)),
+    rgba(255, 255, 255, 0.18);
+  -webkit-backdrop-filter: blur(22px) saturate(180%) brightness(1.06);
+  backdrop-filter: blur(22px) saturate(180%) brightness(1.06);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.28),
+    0 12px 36px -14px rgba(20, 40, 30, 0.32);
+}
+
+@utility card-shadow {
+  box-shadow:
+    0 18px 40px -24px rgba(30, 58, 47, 0.45),
+    0 0 0 1px rgba(17, 17, 17, 0.04);
+}
+
+@utility eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility mist-wash {
+  background:
+    radial-gradient(70% 60% at 80% 10%, rgba(221, 232, 216, 0.9), transparent 70%),
+    linear-gradient(180deg, #e9eee6, var(--color-bg));
+}
+
+@layer base {
+  html {
+    scroll-padding-top: 6rem;
+  }
+
+  body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background: var(--color-mist);
+    color: var(--color-accent);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass,
+  .liquid-glass {
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: none;
+  }
+  .glass-dark {
+    background: rgba(16, 22, 42, 0.88);
+    backdrop-filter: none;
+  }
+}

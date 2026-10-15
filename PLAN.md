@@ -48,7 +48,7 @@ Slack · Discord · Google Meet · WhatsApp (Kapso) · GitHub
   → Oban jobs: typed extraction (OpenAI Structured Outputs via InstructorLite)
   → projector writes FalkorDB (one graph per org)
   → Work API (Ash) · Notifier · Agent (@noa, KT) · MCP server (ash_ai)
-  → React web app over ash_typescript RPC + Phoenix Channels; chat bots; coding agents
+  → Next.js web app (client of the API: ash_typescript RPC + Phoenix Channels); Next.js landing site; chat bots; coding agents
 ```
 
 Rules:
@@ -102,7 +102,8 @@ Extraction types: `TaskProposal`, `StatusChange`, `DeadlineChange`, `Decision`, 
 - **Backend:** Elixir, Phoenix, Ash 3 (AshPostgres, AshAuthentication, policies, multitenancy by org), Oban + AshOban.
 - **Graph:** FalkorDB Cloud, through the official `falkordb` Hex client (built on Redix).
 - **AI:** OpenAI Structured Outputs via InstructorLite; `ash_ai` for agent tools and the MCP server.
-- **Frontend:** React + Vite, TanStack Router and Query, shadcn/ui, dnd-kit for drag and drop, a Gantt library chosen in spike 0.8, `ash_typescript` for the RPC client.
+- **Frontend:** Next.js 16 (App Router) for both `web/` (the app) and `landing/` (marketing site), Tailwind v4, Motion for animation, Phosphor icons, TanStack Query, dnd-kit for drag and drop, `ash_typescript` for the RPC client. The app uses no Next.js API routes or server actions: Phoenix is the only backend.
+- **Design:** shared tokens in `packages/theme` (Mio- and Elf-inspired, graph-themed). See [docs/design.md](docs/design.md).
 - **Connectors:** Nostrum for Discord, Slack Events API, Google Meet REST API, Kapso for WhatsApp.
 - **Ops:** Fly.io, Postgres, Logfire / OpenTelemetry, Sentry, GitHub Actions.
 
@@ -112,8 +113,9 @@ Extraction types: `TaskProposal`, `StatusChange`, `DeadlineChange`, `Decision`, 
 api/        Phoenix + Ash backend
   lib/noa/        accounts, orgs, events, graph, ingest/<platform>, extraction, work, changes, agent, packs, secrets
   lib/noa_web/    endpoint, channels, webhooks, MCP
-web/        React + Vite frontend
-  src/pages, src/components, src/lib/rpc
+web/        Next.js app (App Router): src/app/(app)/* pages, src/components, src/lib (api, mock data)
+landing/    Next.js marketing site with animated feature scenes
+packages/theme/  shared design tokens (Tailwind v4 CSS)
 docs/       schema.md, runbooks
 PLAN.md     this file
 TASKS.md    tracker mirror
@@ -148,7 +150,7 @@ Each phase ends with something that runs on NYI's real data, so whatever phase w
 
 | Owner | Focus |
 | --- | --- |
-| Vedant | Scaffold `api/` (Phoenix, Ash, Postgres, auth copied from v1) and `web/` (Vite, shadcn); CI; FalkorDB Cloud, Fly, Logfire, Sentry (0.12); FalkorDB client spike (0.5); freeze schemas with Saish (0.3) |
+| Vedant | Scaffold `api/` (Phoenix, Ash, Postgres, auth copied from v1) and `web/` (Next.js; pages already scaffolded on sample data); CI; FalkorDB Cloud, Fly, Logfire, Sentry (0.12); FalkorDB client spike (0.5); freeze schemas with Saish (0.3) |
 | Saish | Design direction (0.17) and design kit tokens (0.18); extraction prompt spike on 40 real messages (0.9); NYI org map (0.14) |
 | Soha | Register Discord, Slack and Google apps (0.10); Kapso account (0.11); channel consent and v1 export (0.15); golden question set (0.16) |
 

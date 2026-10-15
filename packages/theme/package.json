@@ -1,0 +1,9 @@
+{
+  "name": "@noa/theme",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Noa design tokens and utilities (Tailwind v4), shared by landing/ and web/.",
+  "exports": {
+    "./theme.css": "./theme.css"
+  }
+}

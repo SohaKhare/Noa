@@ -1,0 +1,16 @@
+@import "tailwindcss";
+@import "@noa/theme/theme.css";
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  /* App: white surfaces on a cool page, a touch of blue. Buttons stay forest, matching the landing. */
+  --color-bg: #eef2f6;
+  --color-mist: #dce6f3;
+  --color-sky: #d5e3f4;
+  --color-line: #e3e8ef;
+}
+
+@utility wash {
+  background: radial-gradient(80% 60% at 50% 0%, #d5e3f4, transparent 72%), #ffffff;
+}

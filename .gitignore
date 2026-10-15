@@ -1,0 +1,30 @@
+# deps
+node_modules/
+.pnpm-store/
+
+# builds
+dist/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# env
+.env
+.env.*
+!.env.example
+
+# os / editors
+.DS_Store
+.idea/
+.vscode/
+
+# photos and video live on the CDN (cdn.saish.xyz/noa)
+landing/public/images/
+landing/public/video/
+
+# elixir (api/)
+_build/
+deps/
+*.ez
+erl_crash.dump

@@ -75,12 +75,15 @@ Coming with the Day 1 scaffold. It will cover:
 
 ## Build plan
 
-| Day | Date | Goal |
+| Phase | When | Goal |
 | --- | --- | --- |
-| 1 | Oct 15 | Foundation: a Discord message becomes a proposed task in the right project and lands on the Kanban once approved |
-| 2 | Oct 16 | Work loop: a developer and a non-tech teammate both run their day from Noa |
-| 3 | Oct 17 | Shifts, KT, portfolio, staffing board and agent packs |
-| 4 | Oct 18 | Harden and ship: security and load pass, onboarding, video, submission |
+| 0. Setup | Oct 15 evening | Skeleton deploys; graph and extraction schemas frozen; design direction set |
+| 1. Chat to Kanban | Oct 16 | A Discord message becomes a proposed task in the right project and lands on the Kanban once approved |
+| 2. Work loop | Oct 16 to 17 | A developer and a non-tech teammate both run their day from Noa |
+| 3. Shifts, KT, agent packs | Oct 17 | A teammate moves projects using only Noa and gets a KT brief and agent pack |
+| 4. Harden and ship | Oct 18 | Freeze at noon, video, submit by 6 PM IST |
+
+Full plan, owners, critical path and cut list: [PLAN.md](PLAN.md). Live task status: [TASKS.md](TASKS.md).
 
 ## License
 

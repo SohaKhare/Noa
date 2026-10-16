@@ -97,7 +97,7 @@ Exit test: NYI uses no other tracker; a developer and a non-tech teammate both r
 | 2.9 | Daily digest per person (from v1 recap) | Port | Soha | Not started |  |
 | 2.10 | Message edit and delete handling | New | Unassigned | Not started |  |
 | 2.11 | Gantt timeline: milestones, dependencies, drag dates | New | Saish | Not started |  |
-| 2.12 | My day and my work (simple and detailed views) | New | Saish | Not started |  |
+| 2.12 | My day and my work (simple and detailed views) | New | Saish | In review |  |
 | 2.13 | Task detail: sources, history, undo | New | Soha | Not started |  |
 | 2.14 | Live updates over Phoenix Channels | New | Soha | Not started |  |
 | 2.15 | Notification preferences: channel, digest time, quiet hours | New | Saish | Not started |  |

@@ -2,14 +2,13 @@
 
 import { DndContext, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { CheckCircleIcon, GavelIcon, XIcon } from "@phosphor-icons/react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import { FormError } from "@/components/AuthCard";
 import { Avatar, Badge, Button, Card, SourceChip } from "@/components/ui";
-import { ApiError, updateTask, type TaskStatus, type WorkProject, type WorkTask } from "@/lib/api";
+import { ApiError, type WorkProject, type WorkTask } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { decisions, ktBrief, person, statusLabel, tasks as sampleTasks, type Source, type Status } from "@/lib/mock";
 import { dueLabel, isLate, nameInitials, projectChannels, projectPeople, toSource, useDirectory, useMoveTask, useProposals, useTasks } from "@/lib/work";

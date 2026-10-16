@@ -53,14 +53,14 @@ export function Steps() {
           number="01"
           title="Connect"
           body="Discord, Slack, Meet and WhatsApp. Pick which channels belong to which project. DMs are never read."
-          image={cdnAsset("/images/night.jpg")}
+          image={cdnAsset("/night.jpg")}
           chip={<ConnectChip />}
         />
         <StepCard
           number="02"
           title="Talk as usual"
           body="Noa turns replies, meetings and voice notes into tasks, deadlines and decisions. Ask @noa anything, anywhere."
-          image={cdnAsset("/images/night-water.jpg")}
+          image={cdnAsset("/night-water.jpg")}
           chip={<TalkChip />}
           delay={0.08}
           className="lg:mt-20"
@@ -69,7 +69,7 @@ export function Steps() {
           number="03"
           title="Stay in control"
           body="Small updates apply with undo. Scope and deadline changes wait for the right lead."
-          image={cdnAsset("/images/night.jpg")}
+          image={cdnAsset("/night.jpg")}
           chip={<ApproveChip />}
           delay={0.16}
           className="sm:col-span-2 sm:mx-auto sm:max-w-md lg:col-span-1 lg:mt-40 lg:max-w-none"

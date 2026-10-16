@@ -5,7 +5,6 @@ import { allocations, person, projects } from "@/lib/mock";
 export const metadata = { title: "Portfolio" };
 
 const load = [
-  { id: "pr", pct: 110 },
   { id: "ve", pct: 115 },
   { id: "oj", pct: 85 },
   { id: "ab", pct: 70 },
@@ -14,7 +13,7 @@ const load = [
 ];
 
 const risks = [
-  "Only Vedant knows the Veriq PDF renderer (bus factor 1)",
+  "Only Saish knows the Veriq PDF renderer (bus factor 1)",
   "Board report PDF slip pushes 2 tasks in Veriq",
   "Saish is split across Veriq and Emmarie at 140% this week",
 ];

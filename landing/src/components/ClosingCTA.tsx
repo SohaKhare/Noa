@@ -9,7 +9,7 @@ export function ClosingCTA() {
   return (
     <section aria-labelledby="cta-title" className="px-2 pt-8 pb-6 sm:px-3">
       <div className="relative isolate mx-auto max-w-4xl overflow-hidden rounded-card px-5 py-14 text-center sm:py-16">
-        <Image src={cdnAsset("/images/night-water.jpg")} alt="" fill sizes="(min-width: 1024px) 896px, 100vw" className="object-cover -z-20" />
+        <Image src={cdnAsset("/night-water.jpg")} alt="" fill sizes="(min-width: 1024px) 896px, 100vw" className="object-cover -z-20" />
         <div aria-hidden className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(238,243,248,0.78),rgba(238,243,248,0.5)_45%,rgba(238,243,248,0.7))]" />
         <Reveal className="flex flex-col items-center">
           <h2 id="cta-title" className="max-w-2xl text-[clamp(2.1rem,5vw,3.75rem)] leading-[0.98] font-bold tracking-[-0.05em] text-ink">

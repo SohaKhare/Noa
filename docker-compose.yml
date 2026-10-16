@@ -1,0 +1,28 @@
+# Local services for the API. `docker compose up -d` from the repo root.
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - noa_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      retries: 30
+
+  # The graph (1.9). Not used by the API yet.
+  falkordb:
+    image: falkordb/falkordb:v4.10.3
+    ports:
+      - "6379:6379"
+    volumes:
+      - noa_falkor:/data
+    profiles: ["graph"]
+
+volumes:
+  noa_pg:
+  noa_falkor:

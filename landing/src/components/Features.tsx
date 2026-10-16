@@ -52,7 +52,7 @@ const sources = [
 ];
 
 const learned = [
-  { k: "Who knows the PDF renderer", v: "Vedant" },
+  { k: "Who knows the PDF renderer", v: "Saish" },
   { k: "“The film app” means", v: "Emmarie" },
   { k: "Decided today", v: "3 decisions" },
 ];
@@ -94,7 +94,7 @@ export function FeatureBento() {
           <div className="rounded-[20px] bg-surface p-4 card-shadow">
             <p className="text-[12px] font-medium text-muted">Deadline change · needs your approval</p>
             <p className="mt-1 text-[15px] font-semibold">Board report PDF: Fri → Mon?</p>
-            <p className="text-[13px] text-muted">Vedant: &ldquo;waiting on the logo pack&rdquo; · #veriq</p>
+            <p className="text-[13px] text-muted">Saish: &ldquo;waiting on the logo pack&rdquo; · #veriq</p>
             <div className="mt-3 flex gap-2">
               <span className="flex-1 rounded-full bg-accent py-2 text-center text-[13px] font-medium text-white">Approve</span>
               <span className="flex-1 rounded-full bg-bg py-2 text-center text-[13px] font-medium">Discuss</span>

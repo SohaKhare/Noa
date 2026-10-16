@@ -6,9 +6,9 @@ import { useLoop, useTyping } from "@/lib/useLoop";
 import { Avatar, LiveDot, NoaAvatar, SourceChip, Window } from "../ui";
 
 /*
-  The whole loop, with NYI's real team: Prathamesh asks in #veriq, Vedant replies,
-  Noa pops a proposal, Prathamesh approves, the card lands on the Veriq board,
-  and Vedant gets a WhatsApp from Noa.
+  The whole loop, with NYI's real team: Vedant (the lead) asks in #veriq, Saish replies,
+  Noa pops a proposal, Vedant approves, the card lands on the Veriq board,
+  and Saish gets a WhatsApp from Noa.
 */
 
 const REPLY = "on it, Board report PDF export by Friday";
@@ -44,18 +44,18 @@ export function ChatToTask() {
             </div>
             <div className="flex flex-1 flex-col justify-end gap-3 p-4">
               <Message who="OJ" name="Ojas" time="10:31" text="AI Overview lane is green again 🎉" />
-              <Message who="PR" name="Prathamesh" time="10:40" tone="accent" text="who can take the Board report PDF export? client wants it this week" />
+              <Message who="VE" name="Vedant" time="10:40" tone="accent" text="who can take the Board report PDF export? client wants it this week" />
               <AnimatePresence>
                 {sent && (
                   <motion.div key="reply" {...enter}>
-                    <Message who="VE" name="Vedant" time="10:42" text={REPLY} highlight={step >= HEARD && step < LANDED} />
+                    <Message who="SA" name="Saish" time="10:42" text={REPLY} highlight={step >= HEARD && step < LANDED} />
                   </motion.div>
                 )}
                 {landed && (
                   <motion.div key="noa" {...enter} className="flex items-start gap-2.5">
                     <NoaAvatar />
                     <div className="rounded-2xl rounded-tl-md bg-bg px-3 py-2 text-[12.5px]">
-                      <span className="font-medium">Added to Veriq</span> · Vedant · due Fri.{" "}
+                      <span className="font-medium">Added to Veriq</span> · Saish · due Fri.{" "}
                       <span className="text-accent underline decoration-accent/30">Undo</span>
                     </div>
                   </motion.div>
@@ -89,7 +89,7 @@ export function ChatToTask() {
                     <motion.div key="proposal" layoutId="task-card" {...enter} className="flex items-center gap-3 rounded-2xl bg-bg p-3">
                       <span className="rounded-full bg-mist px-2 py-0.5 text-[10.5px] font-medium text-accent">New task</span>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[13px] font-medium">Board report PDF export · Vedant · Fri</p>
+                        <p className="truncate text-[13px] font-medium">Board report PDF export · Saish · Fri</p>
                         <SourceChip>#veriq · &ldquo;on it, Board report…&rdquo;</SourceChip>
                       </div>
                       <span
@@ -121,14 +121,14 @@ export function ChatToTask() {
                 {landed && (
                   <motion.div layoutId="task-card" transition={spring} className="rounded-xl bg-surface p-2.5 ring-2 ring-signal/50">
                     <p className="text-[12px] font-medium">Board report PDF</p>
-                    <p className="text-[10.5px] text-muted">VE · Fri</p>
+                    <p className="text-[10.5px] text-muted">SA · Fri</p>
                   </motion.div>
                 )}
                 <Card title="Prompt plan review" meta="SO · today" />
               </Column>
               <Column name="In progress">
-                <Card title="Score weights v2" meta="PR · Fri" />
-                <Card title="Report share links" meta="SA · Mon" />
+                <Card title="Score weights v2" meta="VE · Fri" />
+                <Card title="Report share links" meta="OJ · Mon" />
               </Column>
               <Column name="Done">
                 <Card title="AI Overview lane" meta="OJ · merged" done />
@@ -156,7 +156,7 @@ export function ChatToTask() {
             </p>
             <p className="mt-1.5 text-[12.5px] font-semibold">Noa</p>
             <p className="text-[12.5px] leading-snug">
-              Vedant, you&rsquo;re on <span className="font-medium">Board report PDF export</span> for Veriq, due Fri. Prathamesh approved it from #veriq.
+              Saish, you&rsquo;re on <span className="font-medium">Board report PDF export</span> for Veriq, due Fri. Vedant approved it from #veriq.
             </p>
             <div className="mt-2 flex gap-1.5">
               <span className="flex-1 rounded-full bg-bg py-1 text-center text-[11px] font-medium">Start now</span>

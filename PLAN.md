@@ -8,7 +8,7 @@ Noa is a company brain that turns team conversations into managed work. It reads
 
 It is built for NYI to run its real, concurrent projects with tech and non-tech teammates, where people move between projects often. It is not a demo.
 
-Hackathon: WeMakeDevs × FalkorDB "Graph Hacks: Context for AI Agents", Company Brain track. Deadline Oct 18, 2026, 11:59 PM IST; we target 6 PM IST. Team NotYourIdea: Saish (intern, coordinates and sets design direction), Vedant (full-time full-stack dev), Soha (intern). The repo lives at `github.com/SohaKhare/Noa`.
+Hackathon: WeMakeDevs × FalkorDB "Graph Hacks: Context for AI Agents", Company Brain track. Deadline Oct 18, 2026, 11:59 PM IST; we target 6 PM IST. Team NotYourIdea: Saish (intern, coordinates and sets design direction), Vedant (full-time full-stack dev, and PM / lead for the hackathon), Soha (intern). The repo lives at `github.com/SohaKhare/Noa`.
 
 ## Core flows
 
@@ -110,13 +110,14 @@ Extraction types: `TaskProposal`, `StatusChange`, `DeadlineChange`, `Decision`, 
 ## Repo layout (target)
 
 ```
-api/        Phoenix + Ash backend
+api/        Phoenix + Ash backend (today: auth, workspaces and invites, plus the extraction core)
   lib/noa/        accounts, orgs, events, graph, ingest/<platform>, extraction, work, changes, agent, packs, secrets
   lib/noa_web/    endpoint, channels, webhooks, MCP
 web/        Next.js app (App Router): src/app/(app)/* pages, src/components, src/lib (api, mock data)
 landing/    Next.js marketing site with animated feature scenes
 packages/theme/  shared design tokens (Tailwind v4 CSS)
-docs/       schema.md, runbooks
+docs/       schema.md, auth.md (accounts, workspaces, invites), extraction.md (types, prompt, routing), org-map.md + seeds/nyi.json, design.md, runbooks
+docker-compose.yml  local Postgres (and FalkorDB under the graph profile)
 PLAN.md     this file
 TASKS.md    tracker mirror
 AGENTS.md   short rules for coding agents
@@ -142,7 +143,91 @@ Tulpa v1 is NYI's earlier product, at `~/code/nyi/tulpa` (Elixir/Ash API in `app
 
 Rename modules from `Tulpa.*` to `Noa.*` when copying.
 
+## Re-plan (Oct 16 evening)
+
+This section replaces the dates and splits in "Build phases" below where they disagree. Vedant is PM / lead and owns the checkpoints.
+
+### Where we are
+
+Built (in review, not committed yet):
+
+- **Accounts and workspaces (1.4 to 1.7, 1.22).** Invite-only sign-in with password, magic link and reset. The superadmin creates a workspace and invites its first admin. Admins invite people by work email only. Roles, titles and reports-to are editable, and Ash policies check every read. 42 API tests pass. See [docs/auth.md](docs/auth.md).
+- **Extraction core (1.16, 1.17, 1.21).** Typed schemas, the prompt, message windows and project routing, runnable with `mix noa.extract --dry-run`. It has not yet run against OpenAI (0.9). See [docs/extraction.md](docs/extraction.md).
+- **Web and landing.** Every app page exists, but on sample data in `web/src/lib/mock.ts`. The landing page is done (0.19), apart from its night images, which are missing from the CDN.
+- **Org map and seed (0.14).** Vedant is lead of Veriq and Emmarie; Saish and Soha report to him.
+
+Not started, and all on the critical path: schema freeze (0.3), event log (1.8), graph wrapper and projector (1.9, 1.10), identity (1.11), Discord ingest (1.13), Kapso (0.11, 1.15), and storage plus an API for projects and tasks. Until those exist, no real message can become a real card.
+
+So Phase 1 runs into Oct 17 morning, and Phases 2 and 3 are trimmed to what the demo story needs.
+
+### Checkpoints
+
+| When (IST) | Checkpoint | Shown with |
+| --- | --- | --- |
+| Oct 17, 11:00 | **Spine:** a real message in `#veriq` becomes a proposal in the Inbox; approving it puts the card on the Veriq board, and the owner gets a WhatsApp | Local stack, real NYI Discord |
+| Oct 17, 20:00 | **Work loop:** My day on real data; a deadline change waits for the lead; cited `@noa` answers | Deployed on Fly |
+| Oct 18, 08:00 | **Shift:** Vedant moves Soha from Video Break to Emmarie; she gets a KT brief and an agent pack | Deployed, real shift (3.15) |
+| Oct 18, 12:00 | Feature freeze (4.1) | |
+| Oct 18, 18:00 | Submitted (4.9) | |
+
+If a checkpoint slips by more than two hours, cut from the cut list before starting the next phase.
+
+### Phase 1b: Spine (now to Oct 17, 11:00)
+
+First, Vedant and Saish freeze the schema together (0.3, about an hour) and write `docs/schema.md`. Proposed decision for 0.3: current task and project state lives in Ash resources in Postgres, because policies, the board and undo are simplest there; it is written only from events, and the projector mirrors it into FalkorDB for questions, experts and paths. Both stores can be rebuilt from the event log.
+
+| Owner | Work, in order |
+| --- | --- |
+| Vedant | 0.3 schema; 1.8 event log (Postgres, idempotent on platform + message id); 1.9 graph wrapper on local FalkorDB (`docker compose --profile graph up`); 1.10 projector; 1.11 identity (Discord user to Person through the seed); 1.24 Work API for projects, tasks and proposals; then 1.2 deploy and 0.12 FalkorDB Cloud |
+| Saish | 1.23 seed loader (`mix noa.seed` loads `docs/seeds/nyi.json`); 0.9 run extraction on 40 real messages with the OpenAI key; 1.17 Oban job from new message events to proposals; 1.19 Inbox and 1.20 Kanban on the real API; 1.26 last-admin guard |
+| Soha | 0.10 Discord app and bot token; 0.15 channel consent; 1.13 Discord ingest (mapped channels only, writes events); 0.11 Kapso account and a "task assigned" template; 1.15 Kapso send; 1.25 real email delivery for invites and magic links |
+
+Moved out of Phase 1:
+
+- **1.18 onboarding UI.** NYI is set up by the seed loader. A minimal channel-map page is built in Phase 4 for the second-team test (4.6).
+- **1.12 v1 import.** Phase 3, if there is time. `@noa` works on live data without it.
+- **1.14 Slack.** Cut unless 0.1 shows NYI uses Slack.
+- **1.3 observability.** Only LLM usage logging now; Logfire and Sentry go in Phase 4.
+
+### Phase 2: Work loop (Oct 17, 11:00 to 20:00)
+
+The demo story: Saish asks to move the Board report PDF to Monday, Vedant approves it, Saish gets a WhatsApp, and Abhishek asks `@noa` what is blocking Emmarie.
+
+| Owner | Must have | If time |
+| --- | --- | --- |
+| Vedant | 2.19 change records; 2.20 lead approval rules; 2.14 live updates; 2.16 permission tests | 2.2 auto-apply with undo |
+| Saish | 2.1 status, blocker and deadline extraction; 2.4 decisions; 2.5 `@noa` with citations (web and Discord); 2.12 My day on real data; 2.18 Decided today | 2.3 duplicates; 2.11 read-only timeline |
+| Soha | 2.6 approve from Discord; 2.21 change notifications on WhatsApp; 2.7 WhatsApp "done" replies; 2.13 task detail | 2.9 digest; 2.15 notification preferences |
+
+Proposed cuts: 2.8 Meet transcripts (needs Google verification and the 0.7 spike); 2.10 edits (handle deletes only); 2.17 eval harness (run the golden set by hand once for the README).
+
+### Phase 3: Shift, KT and agent pack (Oct 17, 20:00 to Oct 18, 08:00)
+
+The demo story: Vedant drags Soha from Video Break to Emmarie, confirms, and Soha gets a KT brief, the people to meet, and an Emmarie `CLAUDE.md`.
+
+| Owner | Must have | If time |
+| --- | --- | --- |
+| Vedant | 3.1 shift backend; 3.3 experts by PageRank ("people to meet") and bus factor; 3.18 pack generator (`CLAUDE.md`, `tasks.md`) | 3.6 MCP server |
+| Saish | 3.17 staffing board with the confirm popover (absorbs 3.11); 3.2 KT brief; 3.9 portfolio on real data | 3.19 `brief.md` only |
+| Soha | 3.5 KT delivery on WhatsApp; 3.10 project page on real data; 3.20 access checklist; 3.15 run the real shift with the team | 1.12 v1 import |
+
+Proposed cuts: 3.4 slip propagation, 3.7 GitHub, 3.8 voice notes, 3.12 (folded into 3.2), 3.13 graph panel, 3.14 beyond the first slice that exists, 3.16 (one replay test instead), 3.21 beyond one-time links, 3.22 MCP tokens, 3.23 "add to repo" PR.
+
+### Phase 4: Harden and ship (Oct 18)
+
+As below, plus the minimal channel-map page for 4.6, Logfire and Sentry, and the landing night images.
+
+### Blockers to clear today
+
+- **OpenAI key** for 0.9 and 1.17, needed by Oct 17 morning.
+- **Team consent** for the channels Noa reads (0.15), before the bot joins the real server.
+- **Kapso and Meta template approval** (0.11) can take hours, so start it today. Fallback: Kapso's sandbox number.
+- **FalkorDB Cloud** (0.12) only matters for deploy; local Docker covers development.
+- **Landing images:** upload `night.jpg` and `night-water.jpg` to `cdn.saish.xyz/noa/images/`.
+
 ## Build phases
+
+The original plan. Where it disagrees with the re-plan above, the re-plan wins.
 
 Each phase ends with something that runs on NYI's real data, so whatever phase we reach is shippable. Item numbers are rows in [TASKS.md](TASKS.md).
 

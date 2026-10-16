@@ -14,6 +14,8 @@ import {
   MagnifyingGlassIcon,
   PackageIcon,
   PlusIcon,
+  ShieldCheckIcon,
+  SignOutIcon,
   SquaresFourIcon,
   SunHorizonIcon,
   TrayIcon,
@@ -22,10 +24,12 @@ import {
 } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
-import { me, notifications, person, project, projects, proposals, type Notification } from "@/lib/mock";
+import { roleLabel, signOut } from "@/lib/api";
+import { notifications, project, projects, proposals, type Notification } from "@/lib/mock";
+import { currentMembership, initials, isOrgAdmin, useMe, useSetMe } from "@/lib/session";
 import { BrandMark } from "./BrandMark";
 import { Avatar } from "./ui";
 
@@ -58,7 +62,24 @@ const titles: Record<string, string> = {
 export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const active = (href: string) => (href === "/" ? path === "/" : path === href || path.startsWith(`${href}/`));
-  const user = person(me)!;
+  const router = useRouter();
+  const { user, loading, error } = useMe();
+  const setMe = useSetMe();
+  const membership = currentMembership(user);
+  const admin = isOrgAdmin(user);
+
+  // Invite-only: signed-out people go to sign in; a superadmin with no workspace goes to the console.
+  useEffect(() => {
+    if (loading || error) return;
+    if (!user) router.replace(`/login?next=${encodeURIComponent(path)}`);
+    else if (!membership && user.is_superadmin) router.replace("/admin");
+  }, [user, loading, error, membership, path, router]);
+
+  if (error) return <ApiDown message={error.message} />;
+  if (!user || !membership) return <div className="min-h-screen bg-bg" aria-busy="true" />;
+
+  // The lead's (PM) side: Portfolio and Agent pack are for admins and PMs.
+  const teamItems = admin || membership.role === "pm" ? team : team.filter((t) => t.href === "/people");
 
   return (
     <div className="flex min-h-screen bg-bg">
@@ -66,8 +87,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         <button className="mx-3 mt-3 flex items-center gap-2.5 rounded-xl px-2 py-2 text-left hover:bg-bg">
           <BrandMark size={28} />
           <span className="min-w-0 flex-1 leading-tight">
-            <span className="block truncate text-[13.5px] font-semibold">NotYourIdea</span>
-            <span className="block text-[11px] text-muted">6 people · 4 projects</span>
+            <span className="block truncate text-[13.5px] font-semibold">{membership.org.name}</span>
+            <span className="block text-[11px] text-muted">{membership.title || roleLabel[membership.role]}</span>
           </span>
           <CaretDownIcon size={13} className="text-muted" />
         </button>
@@ -115,7 +136,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </ul>
 
           <SectionLabel>Team</SectionLabel>
-          <NavGroup items={team} active={active} />
+          <NavGroup items={teamItems} active={active} />
         </nav>
 
         <div className="border-t border-line p-3">
@@ -128,12 +149,29 @@ export function AppShell({ children }: { children: ReactNode }) {
           >
             <GearSixIcon size={17} /> Settings
           </Link>
+          {user.is_superadmin && (
+            <Link href="/admin" className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13.5px] text-ink/70 hover:bg-bg hover:text-ink">
+              <ShieldCheckIcon size={17} /> Platform
+            </Link>
+          )}
           <div className="mt-1 flex items-center gap-2.5 rounded-lg px-2.5 py-2">
-            <Avatar initials={user.initials} tone="accent" />
-            <div className="min-w-0 leading-tight">
-              <p className="truncate text-[13px] font-medium">{user.name}</p>
-              <p className="text-[11px] text-muted">PM / lead</p>
+            <Avatar initials={initials(user)} tone="accent" />
+            <div className="min-w-0 flex-1 leading-tight">
+              <p className="truncate text-[13px] font-medium">{user.name || user.email}</p>
+              <p className="text-[11px] text-muted">{roleLabel[membership.role]}</p>
             </div>
+            <button
+              aria-label="Sign out"
+              title="Sign out"
+              onClick={async () => {
+                await signOut().catch(() => undefined);
+                setMe(null);
+                router.replace("/login");
+              }}
+              className="grid size-8 shrink-0 place-items-center rounded-full text-ink/55 hover:bg-bg hover:text-ink"
+            >
+              <SignOutIcon size={15} />
+            </button>
           </div>
         </div>
       </aside>
@@ -274,6 +312,20 @@ function Notifications() {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+function ApiDown({ message }: { message: string }) {
+  return (
+    <div className="grid min-h-screen place-items-center bg-bg p-6 text-center">
+      <div className="max-w-sm">
+        <p className="text-[18px] font-semibold">Noa can&rsquo;t reach its server</p>
+        <p className="mt-1.5 text-[13.5px] text-muted">{message}</p>
+        <button onClick={() => location.reload()} className="mt-4 rounded-full bg-accent px-4 py-2 text-[13.5px] font-medium text-white hover:bg-accent-soft">
+          Try again
+        </button>
+      </div>
     </div>
   );
 }

@@ -27,7 +27,7 @@ export default function AgentPack() {
 
   return (
     <div className="mx-auto max-w-6xl">
-      <PageHeader title={`Welcome to ${where.name}, ${who.name}`} sub="From Prathamesh, your lead · starts Monday" />
+      <PageHeader title={`Welcome to ${where.name}, ${who.name}`} sub="From Vedant, your lead · starts Monday" />
       <div className="grid gap-5 lg:grid-cols-[1fr_1.3fr]">
         <Card>
           <p className="mb-3 text-[14px] font-semibold">Set up your workspace</p>

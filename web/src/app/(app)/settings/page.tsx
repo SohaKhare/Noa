@@ -11,9 +11,12 @@ import {
   type Icon,
 } from "@phosphor-icons/react";
 import { useState } from "react";
-import { Avatar, Badge, Button, Card, PageHeader } from "@/components/ui";
+import { Badge, Button, Card, PageHeader } from "@/components/ui";
+import { PeopleSettings } from "@/components/PeopleSettings";
+import { roleLabel } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import { accessBundles, channelMap, connectors, people, person, projects, roleLabel, type Role } from "@/lib/mock";
+import { currentMembership, useMe } from "@/lib/session";
+import { accessBundles, channelMap, connectors, projects } from "@/lib/mock";
 
 /* Settings: org admin surfaces (1.5, 1.6, 1.18, 1.22, 2.15, 3.20). */
 
@@ -29,10 +32,11 @@ const connectorIcon: Record<string, Icon> = {
 };
 
 export default function Settings() {
-  const [section, setSection] = useState<Section>("Connectors");
+  const [section, setSection] = useState<Section>("People and roles");
+  const membership = currentMembership(useMe().user);
   return (
     <div className="mx-auto max-w-6xl">
-      <PageHeader title="Settings" sub="NotYourIdea · you're a PM / lead" />
+      <PageHeader title="Settings" sub={membership ? `${membership.org.name} · you're ${roleLabel[membership.role].toLowerCase()}` : undefined} />
       <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
         <nav aria-label="Settings" className="flex gap-1 overflow-x-auto lg:flex-col">
           {sections.map((s) => (
@@ -147,59 +151,7 @@ function Channels() {
 }
 
 function PeopleRoles() {
-  return (
-    <Card className="p-0">
-      <div className="flex items-center justify-between border-b border-line px-5 py-4">
-        <div>
-          <p className="text-[14px] font-semibold">People and roles</p>
-          <p className="text-[12.5px] text-muted">Reporting lines decide who approves deadline and scope changes.</p>
-        </div>
-        <Button size="sm">Invite</Button>
-      </div>
-      <table className="w-full text-[13px]">
-        <thead>
-          <tr className="border-b border-line text-left text-[11.5px] text-muted">
-            <th className="px-5 py-2.5 font-medium">Person</th>
-            <th className="py-2.5 font-medium">Role</th>
-            <th className="py-2.5 font-medium">Reports to</th>
-            <th className="px-5 py-2.5 text-right font-medium">Identities</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-line">
-          {people.map((p) => (
-            <tr key={p.id}>
-              <td className="px-5 py-3">
-                <span className="flex items-center gap-2.5">
-                  <Avatar initials={p.initials} size={28} />
-                  <span>
-                    <span className="block font-medium">{p.name}</span>
-                    <span className="block text-[11.5px] text-muted">{p.title}</span>
-                  </span>
-                </span>
-              </td>
-              <td>
-                <select defaultValue={p.role} className="rounded-lg bg-bg px-2 py-1.5 text-[12.5px] focus:outline-none">
-                  {(Object.keys(roleLabel) as Role[]).map((r) => (
-                    <option key={r} value={r}>
-                      {roleLabel[r]}
-                    </option>
-                  ))}
-                </select>
-              </td>
-              <td className="text-muted">{person(p.reportsTo)?.name ?? "—"}</td>
-              <td className="px-5 text-right">
-                <span className="inline-flex gap-1.5 text-ink/45">
-                  <DiscordLogoIcon size={15} />
-                  <WhatsappLogoIcon size={15} />
-                  <GoogleLogoIcon size={15} />
-                </span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </Card>
-  );
+  return <PeopleSettings />;
 }
 
 function Bundles() {

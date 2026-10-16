@@ -20,7 +20,7 @@ const ROLES = [
   {
     role: "Client servicing",
     file: "client.md",
-    lines: ["# Veriq · brand client", "Promised: Board report PDF by Fri", "Moved: PDF to Mon (Prathamesh approved)", "Next call: Thu 4 pm"],
+    lines: ["# Veriq · brand client", "Promised: Board report PDF by Fri", "Moved: PDF to Mon (Vedant approved)", "Next call: Thu 4 pm"],
   },
   {
     role: "Ops",
@@ -30,7 +30,7 @@ const ROLES = [
   {
     role: "PM",
     file: "project-state.md",
-    lines: ["# Veriq · at risk", "1 blocker · 1 unowned task", "Only Vedant knows the PDF renderer", "Slip on the PDF pushes 2 tasks"],
+    lines: ["# Veriq · at risk", "1 blocker · 1 unowned task", "Only Saish knows the PDF renderer", "Slip on the PDF pushes 2 tasks"],
   },
 ];
 const PHASES = ROLES.map(() => 2600);

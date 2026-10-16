@@ -1,8 +1,8 @@
 import { cdnAsset } from "./cdn";
 
 /* Photo crops for cards. Night sky and night water, both on the CDN. */
-const night = cdnAsset("/images/night.jpg");
-const water = cdnAsset("/images/night-water.jpg");
+const night = cdnAsset("/night.jpg");
+const water = cdnAsset("/night-water.jpg");
 
 export const scenes = {
   connect: { src: night, position: "50% 30%" },

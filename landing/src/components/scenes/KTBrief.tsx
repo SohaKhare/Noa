@@ -11,7 +11,7 @@ const LINES = [
   { title: "Purpose", body: "Writing-first film workspace; screenplay to final take. Demo Oct 30", src: "Project" },
   { title: "Open work", body: "9 tasks, 1 blocked on the motion-test queue", src: "Board" },
   { title: "Key decisions", body: "Event log is the source of truth; storyboard before motion test", src: "#emmarie, weekly sync" },
-  { title: "People to meet", body: "Ojas (Workers), Saish (design), Prathamesh (lead)", src: "Recent work" },
+  { title: "People to meet", body: "Ojas (Workers), Saish (design), Vedant (lead)", src: "Recent work" },
   { title: "Read first", body: "architecture.md, docs/explainers", src: "Repo" },
 ];
 const PHASES = [900, 700, 700, 700, 700, 700, 1300, 2600] as const;

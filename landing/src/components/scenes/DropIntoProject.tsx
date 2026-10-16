@@ -6,7 +6,7 @@ import { useLoop, useTyping } from "@/lib/useLoop";
 import { Window } from "../ui";
 
 /*
-  Prathamesh drags Soha from Video Break to Emmarie, confirms the popover,
+  Vedant (the lead) drags Soha from Video Break to Emmarie, confirms the popover,
   and Soha's agent receives a pack (CLAUDE.md) written from the Emmarie project.
 */
 
@@ -24,7 +24,7 @@ pnpm workspace · Hono Worker + Durable Objects
 ## Ask
 - Workers: Ojas · Design: Saish`;
 
-const names: Record<string, string> = { PR: "Prathamesh", OJ: "Ojas", AB: "Abhishek", VE: "Vedant", SA: "Saish", SO: "Soha" };
+const names: Record<string, string> = { OJ: "Ojas", AB: "Abhishek", VE: "Vedant", SA: "Saish", SO: "Soha" };
 
 const PHASES = [1200, 900, 700, 650, 650, 650, 650, 900, FILE.length * 14 + 900, 2200] as const;
 const [DRAG, DROPPED, C1, C4, SENT, PACK] = [1, 2, 3, 6, 7, 8];
@@ -53,9 +53,8 @@ export function DropIntoProject() {
               <Person i="SA" role="Design · 50%" />
               {moved && <Person i="SO" role="Intern · from Mon" id="soha" fresh />}
             </Lane>
-            <Lane name="Veriq" count={2}>
-              <Person i="PR" role="Lead · 50%" />
-              <Person i="VE" role="SWE · 100%" />
+            <Lane name="Veriq" count={1}>
+              <Person i="VE" role="PM / Lead · 60%" />
             </Lane>
           </LayoutGroup>
         </div>

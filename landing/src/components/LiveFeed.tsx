@@ -14,7 +14,7 @@ type Item = { Icon: Icon; source: Icon; title: string; meta: string; tone?: "acc
 const ITEMS: Item[] = [
   { Icon: GavelIcon, source: VideoCameraIcon, title: "Decision: Board report before Practitioner", meta: "Weekly sync · Meet transcript" },
   { Icon: ArrowsLeftRightIcon, source: ChatsCircleIcon, title: "Soha moved to Emmarie", meta: "3 tasks handed over · agent pack sent", tone: "signal" },
-  { Icon: CheckCircleIcon, source: DiscordLogoIcon, title: "Task added: Board report PDF", meta: "Vedant · due Fri · from #veriq" },
+  { Icon: CheckCircleIcon, source: DiscordLogoIcon, title: "Task added: Board report PDF", meta: "Saish · due Fri · from #veriq" },
 ];
 
 export function LiveFeed({

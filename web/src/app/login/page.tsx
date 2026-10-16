@@ -1,40 +1,117 @@
-import { GoogleLogoIcon } from "@phosphor-icons/react/ssr";
-import Link from "next/link";
-import { BrandMark } from "@/components/BrandMark";
+"use client";
 
-export const metadata = { title: "Sign in" };
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState, type FormEvent } from "react";
+import { AuthCard, Field, FormError, Notice } from "@/components/AuthCard";
+import { Button } from "@/components/ui";
+import { API_URL, ApiError, requestMagicLink, requestPasswordReset, signIn } from "@/lib/api";
+import { useMe, useSetMe } from "@/lib/session";
 
-// Auth is AshAuthentication on the Phoenix API (item 1.4). This page posts to it once wired.
-export default function Login() {
+/* Invite-only sign-in (1.4): password, an emailed one-time link, or a password reset. No sign-up. */
+
+type Mode = "password" | "link" | "reset";
+
+export default function LoginPage() {
   return (
-    <div className="grid min-h-screen place-items-center p-4 mist-wash">
-      <div className="w-full max-w-sm rounded-[28px] bg-surface p-8 card-shadow">
-        <div className="flex items-center gap-2 text-[17px] font-semibold">
-          <BrandMark size={28} /> Noa
+    <Suspense>
+      <Login />
+    </Suspense>
+  );
+}
+
+function Login() {
+  const router = useRouter();
+  const params = useSearchParams();
+  const { user } = useMe();
+  const setMe = useSetMe();
+  const [mode, setMode] = useState<Mode>("password");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(
+    params.get("error") === "link_expired" ? "That sign-in link has expired or was already used. Ask for a new one." : null,
+  );
+  const [sent, setSent] = useState<Mode | null>(null);
+
+  useEffect(() => {
+    if (user) router.replace(params.get("next") ?? user.home);
+  }, [user, router, params]);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      if (mode === "password") {
+        const signedIn = await signIn(email, password);
+        setMe(signedIn);
+        router.replace(params.get("next") ?? signedIn.home);
+        return;
+      }
+      await (mode === "link" ? requestMagicLink(email) : requestPasswordReset(email));
+      setSent(mode);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Something went wrong. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const switchTo = (m: Mode) => {
+    setMode(m);
+    setError(null);
+    setSent(null);
+  };
+
+  return (
+    <AuthCard
+      title={mode === "reset" ? "Reset your password" : "Sign in"}
+      sub="Noa is invite-only. Use the work email your invite was sent to."
+      footer={
+        <>
+          No account? Ask your workspace admin for an invite.
+          {process.env.NODE_ENV === "development" && (
+            <>
+              {" "}
+              <a href={`${API_URL}/dev/mailbox`} target="_blank" rel="noreferrer" className="text-accent-fg underline-offset-2 hover:underline">
+                Dev mailbox
+              </a>
+            </>
+          )}
+        </>
+      }
+    >
+      {sent ? (
+        <div className="space-y-4">
+          <Notice>
+            If <strong>{email}</strong> has a Noa account, {sent === "link" ? "a sign-in link" : "a reset link"} is on its way. It works once and expires soon.
+          </Notice>
+          <Button variant="ghost" className="w-full" onClick={() => switchTo("password")}>
+            Back to sign in
+          </Button>
         </div>
-        <h1 className="mt-6 text-[24px] font-semibold tracking-[-0.03em]">Sign in</h1>
-        <p className="mt-1 text-[13.5px] text-muted">Use your work account.</p>
-        <button className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-surface py-2.5 text-[14px] font-medium ring-1 ring-line hover:bg-bg">
-          <GoogleLogoIcon size={16} /> Continue with Google
-        </button>
-        <div className="my-5 flex items-center gap-3 text-[11px] text-muted">
-          <span className="h-px flex-1 bg-line" /> or <span className="h-px flex-1 bg-line" />
-        </div>
-        <form className="space-y-3">
-          <label className="block">
-            <span className="text-[12px] text-muted">Work email</span>
-            <input type="email" autoComplete="email" placeholder="you@company.com" className="mt-1 w-full rounded-xl bg-bg px-3.5 py-2.5 text-[14px] focus:ring-2 focus:ring-accent/30 focus:outline-none" />
-          </label>
-          <Link href="/" className="block w-full rounded-full bg-accent py-2.5 text-center text-[14px] font-medium text-white hover:bg-accent-soft">
-            Email me a magic link
-          </Link>
+      ) : (
+        <form onSubmit={submit} className="space-y-3">
+          <Field label="Work email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" />
+          {mode === "password" && (
+            <Field label="Password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+          )}
+          <FormError>{error}</FormError>
+          <Button type="submit" className="w-full" disabled={busy}>
+            {busy ? "One moment…" : mode === "password" ? "Sign in" : mode === "link" ? "Email me a sign-in link" : "Email me a reset link"}
+          </Button>
+          <div className="flex justify-between pt-1 text-[12.5px]">
+            <button type="button" onClick={() => switchTo(mode === "link" ? "password" : "link")} className="text-accent-fg hover:underline">
+              {mode === "link" ? "Use my password" : "Email me a link instead"}
+            </button>
+            {mode !== "reset" && (
+              <button type="button" onClick={() => switchTo("reset")} className="text-muted hover:text-ink">
+                Forgot password?
+              </button>
+            )}
+          </div>
         </form>
-        <p className="mt-6 text-center text-[12px] text-muted">
-          Have an invite? <Link href="/invite" className="text-accent-fg">Join your team</Link>
-          <span className="mx-1.5 text-line">/</span>
-          New team? <Link href="/onboarding" className="text-accent-fg">Set up your organization</Link>
-        </p>
-      </div>
-    </div>
+      )}
+    </AuthCard>
   );
 }

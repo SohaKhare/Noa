@@ -65,7 +65,7 @@ Type: Geist (sans) and Geist Mono (eyebrows, step numbers, source chips).
 
 ## Photos and scroll frames
 
-Backdrops are the night photos on the CDN (`cdn.saish.xyz/noa/images/night.jpg` and `night-water.jpg`). Card crops are in `landing/src/lib/scenes.ts`.
+Backdrops are the night photos on the CDN (`cdn.saish.xyz/noa/night.jpg` and `night-water.jpg`). Card crops are in `landing/src/lib/scenes.ts`.
 
 **Shared style line:** night sky and night water, blue and cool, no text, no logos.
 

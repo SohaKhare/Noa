@@ -1,7 +1,8 @@
 import { ArrowRightIcon, CalendarBlankIcon, ChatCircleDotsIcon, GavelIcon, TrayIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
+import { Hello } from "@/components/Hello";
 import { Badge, SourceChip } from "@/components/ui";
-import { decisions, me, person, project, projects, proposals, tasks, type Task } from "@/lib/mock";
+import { decisions, me, project, projects, proposals, tasks, type Task } from "@/lib/mock";
 
 export const metadata = { title: "My day" };
 
@@ -20,7 +21,7 @@ export default function MyDay() {
     <div className="mx-auto max-w-6xl">
       <section className="rounded-[26px] wash p-7 card-shadow">
         <p className="eyebrow text-muted">Thursday, 15 October</p>
-        <h1 className="mt-2 text-[28px] leading-tight font-semibold tracking-[-0.03em]">Good morning, {person(me)!.name}</h1>
+        <h1 className="mt-2 text-[28px] leading-tight font-semibold tracking-[-0.03em]"><Hello /></h1>
         <p className="mt-1.5 text-[14.5px] text-muted">
           {mine.length} things today across {byProject.length} projects · {proposals.length} proposals waiting · {blocked.length} blocked
         </p>

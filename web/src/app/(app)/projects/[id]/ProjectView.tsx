@@ -406,7 +406,7 @@ function Decisions({ id }: { id: string }) {
         <p className="mt-3 text-[15px] font-semibold">Fri → Mon</p>
         <p className="mt-3 text-[11px] text-muted">Reason</p>
         <p className="rounded-xl bg-bg px-3 py-2 text-[13px]">Waiting on the brand&apos;s logo pack</p>
-        <p className="mt-3 rounded-xl bg-mist/60 px-3 py-2 text-[12.5px]">Needs approval from Prathamesh, your lead. Owners are notified once approved.</p>
+        <p className="mt-3 rounded-xl bg-mist/60 px-3 py-2 text-[12.5px]">Needs approval from Vedant, your lead. Owners are notified once approved.</p>
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="ghost" size="sm">
             Cancel
@@ -439,7 +439,7 @@ function KT() {
       <Card>
         <p className="text-[14px] font-semibold">Checklist</p>
         <ul className="mt-3 space-y-2 text-[13px]">
-          {["Read the brief", "Meet Prathamesh", "Meet Ojas about Workers", "Pick up Coverage notes v2", "Day-7 check-in"].map((c, i) => (
+          {["Read the brief", "Meet Vedant", "Meet Ojas about Workers", "Pick up Coverage notes v2", "Day-7 check-in"].map((c, i) => (
             <li key={c} className="flex items-center gap-2">
               <span className={cn("grid size-4 place-items-center rounded-[5px]", i < 3 ? "bg-accent text-white" : "ring-1 ring-line")}>
                 {i < 3 && <CheckCircleIcon size={10} weight="bold" />}

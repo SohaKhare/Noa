@@ -44,7 +44,7 @@ const features: Feature[] = [
       "Approve once and it lands on the board, live",
     ],
     scene: <ChatToTask />,
-    image: cdnAsset("/images/night.jpg"),
+    image: cdnAsset("/night.jpg"),
   },
   {
     id: "staffing",
@@ -58,7 +58,7 @@ const features: Feature[] = [
       "Their AI agent gets CLAUDE.md, tasks.md and live context",
     ],
     scene: <DropIntoProject />,
-    image: cdnAsset("/images/night-water.jpg"),
+    image: cdnAsset("/night-water.jpg"),
   },
   {
     id: "kt",
@@ -72,7 +72,7 @@ const features: Feature[] = [
       "Sent on WhatsApp, with a day-7 check-in",
     ],
     scene: <KTBrief />,
-    image: cdnAsset("/images/night.jpg"),
+    image: cdnAsset("/night.jpg"),
   },
   {
     id: "ask",
@@ -86,7 +86,7 @@ const features: Feature[] = [
       "Only uses what the person asking may see",
     ],
     scene: <AskNoa />,
-    image: cdnAsset("/images/night-water.jpg"),
+    image: cdnAsset("/night-water.jpg"),
   },
   {
     id: "decisions",
@@ -100,7 +100,7 @@ const features: Feature[] = [
       "Deadline and scope changes wait for the editor's lead",
     ],
     scene: <DecisionsEdits />,
-    image: cdnAsset("/images/night.jpg"),
+    image: cdnAsset("/night.jpg"),
   },
   {
     id: "roles",
@@ -114,7 +114,7 @@ const features: Feature[] = [
       "PMs get project state, kept current as work moves",
     ],
     scene: <RoleViews />,
-    image: cdnAsset("/images/night-water.jpg"),
+    image: cdnAsset("/night-water.jpg"),
   },
 ];
 

@@ -9,7 +9,7 @@ export function Hero() {
   return (
     <section id="top" aria-labelledby="hero-title" className="p-2 sm:p-3">
       <div className="relative isolate flex min-h-[calc(100dvh-1rem)] flex-col items-center justify-start overflow-hidden rounded-card bg-[#0e1c33] px-5 pt-[clamp(7rem,21vh,12rem)] pb-12 text-center sm:min-h-[calc(100dvh-1.5rem)]">
-        <Image src={cdnAsset("/images/night.jpg")} alt="" fill priority sizes="100vw" className="object-cover -z-20" />
+        <Image src={cdnAsset("/night.jpg")} alt="" fill priority sizes="100vw" className="object-cover -z-20" />
         <div
           aria-hidden
           className="absolute inset-0 -z-10 bg-[radial-gradient(68%_38%_at_50%_28%,rgba(8,16,32,0.35),rgba(8,16,32,0.05)_70%),linear-gradient(180deg,rgba(8,16,32,0.28),rgba(8,16,32,0)_28%)]"

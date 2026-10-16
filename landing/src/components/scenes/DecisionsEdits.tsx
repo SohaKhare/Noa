@@ -8,7 +8,7 @@ import { SourceChip, Window } from "../ui";
 /* "Decided today" fills in; a shared deadline edit goes to the editor's lead for approval. */
 
 const DECISIONS = [
-  { title: "Score all seven model families", src: "Discord #veriq · PR, OJ" },
+  { title: "Score all seven model families", src: "Discord #veriq · VE, OJ" },
   { title: "Board report before Practitioner", src: "Meet · weekly sync" },
   { title: "Hooks in the first two seconds", src: "WhatsApp · AB" },
 ];
@@ -61,10 +61,10 @@ export function DecisionsEdits() {
             >
               {step >= DONE ? (
                 <span className="flex items-center gap-1.5">
-                  <CheckIcon size={12} weight="bold" /> Approved by Prathamesh · Vedant notified
+                  <CheckIcon size={12} weight="bold" /> Approved by Vedant · Saish notified
                 </span>
               ) : (
-                "Needs approval from Prathamesh, your lead"
+                "Needs approval from Vedant, your lead"
               )}
             </div>
           </div>
@@ -81,9 +81,9 @@ export function DecisionsEdits() {
             className="absolute -top-4 right-4 w-[270px] rounded-2xl bg-surface p-3.5 card-shadow"
           >
             <p className="flex items-center gap-1.5 text-[11px] font-medium text-muted">
-              <BellRingingIcon size={13} className="text-signal" /> Noa · to Prathamesh
+              <BellRingingIcon size={13} className="text-signal" /> Noa · to Vedant
             </p>
-            <p className="mt-1 text-[12.5px]">Vedant wants to move Board report PDF to Monday.</p>
+            <p className="mt-1 text-[12.5px]">Saish wants to move Board report PDF to Monday.</p>
             <div className="mt-2.5 flex gap-2">
               <span
                 className={`flex-1 rounded-full bg-accent py-1.5 text-center text-[11.5px] font-medium text-white transition-transform ${

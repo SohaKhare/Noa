@@ -132,7 +132,7 @@ export function ApproveChip() {
       <p className="mt-1 text-[14px] font-medium">
         Board report PDF: <span className={approved ? "text-ink/45 line-through" : ""}>Fri</span> → Mon
       </p>
-      <p className="mt-0.5 text-[12px] text-ink/65">Vedant: &ldquo;waiting on the logo pack&rdquo; · #veriq</p>
+      <p className="mt-0.5 text-[12px] text-ink/65">Saish: &ldquo;waiting on the logo pack&rdquo; · #veriq</p>
       <div className="mt-3 flex h-9 gap-2">
         <AnimatePresence mode="wait" initial={false}>
           {approved ? (

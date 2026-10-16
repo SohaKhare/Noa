@@ -3,10 +3,10 @@
 */
 import { cdnAsset } from "./cdn";
 
-export const valleyStill = cdnAsset("/images/night.jpg");
+export const valleyStill = cdnAsset("/night.jpg");
 
 export const valleyFilm = {
-  poster: cdnAsset("/images/night.jpg"),
+  poster: cdnAsset("/night.jpg"),
   sources: [] as { src: string; type: string }[],
 } as const;
 

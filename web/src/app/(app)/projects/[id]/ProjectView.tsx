@@ -12,7 +12,7 @@ import { Avatar, Badge, Button, Card, SourceChip } from "@/components/ui";
 import { ApiError, updateTask, type TaskStatus, type WorkProject, type WorkTask } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { decisions, ktBrief, person, statusLabel, tasks as sampleTasks, type Source, type Status } from "@/lib/mock";
-import { dueLabel, isLate, nameInitials, projectChannels, projectPeople, toSource, useDirectory, useProposals, useTasks } from "@/lib/work";
+import { dueLabel, isLate, nameInitials, projectChannels, projectPeople, toSource, useDirectory, useMoveTask, useProposals, useTasks } from "@/lib/work";
 
 const tabs = ["Overview", "Board", "Timeline", "Decisions", "People", "KT"] as const;
 type Tab = (typeof tabs)[number];
@@ -139,22 +139,6 @@ export function ProjectView({ projectKey }: { projectKey: string }) {
 }
 
 /* Moves a task to another status, updating the board at once and rolling back on error. */
-function useMoveTask() {
-  const { orgId } = useDirectory();
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, status }: { id: string; status: TaskStatus }) => updateTask(orgId!, id, { status }),
-    onMutate: async ({ id, status }) => {
-      await client.cancelQueries({ queryKey: ["tasks", orgId] });
-      const before = client.getQueriesData<WorkTask[]>({ queryKey: ["tasks", orgId] });
-      client.setQueriesData<WorkTask[]>({ queryKey: ["tasks", orgId] }, (ts) => ts?.map((t) => (t.id === id ? { ...t, status } : t)));
-      return { before };
-    },
-    onError: (_e, _v, ctx) => ctx?.before.forEach(([key, data]) => client.setQueryData(key, data)),
-    onSettled: () => client.invalidateQueries({ queryKey: ["tasks", orgId] }),
-  });
-}
-
 function Overview({ id, cards, onOpen }: { id: string; cards: BoardCard[]; onOpen: (id: string) => void }) {
   const counts = columns.map((c) => ({ c, n: cards.filter((t) => t.status === c).length }));
   const blocked = cards.filter((t) => t.status === "blocked");

@@ -1,7 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { getDirectory, getProposals, getTasks, type MessageSource, type WorkPerson, type WorkProject } from "./api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getDirectory, getProposals, getTasks, updateTask, type MessageSource, type TaskStatus, type WorkPerson, type WorkProject, type WorkTask } from "./api";
 import type { Source } from "./mock";
 import { currentMembership, useMe } from "./session";
 
@@ -40,6 +40,23 @@ export function useTasks(filters: { project_id?: string; owner_id?: string; open
 export function useProposals() {
   const orgId = useOrgId();
   return useQuery({ queryKey: ["proposals", orgId], queryFn: () => getProposals(orgId!), enabled: !!orgId });
+}
+
+/* Moves a card (board drag, My day checkbox), updating every cached task list at once. */
+export function useMoveTask() {
+  const orgId = useOrgId();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: TaskStatus }) => updateTask(orgId!, id, { status }),
+    onMutate: async ({ id, status }) => {
+      await client.cancelQueries({ queryKey: ["tasks", orgId] });
+      const before = client.getQueriesData<WorkTask[]>({ queryKey: ["tasks", orgId] });
+      client.setQueriesData<WorkTask[]>({ queryKey: ["tasks", orgId] }, (ts) => ts?.map((t) => (t.id === id ? { ...t, status } : t)));
+      return { before };
+    },
+    onError: (_e, _v, ctx) => ctx?.before.forEach(([key, data]) => client.setQueryData(key, data)),
+    onSettled: () => client.invalidateQueries({ queryKey: ["tasks", orgId] }),
+  });
 }
 
 /* "VE" for Vedant, like the chat avatars on the landing page. */

@@ -9,24 +9,24 @@
 */
 
 @theme {
-  /* Elf / Mio palette: warm off-white, ink, forest green, sage. */
-  --color-bg: #f1f1ee;
+  /* Blue and white, as on the landing page. No forest green. */
+  --color-bg: #eef2f6;
   --color-surface: #ffffff;
-  --color-deep: #16241e;
+  --color-deep: #0e1c33;
   --color-ink: #111111;
   --color-muted: #6b6b6b;
-  --color-line: #e2e2dc;
+  --color-line: #e3e8ef;
 
-  --color-accent: #1e3a2f;
-  --color-accent-soft: #2b4d3f;
+  --color-accent: #1b4f8a;
+  --color-accent-soft: #163e6e;
   /* Accent used for text and icons (same as accent on the light theme). */
-  --color-accent-fg: #1e3a2f;
-  /* Pale sage pill / selected surface. */
-  --color-mist: #dde8d8;
+  --color-accent-fg: #1b4f8a;
+  /* Pale blue pill / selected surface. */
+  --color-mist: #d6e4f6;
   /* Warm highlight for "new" or "just changed". Use sparingly. */
   --color-signal: #d9734e;
 
-  --color-good: #2f7d5b;
+  --color-good: #2a6fbf;
   --color-warn: #b7801a;
   --color-bad: #b9483f;
 
@@ -70,7 +70,7 @@
 }
 
 @utility glass-dark {
-  background: rgba(17, 24, 20, 0.28);
+  background: rgba(14, 28, 51, 0.28);
   -webkit-backdrop-filter: blur(20px) saturate(140%);
   backdrop-filter: blur(20px) saturate(140%);
   box-shadow:
@@ -88,12 +88,12 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.55),
     inset 0 -1px 0 rgba(255, 255, 255, 0.12),
     inset 0 0 0 1px rgba(255, 255, 255, 0.28),
-    0 12px 36px -14px rgba(20, 40, 30, 0.32);
+    0 12px 36px -14px rgba(14, 28, 51, 0.32);
 }
 
 @utility card-shadow {
   box-shadow:
-    0 18px 40px -24px rgba(30, 58, 47, 0.45),
+    0 18px 40px -24px rgba(27, 79, 138, 0.35),
     0 0 0 1px rgba(17, 17, 17, 0.04);
 }
 
@@ -113,8 +113,8 @@
 
 @utility mist-wash {
   background:
-    radial-gradient(70% 60% at 80% 10%, rgba(221, 232, 216, 0.9), transparent 70%),
-    linear-gradient(180deg, #e9eee6, var(--color-bg));
+    radial-gradient(70% 60% at 80% 10%, rgba(214, 228, 246, 0.9), transparent 70%),
+    linear-gradient(180deg, #e6edf6, var(--color-bg));
 }
 
 @layer base {

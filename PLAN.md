@@ -145,18 +145,19 @@ Rename modules from `Tulpa.*` to `Noa.*` when copying.
 
 ## Re-plan (Oct 16 evening)
 
-This section replaces the dates and splits in "Build phases" below where they disagree. Vedant is PM / lead and owns the checkpoints.
+This section replaces the dates and splits in "Build phases" below where they disagree. Vedant is PM / lead: he owns the checkpoints, reviews PRs and approves cuts. He is busy for now, so since Oct 16 all build work is split between Saish (the most active, so slightly more) and Soha.
 
 ### Where we are
 
 Built (in review, not committed yet):
 
-- **Accounts and workspaces (1.4 to 1.7, 1.22).** Invite-only sign-in with password, magic link and reset. The superadmin creates a workspace and invites its first admin. Admins invite people by work email only. Roles, titles and reports-to are editable, and Ash policies check every read. 42 API tests pass. See [docs/auth.md](docs/auth.md).
+- **Accounts and workspaces (1.4 to 1.7, 1.22).** Invite-only sign-in with password, magic link and reset. The superadmin creates a workspace and invites its first admin. Admins invite people by work email only. Roles, titles and reports-to are editable, and Ash policies check every read. A workspace always keeps an admin (1.26). See [docs/auth.md](docs/auth.md).
 - **Extraction core (1.16, 1.17, 1.21).** Typed schemas, the prompt, message windows and project routing, runnable with `mix noa.extract --dry-run`. It has not yet run against OpenAI (0.9). See [docs/extraction.md](docs/extraction.md).
 - **Web and landing.** Every app page exists, but on sample data in `web/src/lib/mock.ts`. The landing page is done (0.19), apart from its night images, which are missing from the CDN.
-- **Org map and seed (0.14).** Vedant is lead of Veriq and Emmarie; Saish and Soha report to him.
+- **Org map and seed (0.14, 1.23).** Vedant is lead of Veriq and Emmarie; Saish and Soha report to him. `mix noa.seed` loads it into the workspace.
+- **Work data and API (1.24), Inbox (1.19) and board (1.20) on real data.** People, projects, allocations, channels, tasks and proposals, with approve, dismiss and drag-to-move. See [docs/schema.md](docs/schema.md). 52 API tests pass.
 
-Not started, and all on the critical path: schema freeze (0.3), event log (1.8), graph wrapper and projector (1.9, 1.10), identity (1.11), Discord ingest (1.13), Kapso (0.11, 1.15), and storage plus an API for projects and tasks. Until those exist, no real message can become a real card.
+Update Oct 17: the event log, graph wrapper, projector and identity (1.8 to 1.11) are in review, with the FalkorDB spike (0.5). The extraction job (1.17) now runs on recorded messages through Oban. Still on the critical path: Discord ingest (1.13, which calls `Noa.Work.record_message/2`) and Kapso (0.11, 1.15).
 
 So Phase 1 runs into Oct 17 morning, and Phases 2 and 3 are trimmed to what the demo story needs.
 
@@ -174,13 +175,12 @@ If a checkpoint slips by more than two hours, cut from the cut list before start
 
 ### Phase 1b: Spine (now to Oct 17, 11:00)
 
-First, Vedant and Saish freeze the schema together (0.3, about an hour) and write `docs/schema.md`. Proposed decision for 0.3: current task and project state lives in Ash resources in Postgres, because policies, the board and undo are simplest there; it is written only from events, and the projector mirrors it into FalkorDB for questions, experts and paths. Both stores can be rebuilt from the event log.
+Schema (0.3): Saish confirms [docs/schema.md](docs/schema.md) and adds the graph part. Vedant only needs to read and approve it. The decision in it: current task and project state lives in Postgres, written only through `Noa.Work`, and the projector mirrors it into FalkorDB for questions, experts and paths. Both can be rebuilt from the event log.
 
 | Owner | Work, in order |
 | --- | --- |
-| Vedant | 0.3 schema; 1.8 event log (Postgres, idempotent on platform + message id); 1.9 graph wrapper on local FalkorDB (`docker compose --profile graph up`); 1.10 projector; 1.11 identity (Discord user to Person through the seed); 1.24 Work API for projects, tasks and proposals; then 1.2 deploy and 0.12 FalkorDB Cloud |
-| Saish | 1.23 seed loader (`mix noa.seed` loads `docs/seeds/nyi.json`); 0.9 run extraction on 40 real messages with the OpenAI key; 1.17 Oban job from new message events to proposals; 1.19 Inbox and 1.20 Kanban on the real API; 1.26 last-admin guard |
-| Soha | 0.10 Discord app and bot token; 0.15 channel consent; 1.13 Discord ingest (mapped channels only, writes events); 0.11 Kapso account and a "task assigned" template; 1.15 Kapso send; 1.25 real email delivery for invites and magic links |
+| Saish | Done, in review: 1.23, 1.24, 1.19, 1.20, 1.26. Next: 0.3 schema (graph part); 0.5 FalkorDB client spike; 1.8 event log (Postgres, idempotent on platform + message id); 1.9 graph wrapper on local FalkorDB (`docker compose --profile graph up`); 1.10 projector; 1.11 identity (Discord user to Person through `people.handles`); 1.17 Oban job from new message events to proposals; 0.9 run on 40 real messages once the OpenAI key is in; 1.3 LLM usage logging |
+| Soha | 0.10 Discord app and bot token; 0.15 channel consent; 1.13 Discord ingest (mapped channels only; call `Noa.Work.record_message/2` for each message, and the extraction job 1.17 turns them into proposals); 0.11 Kapso account and a "task assigned" template; 1.15 Kapso send; 1.25 real email delivery; 0.1 confirm NYI's daily tools; 0.12 and 1.2 Fly deploy with FalkorDB Cloud, by Oct 17 evening |
 
 Moved out of Phase 1:
 
@@ -195,9 +195,8 @@ The demo story: Saish asks to move the Board report PDF to Monday, Vedant approv
 
 | Owner | Must have | If time |
 | --- | --- | --- |
-| Vedant | 2.19 change records; 2.20 lead approval rules; 2.14 live updates; 2.16 permission tests | 2.2 auto-apply with undo |
-| Saish | 2.1 status, blocker and deadline extraction; 2.4 decisions; 2.5 `@noa` with citations (web and Discord); 2.12 My day on real data; 2.18 Decided today | 2.3 duplicates; 2.11 read-only timeline |
-| Soha | 2.6 approve from Discord; 2.21 change notifications on WhatsApp; 2.7 WhatsApp "done" replies; 2.13 task detail | 2.9 digest; 2.15 notification preferences |
+| Saish | 2.12 My day on real data; 2.1 status, blocker and deadline extraction; 2.19 change records; 2.20 lead approval rules; 2.4 decisions; 2.18 Decided today; 2.5 `@noa` with citations (web; Soha's bot calls the same function for Discord); 2.16 permission tests | 2.2 auto-apply with undo; 2.3 duplicates; 2.11 read-only timeline; 2.15 notification preferences |
+| Soha | 2.14 live board and Inbox over Phoenix Channels; 2.6 approve from Discord; 2.21 change notifications on WhatsApp; 2.7 WhatsApp "done" replies move cards; 2.13 task detail with sources and history | 2.9 daily digest on WhatsApp |
 
 Proposed cuts: 2.8 Meet transcripts (needs Google verification and the 0.7 spike); 2.10 edits (handle deletes only); 2.17 eval harness (run the golden set by hand once for the README).
 
@@ -207,15 +206,14 @@ The demo story: Vedant drags Soha from Video Break to Emmarie, confirms, and Soh
 
 | Owner | Must have | If time |
 | --- | --- | --- |
-| Vedant | 3.1 shift backend; 3.3 experts by PageRank ("people to meet") and bus factor; 3.18 pack generator (`CLAUDE.md`, `tasks.md`) | 3.6 MCP server |
-| Saish | 3.17 staffing board with the confirm popover (absorbs 3.11); 3.2 KT brief; 3.9 portfolio on real data | 3.19 `brief.md` only |
-| Soha | 3.5 KT delivery on WhatsApp; 3.10 project page on real data; 3.20 access checklist; 3.15 run the real shift with the team | 1.12 v1 import |
+| Saish | 3.1 shift backend; 3.17 staffing board with the confirm popover (absorbs 3.11); 3.3 experts by PageRank ("people to meet") and bus factor; 3.2 KT brief; 3.9 portfolio on real data | 3.19 `brief.md` only |
+| Soha | 3.18 agent pack generator (`CLAUDE.md`, `tasks.md` from the project); 3.5 KT delivery on WhatsApp; 3.10 project page tabs on real data; 3.20 access checklist; 3.15 run the real shift with the team | 3.6 MCP server; 1.12 v1 import |
 
 Proposed cuts: 3.4 slip propagation, 3.7 GitHub, 3.8 voice notes, 3.12 (folded into 3.2), 3.13 graph panel, 3.14 beyond the first slice that exists, 3.16 (one replay test instead), 3.21 beyond one-time links, 3.22 MCP tokens, 3.23 "add to repo" PR.
 
 ### Phase 4: Harden and ship (Oct 18)
 
-As below, plus the minimal channel-map page for 4.6, Logfire and Sentry, and the landing night images.
+Saish: freeze (4.1), load test (4.2), security pass (4.3), video (4.7), README and blog (4.8), submit (4.9). Soha: empty and error states (4.4), landing, privacy and terms (4.5), second-team test with a minimal channel-map page (4.6). Plus Logfire and Sentry, and the landing night images.
 
 ### Blockers to clear today
 

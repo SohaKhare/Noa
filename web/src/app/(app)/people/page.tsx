@@ -96,7 +96,7 @@ export default function People() {
                         type="checkbox"
                         checked={checked[i] ?? false}
                         onChange={() => setChecked((c) => c.map((v, j) => (j === i ? !v : v)))}
-                        className="size-4 accent-[#1E3A2F]"
+                        className="size-4 accent-[#1B4F8A]"
                       />
                       {s}
                     </label>

@@ -48,6 +48,18 @@ defmodule Noa.Orgs do
     |> Ash.exists?(authorize?: false)
   end
 
+  @doc "The user's role in the org, or nil when they are not in it."
+  def role(user_id, org_id) do
+    Membership
+    |> Ash.Query.filter(user_id == ^user_id and org_id == ^org_id)
+    |> Ash.Query.select([:role])
+    |> Ash.read_one!(authorize?: false)
+    |> case do
+      nil -> nil
+      m -> m.role
+    end
+  end
+
   @doc "A user's memberships with their orgs, for the signed-in payload."
   def memberships_for(%User{id: user_id}) do
     Membership
@@ -195,6 +207,10 @@ defmodule Noa.Orgs do
         |> Ash.update!(authorize?: false)
 
         user
+      end)
+      |> tap(fn
+        {:ok, _user} -> Noa.Work.link_people(invite.org_id)
+        _ -> :ok
       end)
     end
   end

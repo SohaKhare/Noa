@@ -27,7 +27,7 @@ Same rules as v1's distiller:
 | Max window | 50 Episodes | Keeps one call small; long sessions are chunked |
 | Overlap | 5 Episodes | An item that spans a chunk boundary is still seen whole |
 | Prior context | 5 Episodes before the window | Lets "on it" resolve against the question above it |
-| Schedule | every 15 min per active channel | No per-message model calls |
+| Schedule | 20 s after a channel's latest message (`debounce_seconds`) | One job waits per channel, so a burst of chat is one model call, and the Inbox still fills during the demo |
 
 Each line goes to the model as `[sequence] Author: body`. The model cites sequences; the job maps them back to Episode ids, so every item gets `EXTRACTED_FROM` edges.
 
@@ -150,7 +150,7 @@ Each surviving item becomes a `ProposalCreated` event with its type, payload, Ep
 
 ## Code
 
-The contract is implemented in `api/lib/noa/extraction/` as plain Elixir with no database, so it runs before the Phoenix app exists. The Phoenix app calls it from an Oban job and turns each proposal into a `ProposalCreated` event.
+The contract is implemented in `api/lib/noa/extraction/` as plain Elixir with no database, so it runs before the Phoenix app exists. The Phoenix app calls it from the Oban job `Noa.Work.Extract` (1.17), which saves proposals with `Noa.Work.save_proposals/3`; each one is logged as `proposal.saved`.
 
 | Module | Does |
 | --- | --- |

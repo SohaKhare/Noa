@@ -1,17 +1,17 @@
 /*
   Noa is a cat: quiet, always listening (ears up), never in the way.
-  CatMark  = app/logo tile (cream cat face on forest green).
+  CatMark  = app/logo tile (cream cat face on Noa blue).
   CatFace  = bare face for avatars.
   CatSit   = full mascot, sitting with a curled tail.
   CatPeek  = head and paws peeking over the top edge of a card.
   Motion is small and foreground only: blink, ear twitch, tail sway (see .cat-* in globals.css).
 */
 
-const GREEN = "#1E3A2F";
+const BLUE = "#1B4F8A";
 const CREAM = "#F4F1E6";
 const CORAL = "#D9734E";
 
-function Face({ ink = GREEN, fur = CREAM, animate = false }: { ink?: string; fur?: string; animate?: boolean }) {
+function Face({ ink = BLUE, fur = CREAM, animate = false }: { ink?: string; fur?: string; animate?: boolean }) {
   return (
     <g>
       <g className={animate ? "cat-ear-l" : undefined} style={{ transformOrigin: "21px 27px" }}>
@@ -37,7 +37,7 @@ function Face({ ink = GREEN, fur = CREAM, animate = false }: { ink?: string; fur
 export function CatMark({ size = 28, className = "" }: { size?: number; className?: string }) {
   return (
     <svg aria-hidden viewBox="0 0 64 64" width={size} height={size} className={`shrink-0 ${className}`}>
-      <rect width="64" height="64" rx="18" fill={GREEN} />
+      <rect width="64" height="64" rx="18" fill={BLUE} />
       <g transform="translate(0 3)">
         <Face />
       </g>
@@ -58,18 +58,18 @@ export function CatSit({ size = 120, className = "" }: { size?: number; classNam
     <svg aria-hidden viewBox="0 0 120 120" width={size} height={size} className={`shrink-0 overflow-visible ${className}`}>
       <path
         d="M80 104 C104 104 110 80 96 70"
-        stroke={GREEN}
+        stroke={BLUE}
         strokeWidth="9"
         strokeLinecap="round"
         fill="none"
         className="cat-tail"
         style={{ transformOrigin: "80px 104px" }}
       />
-      <path d="M38 106 C32 82 40 60 60 60 C80 60 88 82 82 106 Z" fill={GREEN} />
-      <ellipse cx="50" cy="105" rx="7" ry="3.6" fill="#2B4D3F" />
-      <ellipse cx="70" cy="105" rx="7" ry="3.6" fill="#2B4D3F" />
+      <path d="M38 106 C32 82 40 60 60 60 C80 60 88 82 82 106 Z" fill={BLUE} />
+      <ellipse cx="50" cy="105" rx="7" ry="3.6" fill="#163E6E" />
+      <ellipse cx="70" cy="105" rx="7" ry="3.6" fill="#163E6E" />
       <g transform="translate(28 8)">
-        <Face ink={CREAM} fur={GREEN} animate />
+        <Face ink={CREAM} fur={BLUE} animate />
       </g>
     </svg>
   );
@@ -79,15 +79,15 @@ export function CatPeek({ size = 84, className = "" }: { size?: number; classNam
   return (
     <svg aria-hidden viewBox="4 6 56 44" width={size} height={size * (44 / 56)} className={`shrink-0 overflow-visible ${className}`}>
       <g clipPath="url(#peek-clip)">
-        <Face ink={CREAM} fur={GREEN} animate />
+        <Face ink={CREAM} fur={BLUE} animate />
       </g>
       <defs>
         <clipPath id="peek-clip">
           <rect x="0" y="0" width="64" height="44" />
         </clipPath>
       </defs>
-      <ellipse cx="22" cy="45" rx="6" ry="3.4" fill={GREEN} />
-      <ellipse cx="42" cy="45" rx="6" ry="3.4" fill={GREEN} />
+      <ellipse cx="22" cy="45" rx="6" ry="3.4" fill={BLUE} />
+      <ellipse cx="42" cy="45" rx="6" ry="3.4" fill={BLUE} />
     </svg>
   );
 }

@@ -6,6 +6,8 @@ if config_env() == :prod do
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
     socket_options: if(System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: [])
 
+  config :noa, Noa.Graph, url: System.get_env("FALKORDB_URL"), projector: true
+
   config :noa,
     web_origin: System.fetch_env!("WEB_ORIGIN"),
     api_base_url: System.fetch_env!("API_BASE_URL"),

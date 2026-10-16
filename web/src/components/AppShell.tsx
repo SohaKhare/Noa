@@ -28,7 +28,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { roleLabel, signOut } from "@/lib/api";
-import { notifications, project, projects, proposals, type Notification } from "@/lib/mock";
+import { notifications, type Notification } from "@/lib/mock";
+import { useDirectory, useProposals } from "@/lib/work";
 import { currentMembership, initials, isOrgAdmin, useMe, useSetMe } from "@/lib/session";
 import { BrandMark } from "./BrandMark";
 import { Avatar } from "./ui";
@@ -39,7 +40,7 @@ type NavItem = { href: string; label: string; Icon: Icon; count?: number };
 
 const work: NavItem[] = [
   { href: "/", label: "My day", Icon: SunHorizonIcon },
-  { href: "/inbox", label: "Inbox", Icon: TrayIcon, count: proposals.length },
+  { href: "/inbox", label: "Inbox", Icon: TrayIcon },
   { href: "/ask", label: "Ask Noa", Icon: ChatCircleDotsIcon },
 ];
 const team: NavItem[] = [
@@ -67,6 +68,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const setMe = useSetMe();
   const membership = currentMembership(user);
   const admin = isOrgAdmin(user);
+  const { projects } = useDirectory();
+  const inbox = useProposals().data?.length ?? 0;
 
   // Invite-only: signed-out people go to sign in; a superadmin with no workspace goes to the console.
   useEffect(() => {
@@ -100,7 +103,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </button>
 
         <nav aria-label="App" className="mt-4 flex-1 overflow-y-auto px-3 pb-3">
-          <NavGroup items={work} active={active} />
+          <NavGroup items={work.map((w) => (w.href === "/inbox" ? { ...w, count: inbox } : w))} active={active} />
 
           <SectionLabel
             action={
@@ -115,21 +118,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             {projects.map((p) => (
               <li key={p.id}>
                 <Link
-                  href={`/projects/${p.id}`}
+                  href={`/projects/${p.key}`}
                   className={cn(
                     "flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] transition-colors",
-                    path.startsWith(`/projects/${p.id}`) ? "bg-mist font-medium text-ink" : "text-ink/70 hover:bg-bg hover:text-ink",
+                    path.startsWith(`/projects/${p.key}`) ? "bg-mist font-medium text-ink" : "text-ink/70 hover:bg-bg hover:text-ink",
                   )}
                 >
                   <FolderSimpleIcon size={15} className="text-muted" />
                   <span className="truncate">{p.name}</span>
-                  <span
-                    className={cn(
-                      "ml-auto size-1.5 shrink-0 rounded-full",
-                      p.health === "on_track" ? "bg-good" : p.health === "at_risk" ? "bg-warn" : "bg-bad",
-                    )}
-                    title={p.health.replace("_", " ")}
-                  />
                 </Link>
               </li>
             ))}
@@ -216,6 +212,7 @@ function SectionLabel({ children, action }: { children: ReactNode; action?: Reac
 }
 
 function TopBar({ path }: { path: string }) {
+  const { project } = useDirectory();
   const parts = path.split("/").filter(Boolean);
   const crumbs: { label: string; href?: string }[] = [
     { label: titles[parts[0] ?? ""] ?? "Noa", href: parts.length > 1 ? `/${parts[0]}` : undefined },

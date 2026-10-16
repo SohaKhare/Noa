@@ -27,7 +27,7 @@ Exit test: Skeleton deploys to Fly with login; API reaches FalkorDB; graph and e
 | 0.2 | Ask organizers: judging, multi-track, Tulpa v1 reuse split | New | Saish | Not started |  |
 | 0.3 | Freeze graph schema, extraction schemas, API contracts | New | Saish | Not started |  |
 | 0.4 | Wireframes for every page (UI and flows tab) | New | Saish | Not started |  |
-| 0.5 | Spike: falkordb Elixir client (vector, full-text, PageRank, paths) | New | Saish | In review |  |
+| 0.5 | Spike: falkordb Elixir client (vector, full-text, PageRank, paths) | New | Saish | In review | #2 |
 | 0.6 | Spike: Kapso send, receive, buttons, signed webhooks | New | Soha | Not started |  |
 | 0.7 | Spike: Google Meet transcript API on one NYI meeting | New | Soha | Not started |  |
 | 0.8 | Spike: ash_ai tools + MCP, ash_typescript, React Gantt library | New | Saish | Not started |  |
@@ -58,10 +58,10 @@ Exit test: A real Discord message becomes a proposed task in the right project a
 | 1.5 | Orgs, invites, access requests | Copy | Saish | In review | #1 |
 | 1.6 | Roles and Ash policies: superadmin, org admin, PM/lead, member, guest | New | Saish | In review | #1 |
 | 1.7 | Web shell: login and invite pages, dashboard layout, shadcn theme | Copy | Saish | In review | #1 |
-| 1.8 | Event log: append-only, idempotent, projections | Port | Saish | In review |  |
-| 1.9 | `Noa.Graph` wrapper, schema bootstrap, indexes | New | Saish | In review |  |
-| 1.10 | Event-to-FalkorDB projector | New | Saish | In review |  |
-| 1.11 | Identity: `Person` + `Identity` nodes | Port | Saish | In review |  |
+| 1.8 | Event log: append-only, idempotent, projections | Port | Saish | In review | #2 |
+| 1.9 | `Noa.Graph` wrapper, schema bootstrap, indexes | New | Saish | In review | #2 |
+| 1.10 | Event-to-FalkorDB projector | New | Saish | In review | #2 |
+| 1.11 | Identity: `Person` + `Identity` nodes | Port | Saish | In review | #2 |
 | 1.12 | Import Tulpa v1 history, decisions, projects, aliases, people | Import | Soha | Not started |  |
 | 1.13 | Discord ingest: privacy gate, consumer, membership, backfill | Port | Soha | Not started |  |
 | 1.14 | Slack Events webhook ingest | New | Soha | Not started |  |
@@ -69,14 +69,14 @@ Exit test: A real Discord message becomes a proposed task in the right project a
 | 1.16 | Project routing: channel map, aliases, thread, author's projects | New | Saish | In review | #1 |
 | 1.17 | Task extraction v1 to proposals (from v1 distiller prompt) | Port | Saish | In review | #1 |
 | 1.18 | Onboarding: connect sources, map channels, add people and allocations | New | Soha | Not started |  |
-| 1.19 | Inbox page (proposals) | New | Saish | In review |  |
-| 1.20 | Kanban board | New | Saish | In review |  |
+| 1.19 | Inbox page (proposals) | New | Saish | In review | #2 |
+| 1.20 | Kanban board | New | Saish | In review | #2 |
 | 1.21 | Typed extraction schemas: Ecto embedded schemas to strict JSON schema, validated with InstructorLite | Port | Saish | In review | #1 |
 | 1.22 | Reporting lines (reports-to) in org map and people settings | New | Saish | In review | #1 |
-| 1.23 | Seed loader: `mix noa.seed` loads `docs/seeds/nyi.json` (projects, channels, aliases, allocations, git handles) | New | Saish | In review |  |
-| 1.24 | Work API: projects, tasks and proposals as Ash resources with policies; endpoints the web app uses instead of `mock.ts` | New | Saish | In review |  |
+| 1.23 | Seed loader: `mix noa.seed` loads `docs/seeds/nyi.json` (projects, channels, aliases, allocations, git handles) | New | Saish | In review | #2 |
+| 1.24 | Work API: projects, tasks and proposals as Ash resources with policies; endpoints the web app uses instead of `mock.ts` | New | Saish | In review | #2 |
 | 1.25 | Real email delivery for invites, magic links and resets (Swoosh adapter in prod) | New | Soha | Not started |  |
-| 1.26 | Guard against removing or demoting a workspace's last admin | New | Saish | In review |  |
+| 1.26 | Guard against removing or demoting a workspace's last admin | New | Saish | In review | #2 |
 
 ## Phase 2: Work loop (Oct 17, 11:00 to 20:00)
 
@@ -97,7 +97,7 @@ Exit test: NYI uses no other tracker; a developer and a non-tech teammate both r
 | 2.9 | Daily digest per person (from v1 recap) | Port | Soha | Not started |  |
 | 2.10 | Message edit and delete handling | New | Unassigned | Not started |  |
 | 2.11 | Gantt timeline: milestones, dependencies, drag dates | New | Saish | Not started |  |
-| 2.12 | My day and my work (simple and detailed views) | New | Saish | In review |  |
+| 2.12 | My day and my work (simple and detailed views) | New | Saish | In review | #2 |
 | 2.13 | Task detail: sources, history, undo | New | Soha | Not started |  |
 | 2.14 | Live updates over Phoenix Channels | New | Soha | Not started |  |
 | 2.15 | Notification preferences: channel, digest time, quiet hours | New | Saish | Not started |  |

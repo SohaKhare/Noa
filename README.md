@@ -50,7 +50,7 @@ Slack · Discord · Google Meet · WhatsApp (Kapso) · GitHub
 | Backend | Elixir, Phoenix, Ash 3 (AshPostgres, AshAuthentication, policies), Oban |
 | Graph | FalkorDB Cloud via the official [`falkordb`](https://hex.pm/packages/falkordb) Hex client |
 | AI | OpenAI Structured Outputs through InstructorLite; `ash_ai` for agent tools and MCP |
-| Frontend | React + Vite, TanStack, shadcn/ui, dnd-kit, `ash_typescript` RPC client, Phoenix Channels |
+| Frontend | Next.js 16 for the app (`web/`) and the marketing site (`landing/`), Tailwind v4, Motion, dnd-kit, `ash_typescript` RPC client, Phoenix Channels |
 | Connectors | Discord (Nostrum), Slack Events API, Google Meet REST, WhatsApp via [Kapso](https://kapso.com/) |
 | Ops | Fly.io, Postgres, Logfire / OpenTelemetry, Sentry, GitHub Actions |
 
@@ -66,12 +66,22 @@ Slack · Discord · Google Meet · WhatsApp (Kapso) · GitHub
 
 ## Getting started
 
-Coming with the Day 1 scaffold. It will cover:
+Frontend (Node 22+, pnpm 11):
 
-- prerequisites (Elixir, Node, Postgres, a FalkorDB instance)
-- `.env` setup (FalkorDB, OpenAI, Discord, Slack, Google and Kapso credentials)
-- running the API and web app locally
-- connecting a Discord server and mapping channels to projects
+```bash
+pnpm install
+pnpm dev:web       # app on http://localhost:3000 (sample data until the API is wired)
+pnpm dev:landing   # marketing site on http://localhost:3001
+```
+
+| Path | What |
+| --- | --- |
+| `web/` | Next.js app: My day, Inbox, project board / timeline / decisions / KT, Portfolio, People (staffing board), Agent pack, Ask Noa, Login, Onboarding |
+| `landing/` | Next.js marketing site with animated feature scenes |
+| `packages/theme/` | Shared design tokens (Tailwind v4) |
+| `api/` | Phoenix + Ash backend (coming in Phase 0) |
+
+API setup (Elixir, Postgres, FalkorDB, `.env` keys) lands with the `api/` scaffold.
 
 ## Build plan
 

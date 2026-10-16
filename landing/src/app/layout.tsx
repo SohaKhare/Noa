@@ -1,0 +1,56 @@
+import type { Metadata, Viewport } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import "lenis/dist/lenis.css";
+import "./globals.css";
+import { SmoothScroll } from "@/components/SmoothScroll";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+const description =
+  "Noa turns your team's Discord, Slack, Meet and WhatsApp conversations into tasks, owners, deadlines and decisions, kept current and always cited.";
+
+export const metadata: Metadata = {
+  title: "Noa: your company brain",
+  description,
+  applicationName: "Noa",
+  openGraph: {
+    type: "website",
+    siteName: "Noa",
+    title: "Noa: your company brain",
+    description,
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Noa: your company brain",
+    description,
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#F2F1EE",
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+      <body className="min-h-full bg-bg font-sans text-ink">
+        <a
+          href="#main"
+          className="sr-only z-[60] rounded-full bg-accent px-4 py-2 text-sm text-white focus:not-sr-only focus:fixed focus:top-4 focus:left-4"
+        >
+          Skip to content
+        </a>
+        <SmoothScroll>{children}</SmoothScroll>
+      </body>
+    </html>
+  );
+}

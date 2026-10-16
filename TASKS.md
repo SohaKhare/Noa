@@ -36,12 +36,12 @@ Exit test: Skeleton deploys to Fly with login; API reaches FalkorDB; graph and e
 | 0.11 | Kapso account, 3 WhatsApp templates, start Meta verification | New | Soha | Not started |  |
 | 0.12 | FalkorDB Cloud, Fly.io, Postgres, Logfire, Sentry, domain | Copy | Vedant | Not started |  |
 | 0.13 | Privacy policy and terms text | New | Soha | Not started |  |
-| 0.14 | NYI org map: projects, people, roles, reporting lines, allocations, channel-to-project | New | Saish | In review |  |
+| 0.14 | NYI org map: projects, people, roles, reporting lines, allocations, channel-to-project | New | Saish | In review | #1 |
 | 0.15 | Team consent for channels; export Tulpa v1 data | Import | Soha | Not started |  |
 | 0.16 | 40-question golden set from real NYI questions | New | Soha | Not started |  |
-| 0.17 | Design direction: reference board, theme, colors, type, light and dark | New | Saish | Done |  |
-| 0.18 | Design kit: shadcn tokens and core components (task card, person chip, status pill, panels) | New | Saish | Done |  |
-| 0.19 | Landing page design and copy | New | Saish | Done |  |
+| 0.17 | Design direction: reference board, theme, colors, type, light and dark | New | Saish | Done | #1 |
+| 0.18 | Design kit: shadcn tokens and core components (task card, person chip, status pill, panels) | New | Saish | Done | #1 |
+| 0.19 | Landing page design and copy | New | Saish | Done | #1 |
 
 ## Phase 1: Chat to Kanban (Oct 16 to Oct 17, 11:00)
 
@@ -54,10 +54,10 @@ Exit test: A real Discord message becomes a proposed task in the right project a
 | 1.1 | New repo | Copy | Soha | Done |  |
 | 1.2 | Fly deploy: Dockerfiles, `fly.toml`, release migrations | Copy | Vedant | Not started |  |
 | 1.3 | Observability: Logfire/OpenTelemetry, LLM audit and usage | Copy | Vedant | Not started |  |
-| 1.4 | Auth: password, magic link, Google, reset (AshAuthentication) | Copy | Saish | In review |  |
-| 1.5 | Orgs, invites, access requests | Copy | Saish | In review |  |
-| 1.6 | Roles and Ash policies: superadmin, org admin, PM/lead, member, guest | New | Saish | In review |  |
-| 1.7 | Web shell: login and invite pages, dashboard layout, shadcn theme | Copy | Saish | In review |  |
+| 1.4 | Auth: password, magic link, Google, reset (AshAuthentication) | Copy | Saish | In review | #1 |
+| 1.5 | Orgs, invites, access requests | Copy | Saish | In review | #1 |
+| 1.6 | Roles and Ash policies: superadmin, org admin, PM/lead, member, guest | New | Saish | In review | #1 |
+| 1.7 | Web shell: login and invite pages, dashboard layout, shadcn theme | Copy | Saish | In review | #1 |
 | 1.8 | Event log: append-only, idempotent, projections | Port | Vedant | Not started |  |
 | 1.9 | `Noa.Graph` wrapper, schema bootstrap, indexes | New | Vedant | Not started |  |
 | 1.10 | Event-to-FalkorDB projector | New | Vedant | Not started |  |
@@ -66,13 +66,13 @@ Exit test: A real Discord message becomes a proposed task in the right project a
 | 1.13 | Discord ingest: privacy gate, consumer, membership, backfill | Port | Soha | Not started |  |
 | 1.14 | Slack Events webhook ingest | New | Soha | Not started |  |
 | 1.15 | Kapso WhatsApp send and receive | New | Soha | Not started |  |
-| 1.16 | Project routing: channel map, aliases, thread, author's projects | New | Saish | In review |  |
-| 1.17 | Task extraction v1 to proposals (from v1 distiller prompt) | Port | Saish | In review |  |
+| 1.16 | Project routing: channel map, aliases, thread, author's projects | New | Saish | In review | #1 |
+| 1.17 | Task extraction v1 to proposals (from v1 distiller prompt) | Port | Saish | In review | #1 |
 | 1.18 | Onboarding: connect sources, map channels, add people and allocations | New | Soha | Not started |  |
 | 1.19 | Inbox page (proposals) | New | Saish | In progress |  |
 | 1.20 | Kanban board | New | Saish | In progress |  |
-| 1.21 | Typed extraction schemas: Ecto embedded schemas to strict JSON schema, validated with InstructorLite | Port | Saish | In review |  |
-| 1.22 | Reporting lines (reports-to) in org map and people settings | New | Saish | In review |  |
+| 1.21 | Typed extraction schemas: Ecto embedded schemas to strict JSON schema, validated with InstructorLite | Port | Saish | In review | #1 |
+| 1.22 | Reporting lines (reports-to) in org map and people settings | New | Saish | In review | #1 |
 | 1.23 | Seed loader: `mix noa.seed` loads `docs/seeds/nyi.json` (projects, channels, aliases, allocations, git handles) | New | Saish | Not started |  |
 | 1.24 | Work API: projects, tasks and proposals as Ash resources with policies; endpoints the web app uses instead of `mock.ts` | New | Vedant | Not started |  |
 | 1.25 | Real email delivery for invites, magic links and resets (Swoosh adapter in prod) | New | Soha | Not started |  |

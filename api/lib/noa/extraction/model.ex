@@ -51,7 +51,8 @@ end
 defmodule Noa.Extraction.Model.Stub do
   @moduledoc """
   Returns canned model output so tests never call a model. Pass the decoded response
-  as `opts[:response]`, or a function of the window as `opts[:respond]`.
+  as `opts[:response]`, or a function of the window as `opts[:respond]` or as
+  `config :noa, Noa.Extraction, respond: fun`.
   """
 
   @behaviour Noa.Extraction.Model
@@ -63,9 +64,17 @@ defmodule Noa.Extraction.Model.Stub do
     raw =
       case Keyword.fetch(opts, :respond) do
         {:ok, fun} -> fun.(window)
-        :error -> Keyword.get(opts, :response, %{})
+        :error -> Keyword.get_lazy(opts, :response, fn -> configured(window) end)
       end
 
     Result.from_map(raw, %{window: window, vocabulary: vocab})
+  end
+
+  # Tests of the extraction job set `config :noa, Noa.Extraction, respond: fun`.
+  defp configured(window) do
+    case Application.get_env(:noa, Noa.Extraction, [])[:respond] do
+      nil -> %{}
+      fun -> fun.(window)
+    end
   end
 end

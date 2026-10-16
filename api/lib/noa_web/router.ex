@@ -45,6 +45,15 @@ defmodule NoaWeb.Router do
     get("/orgs/:org_id/invites", OrgController, :invites)
     post("/orgs/:org_id/invites", OrgController, :create_invite)
     delete("/orgs/:org_id/invites/:id", OrgController, :revoke_invite)
+
+    # Work (1.24): everyone in the org reads; policies decide writes.
+    get("/orgs/:org_id/directory", WorkController, :directory)
+    get("/orgs/:org_id/tasks", WorkController, :tasks)
+    post("/orgs/:org_id/tasks", WorkController, :create_task)
+    patch("/orgs/:org_id/tasks/:id", WorkController, :update_task)
+    get("/orgs/:org_id/proposals", WorkController, :proposals)
+    post("/orgs/:org_id/proposals/:id/approve", WorkController, :approve)
+    post("/orgs/:org_id/proposals/:id/reject", WorkController, :reject)
   end
 
   scope "/api/platform", NoaWeb do

@@ -1,7 +1,8 @@
 /*
   Client for the Phoenix API (api/). Auth is an httpOnly session cookie set by the API,
   so every call sends credentials. Shapes match api/lib/noa_web/payload.ex.
-  Work data (tasks, projects) still comes from lib/mock.ts until those APIs exist.
+  Projects, people, tasks and the Inbox come from the work API (1.24). Pages not wired
+  yet still read lib/mock.ts.
 */
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -94,5 +95,75 @@ export const revokeInvite = (orgId: string, id: string) => api(`/api/orgs/${orgI
 export const getPlatformOrgs = () => api<{ orgs: PlatformOrg[] }>("/api/platform/orgs").then((r) => r.orgs);
 export const createWorkspace = (data: { name: string; domains: string; admin_email: string; admin_title?: string }) =>
   post<{ org: Org; invite: Invite; url: string }>("/api/platform/orgs", data);
+
+// Work (1.24)
+export type TaskStatus = "todo" | "in_progress" | "blocked" | "done";
+export type Allocation = { person_id: string; project_id: string; percent: number; role: string | null; starts_on: string };
+export type WorkPerson = {
+  id: string;
+  key: string;
+  name: string;
+  title: string | null;
+  handles: string[];
+  joined: boolean;
+  role: Role | null;
+  allocations: Allocation[];
+};
+export type WorkProject = {
+  id: string;
+  key: string;
+  name: string;
+  about: string | null;
+  repo: string | null;
+  status: "active" | "paused" | "done";
+  lead_id: string | null;
+  aliases: string[];
+  allocations: Allocation[];
+};
+export type Channel = { id: string; platform: "discord" | "slack" | "whatsapp"; name: string; project_id: string | null; split: boolean; read: boolean };
+export type Directory = { me: string | null; people: WorkPerson[]; projects: WorkProject[]; channels: Channel[] };
+export type MessageSource = { channel?: string; author?: string; at?: string; quote?: string; episode_id?: string };
+export type WorkTask = {
+  id: string;
+  title: string;
+  detail: string | null;
+  status: TaskStatus;
+  due_on: string | null;
+  blocked_reason: string | null;
+  project_id: string;
+  owner_id: string | null;
+  source: MessageSource | null;
+  done_at: string | null;
+  inserted_at: string;
+};
+export type ProposalKind = "task" | "status_change" | "deadline_change" | "decision" | "scope_change";
+export type WorkProposal = {
+  id: string;
+  kind: ProposalKind;
+  summary: string;
+  data: Record<string, unknown> & { title?: string; due?: string; new_due?: string; status?: TaskStatus; route?: { rule: string; candidates?: string[] } };
+  confidence: number | null;
+  source: MessageSource | null;
+  status: "pending" | "approved" | "rejected";
+  project_id: string | null;
+  owner_id: string | null;
+  task_id: string | null;
+  inserted_at: string;
+};
+export type ApproveEdits = { summary?: string; project_id?: string; owner_id?: string; data?: { title?: string; due?: string; new_due?: string } };
+
+export const getDirectory = (orgId: string) => api<Directory>(`/api/orgs/${orgId}/directory`);
+export const getTasks = (orgId: string, filters: { project_id?: string; owner_id?: string; open?: boolean } = {}) => {
+  const q = new URLSearchParams(Object.entries(filters).filter(([, v]) => v !== undefined && v !== false).map(([k, v]) => [k, String(v)]));
+  return api<{ tasks: WorkTask[] }>(`/api/orgs/${orgId}/tasks${q.size ? `?${q}` : ""}`).then((r) => r.tasks);
+};
+export const createTask = (orgId: string, data: Partial<WorkTask> & { title: string; project_id: string }) =>
+  post<{ task: WorkTask }>(`/api/orgs/${orgId}/tasks`, data).then((r) => r.task);
+export const updateTask = (orgId: string, id: string, data: Partial<Pick<WorkTask, "title" | "detail" | "status" | "due_on" | "blocked_reason" | "owner_id" | "project_id">>) =>
+  api<{ task: WorkTask }>(`/api/orgs/${orgId}/tasks/${id}`, { method: "PATCH", body: JSON.stringify(data) }).then((r) => r.task);
+export const getProposals = (orgId: string) => api<{ proposals: WorkProposal[] }>(`/api/orgs/${orgId}/proposals`).then((r) => r.proposals);
+export const approveProposal = (orgId: string, id: string, edits: ApproveEdits = {}) =>
+  post<{ proposal: WorkProposal; task: WorkTask | null }>(`/api/orgs/${orgId}/proposals/${id}/approve`, edits);
+export const rejectProposal = (orgId: string, id: string) => post<{ proposal: WorkProposal }>(`/api/orgs/${orgId}/proposals/${id}/reject`);
 
 export const roleLabel: Record<Role, string> = { org_admin: "Admin · lead", pm: "PM / lead", member: "Member", guest: "Guest" };

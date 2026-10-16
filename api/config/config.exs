@@ -1,8 +1,17 @@
 import Config
 
+# The graph (1.9). Locally: `docker compose --profile graph up -d`. Prod sets FALKORDB_URL.
+config :noa, Noa.Graph, url: "redis://127.0.0.1:6379", projector: true
+
+# Background jobs. Extraction runs one channel at a time per org (1.17).
+config :noa, Oban, repo: Noa.Repo, queues: [extraction: 2]
+
+# Extraction waits this long after a channel's latest message, so a burst is one model call.
+config :noa, Noa.Extraction, debounce_seconds: 20, utc_offset: 19_800
+
 config :noa,
   ecto_repos: [Noa.Repo],
-  ash_domains: [Noa.Accounts, Noa.Orgs],
+  ash_domains: [Noa.Accounts, Noa.Orgs, Noa.Work],
   web_origin: "http://localhost:3000",
   api_base_url: "http://localhost:4000",
   mail_from: {"Noa", "no-reply@noa.local"},

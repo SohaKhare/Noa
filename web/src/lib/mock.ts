@@ -9,6 +9,7 @@ export type Status = "proposed" | "todo" | "in_progress" | "blocked" | "done";
 export type Person = { id: string; name: string; initials: string; title: string; role: Role; reportsTo?: string };
 export type Project = {
   id: string;
+  key: string;
   name: string;
   health: "on_track" | "at_risk" | "blocked";
   nextDeadline: string;
@@ -52,10 +53,10 @@ export const people: Person[] = [
 
 /* Real NYI projects (~/code/nyi). Ids stay short because routes use them. */
 export const projects: Project[] = [
-  { id: "a", name: "Veriq", health: "at_risk", nextDeadline: "Oct 17", blockers: 1, lead: "ve" },
-  { id: "b", name: "Emmarie", health: "on_track", nextDeadline: "Oct 30", blockers: 1, lead: "oj" },
-  { id: "c", name: "Video Break", health: "on_track", nextDeadline: "Oct 24", blockers: 0, lead: "ab" },
-  { id: "d", name: "Tulpa", health: "blocked", nextDeadline: "Oct 18", blockers: 2, lead: "ve" },
+  { id: "a", key: "veriq", name: "Veriq", health: "at_risk", nextDeadline: "Oct 17", blockers: 1, lead: "ve" },
+  { id: "b", key: "emmarie", name: "Emmarie", health: "on_track", nextDeadline: "Oct 30", blockers: 1, lead: "oj" },
+  { id: "c", key: "video-break", name: "Video Break", health: "on_track", nextDeadline: "Oct 24", blockers: 0, lead: "ab" },
+  { id: "d", key: "tulpa", name: "Tulpa", health: "blocked", nextDeadline: "Oct 18", blockers: 2, lead: "ve" },
 ];
 
 export const allocations: Allocation[] = [

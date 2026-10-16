@@ -27,8 +27,8 @@ export default function MyDay() {
         </p>
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
           <Stat Icon={TrayIcon} label="Waiting on you" value={`${proposals.length} proposals`} href="/inbox" />
-          <Stat Icon={GavelIcon} label="Decided today" value={`${decisions.length} decisions`} href="/projects/a" />
-          <Stat Icon={WarningCircleIcon} label="Blocked" value={blocked.map((b) => b.title).join(", ") || "Nothing"} href="/projects/a" tone="bad" />
+          <Stat Icon={GavelIcon} label="Decided today" value={`${decisions.length} decisions`} href="/projects/veriq" />
+          <Stat Icon={WarningCircleIcon} label="Blocked" value={blocked.map((b) => b.title).join(", ") || "Nothing"} href="/projects/veriq" tone="bad" />
         </div>
       </section>
 
@@ -36,7 +36,7 @@ export default function MyDay() {
         <div className="space-y-4">
           {byProject.map(({ p, items }) => (
             <section key={p.id} className="overflow-hidden rounded-[22px] bg-surface card-shadow">
-              <Link href={`/projects/${p.id}`} className="flex items-center justify-between border-b border-line px-5 py-3 hover:bg-bg">
+              <Link href={`/projects/${p.key}`} className="flex items-center justify-between border-b border-line px-5 py-3 hover:bg-bg">
                 <span className="text-[13.5px] font-semibold">{p.name}</span>
                 <span className="flex items-center gap-1 text-[12px] text-muted">
                   next {p.nextDeadline} <ArrowRightIcon size={12} />

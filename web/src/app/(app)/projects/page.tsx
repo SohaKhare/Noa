@@ -26,7 +26,7 @@ export default function Projects() {
           return (
             <Link
               key={p.id}
-              href={`/projects/${p.id}`}
+              href={`/projects/${p.key}`}
               className="group rounded-[22px] wash p-5 card-shadow transition-transform duration-300 ease-soft hover:-translate-y-0.5"
             >
               <div className="flex items-start justify-between gap-3">

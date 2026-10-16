@@ -14,7 +14,7 @@ services:
       interval: 2s
       retries: 30
 
-  # The graph (1.9). Not used by the API yet.
+  # The graph (1.9). The API runs without it; the projector catches up when it starts.
   falkordb:
     image: falkordb/falkordb:v4.10.3
     ports:

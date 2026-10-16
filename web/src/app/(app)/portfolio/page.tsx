@@ -37,7 +37,7 @@ export default function Portfolio() {
               {projects.map((p) => (
                 <tr key={p.id}>
                   <td className="px-5 py-3.5 font-medium">
-                    <Link href={`/projects/${p.id}`} className="hover:text-accent-fg">
+                    <Link href={`/projects/${p.key}`} className="hover:text-accent-fg">
                       {p.name}
                     </Link>
                   </td>

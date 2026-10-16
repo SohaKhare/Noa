@@ -27,6 +27,7 @@ Items 1.4 (auth), 1.5 (orgs and invites), 1.6 (roles and policies), 1.22 (report
 - **Invite links.** 32 random bytes, stored only as a SHA-256 hash, one use, 7-day expiry. Re-inviting the same email revokes the older link.
 - **Passwords.** At least 10 characters, hashed with PBKDF2. Magic-link and reset requests answer the same whether or not the email has an account.
 - **Sessions.** An httpOnly, `SameSite=Lax` cookie set by the API. The web app sends it with `credentials: "include"`; CORS allows only `WEB_ORIGIN`. Signed-in writes must be `application/json`, so another site cannot forge them.
+- **A workspace always keeps an admin (1.26).** Demoting or removing its only org admin is refused with a 409; make someone else an admin first. The rule is checked after the write and rolled back, so people who can't edit members learn nothing from it.
 - **Ash policies on every read and write.** A person sees only workspaces they belong to; only org admins (or the superadmin) manage people and invites. One workspace's admin gets a 404 for another workspace's people. The route plugs are a second gate, not the only one.
 
 ## Local development
@@ -35,6 +36,8 @@ Items 1.4 (auth), 1.5 (orgs and invites), 1.6 (roles and policies), 1.22 (report
 docker compose up -d postgres          # repo root
 cd api && mix setup                    # deps, database, migrations
 mix noa.superadmin you@notyouridea.com --name "You"
+# create the NotYourIdea workspace in the superadmin console, then:
+mix noa.seed --sample                  # projects, people, channels; --sample adds dev tasks and proposals
 mix phx.server                         # API on :4000; sent emails at http://localhost:4000/dev/mailbox
 pnpm dev:web                           # web on :3000 (NEXT_PUBLIC_API_URL defaults to http://localhost:4000)
 ```
@@ -46,4 +49,3 @@ Tests: `cd api && mix test` (needs the Postgres container). `test/noa_web/onboar
 - Google sign-in (needs the Google OAuth app from 0.10).
 - Real email delivery in production (SMTP or a provider in `config/runtime.exs`); dev and test keep mail in memory.
 - One workspace per person in the web app (the first membership); a workspace switcher comes when someone belongs to two.
-- Leaving or removing the last admin of a workspace is not blocked yet.

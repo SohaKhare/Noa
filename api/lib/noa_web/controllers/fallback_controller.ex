@@ -10,6 +10,8 @@ defmodule NoaWeb.FallbackController do
     invalid: {404, "This invite link isn't valid. Ask your admin for a new one."},
     expired: {410, "This invite has expired. Ask your admin to send a new one."},
     used: {410, "This invite was already used. Sign in instead."},
+    needs_project: {422, "Pick a project before approving this."},
+    already_decided: {409, "Someone already approved or dismissed this."},
     not_found: {404, "Not found."}
   }
 

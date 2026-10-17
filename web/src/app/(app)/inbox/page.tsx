@@ -10,14 +10,14 @@ import {
   UserIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { FormError } from "@/components/AuthCard";
 import { Avatar, Badge, Button, SourceChip } from "@/components/ui";
-import { ApiError, approveProposal, rejectProposal, type ApproveEdits, type WorkProposal, type WorkTask } from "@/lib/api";
+import { ApiError, approveProposal, getProposals, rejectProposal, undoProposal, type ApproveEdits, type WorkProposal, type WorkTask } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import { dueLabel, nameInitials, toSource, useDirectory, useProposals } from "@/lib/work";
+import { ago, changeText, dueLabel, nameInitials, toSource, useChanges, useDecideChange, useDirectory, useProposals, useTasks } from "@/lib/work";
 
 /* Inbox (1.19): two panes. Left: proposals with filters. Right: the source and the fields Noa extracted, editable before approval. */
 
@@ -51,6 +51,7 @@ export default function Inbox() {
       setSelected(rest[0]?.id);
       client.invalidateQueries({ queryKey: ["proposals", orgId] });
       client.invalidateQueries({ queryKey: ["tasks", orgId] });
+      client.invalidateQueries({ queryKey: ["decisions", orgId] });
     },
   });
 
@@ -93,6 +94,9 @@ export default function Inbox() {
         </div>
       )}
 
+      <ChangeRequests />
+      <AutoApplied />
+
       <div className="grid min-h-[560px] overflow-hidden rounded-[22px] bg-surface card-shadow lg:grid-cols-[380px_1fr]">
         <div className="flex flex-col border-b border-line lg:border-r lg:border-b-0">
           <div className="no-scrollbar flex gap-1 overflow-x-auto border-b border-line p-2">
@@ -122,6 +126,7 @@ export default function Inbox() {
                   >
                     <span className="flex items-center gap-2">
                       <Badge tone={label(p) === "Which project?" ? "warn" : "accent"}>{label(p)}</Badge>
+                      {p.data.duplicate_of && <Badge tone="warn">Duplicate?</Badge>}
                       {project(p.project_id) && <span className="text-[11.5px] text-muted">{project(p.project_id)!.name}</span>}
                       {p.confidence != null && <span className="ml-auto font-mono text-[10.5px] text-muted">{Math.round(p.confidence * 100)}%</span>}
                     </span>
@@ -203,6 +208,17 @@ function Detail({
         <h2 className="mt-3 text-[20px] font-semibold tracking-tight">{p.summary}</h2>
       )}
 
+      {p.data.duplicate_of && (
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl bg-warn/10 px-4 py-3 text-[13px] ring-1 ring-warn/20">
+          <span className="min-w-0 flex-1">
+            Looks like <span className="font-medium">{p.data.duplicate_of.title}</span>, which is already on the board.
+          </span>
+          <Button size="sm" variant="ghost" disabled={busy} onClick={() => onResolve(p, "reject")}>
+            Same task, dismiss
+          </Button>
+        </div>
+      )}
+
       <div className="mt-5 rounded-2xl bg-surface p-4 ring-1 ring-line">
         <p className="flex items-center gap-1.5 text-[11.5px] font-medium text-muted">
           <QuotesIcon size={13} /> From the conversation
@@ -257,10 +273,12 @@ function Detail({
 
       <p className="mt-4 text-[12px] text-muted">
         {p.confidence != null && `Noa is ${Math.round(p.confidence * 100)}% sure. `}
-        {proj
-          ? `Approving ${isTask ? "adds it to" : "updates"} ${project(proj)?.name}${owner ? ` and tells ${person(owner)?.name}` : ""}${due ? `, due ${dueLabel(due)}` : ""}.`
-          : "Pick a project to approve it."}{" "}
-        The task keeps a link to this message.
+        {!proj
+          ? "Pick a project to approve it."
+          : p.kind === "decision"
+            ? `Approving records this decision in ${project(proj)?.name}${owner ? `, made by ${person(owner)?.name}` : ""}.`
+            : `Approving ${isTask ? "adds it to" : "updates"} ${project(proj)?.name}${owner ? ` and tells ${person(owner)?.name}` : ""}${due ? `, due ${dueLabel(due)}` : ""}.`}{" "}
+        {p.kind === "decision" ? "It keeps a link to this message." : "The task keeps a link to this message."}
       </p>
 
       <div className="mt-6 flex flex-wrap gap-2">
@@ -286,5 +304,96 @@ function Field({ label, Icon, children }: { label: string; Icon: typeof UserIcon
       </span>
       <span className="mt-1 block">{children}</span>
     </label>
+  );
+}
+
+/* Changes waiting for a lead (2.20): deadline and scope edits made by someone else. */
+function ChangeRequests() {
+  const dir = useDirectory();
+  const me = dir.person(dir.me);
+  const pending = useChanges({ status: "pending" }).data ?? [];
+  const tasks = useTasks({}).data ?? [];
+  const decide = useDecideChange();
+  const orgLead = me?.role === "org_admin" || me?.role === "pm";
+  const mine = pending.filter((c) => orgLead || dir.project(c.project_id)?.lead_id === me?.id);
+  if (mine.length === 0) return null;
+
+  return (
+    <section className="mb-5 rounded-[22px] bg-surface p-5 card-shadow">
+      <p className="text-[14px] font-semibold">Changes waiting for you ({mine.length})</p>
+      <p className="mt-0.5 text-[12.5px] text-muted">Deadline and scope changes need a lead. Nothing moves until you approve.</p>
+      {decide.error && (
+        <div className="mt-2">
+          <FormError>{(decide.error as ApiError).message}</FormError>
+        </div>
+      )}
+      <ul className="mt-3 space-y-2">
+        {mine.map((c) => (
+          <li key={c.id} className="flex flex-wrap items-center gap-3 rounded-xl bg-bg px-3.5 py-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[13.5px]">
+                <span className="font-medium">{tasks.find((t) => t.id === c.task_id)?.title ?? "A task"}</span> ·{" "}
+                {changeText(c, (id) => dir.person(id)?.name)}
+              </p>
+              <p className="text-[12px] text-muted">
+                {dir.byUser(c.requested_by_id)?.name ?? "Someone"} · {dir.project(c.project_id)?.name} · {ago(c.inserted_at)}
+                {c.reason && <> · &ldquo;{c.reason}&rdquo;</>}
+              </p>
+            </div>
+            <Button size="sm" disabled={decide.isPending} onClick={() => decide.mutate({ id: c.id, action: "approve" })}>
+              <CheckIcon size={13} weight="bold" /> Approve
+            </Button>
+            <Button size="sm" variant="ghost" disabled={decide.isPending} onClick={() => decide.mutate({ id: c.id, action: "reject" })}>
+              Reject
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/* Applied automatically in the last day (2.2), each with Undo. */
+function AutoApplied() {
+  const dir = useDirectory();
+  const client = useQueryClient();
+  const approved = useQuery({ queryKey: ["proposals", dir.orgId, "approved"], queryFn: () => getProposals(dir.orgId!, "approved"), enabled: !!dir.orgId });
+  const undo = useMutation({
+    mutationFn: (id: string) => undoProposal(dir.orgId!, id),
+    onSettled: () => {
+      for (const key of ["proposals", "tasks", "changes"]) client.invalidateQueries({ queryKey: [key, dir.orgId] });
+    },
+  });
+  const [since] = useState(() => Date.now() - 86_400_000);
+  const auto = (approved.data ?? []).filter((p) => p.data.auto && new Date(p.inserted_at).getTime() > since);
+  if (auto.length === 0) return null;
+
+  return (
+    <section className="mb-5 rounded-[22px] bg-surface p-5 card-shadow">
+      <p className="flex items-center gap-1.5 text-[14px] font-semibold">
+        <LightningIcon size={14} weight="fill" className="text-signal" /> Applied automatically ({auto.length})
+      </p>
+      <p className="mt-0.5 text-[12.5px] text-muted">Noa was sure enough to apply these. Undo puts one back in your Inbox.</p>
+      {undo.error && (
+        <div className="mt-2">
+          <FormError>{(undo.error as ApiError).message}</FormError>
+        </div>
+      )}
+      <ul className="mt-3 space-y-2">
+        {auto.map((p) => (
+          <li key={p.id} className="flex flex-wrap items-center gap-3 rounded-xl bg-bg px-3.5 py-2.5">
+            <div className="min-w-0 flex-1">
+              <p className="text-[13.5px] font-medium">{p.summary}</p>
+              <p className="text-[12px] text-muted">
+                {[dir.project(p.project_id)?.name, dir.person(p.owner_id)?.name, ago(p.inserted_at)].filter(Boolean).join(" · ")}
+              </p>
+            </div>
+            <Button size="sm" variant="ghost" disabled={undo.isPending} onClick={() => undo.mutate(p.id)}>
+              Undo
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

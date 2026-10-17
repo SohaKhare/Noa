@@ -1,5 +1,20 @@
 import Config
 
+# WhatsApp through Kapso (1.15). Without these Noa keeps messages in a local outbox.
+if config_env() != :test do
+  config :noa, Noa.WhatsApp,
+    api_key: System.get_env("KAPSO_API_KEY"),
+    phone_number_id: System.get_env("KAPSO_PHONE_NUMBER_ID"),
+    webhook_secret: System.get_env("KAPSO_WEBHOOK_SECRET"),
+    templates: %{
+      update: System.get_env("KAPSO_TEMPLATE_UPDATE"),
+      task: System.get_env("KAPSO_TEMPLATE_TASK"),
+      approval: System.get_env("KAPSO_TEMPLATE_APPROVAL"),
+      language: System.get_env("KAPSO_TEMPLATE_LANG", "en_US")
+    },
+    notifier: System.get_env("NOA_WHATSAPP_NOTIFIER", "true") == "true"
+end
+
 if config_env() == :prod do
   config :noa, Noa.Repo,
     url: System.fetch_env!("DATABASE_URL"),
@@ -21,8 +36,7 @@ if config_env() == :prod do
     token: System.get_env("DISCORD_BOT_TOKEN"),
     gateway_intents: [:guilds, :guild_messages, :guild_members, :message_content]
 
-  config :noa, Noa.Mailer,
-    adapter: Noa.Mailer.Resend
+  config :noa, Noa.Mailer, adapter: Noa.Mailer.Resend
 
   config :noa, Noa.Mailer.Resend,
     api_key: System.fetch_env!("RESEND_API_KEY"),

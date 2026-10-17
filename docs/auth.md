@@ -28,7 +28,8 @@ Items 1.4 (auth), 1.5 (orgs and invites), 1.6 (roles and policies), 1.22 (report
 - **Passwords.** At least 10 characters, hashed with PBKDF2. Magic-link and reset requests answer the same whether or not the email has an account.
 - **Sessions.** An httpOnly, `SameSite=Lax` cookie set by the API. The web app sends it with `credentials: "include"`; CORS allows only `WEB_ORIGIN`. Signed-in writes must be `application/json`, so another site cannot forge them.
 - **A workspace always keeps an admin (1.26).** Demoting or removing its only org admin is refused with a 409; make someone else an admin first. The rule is checked after the write and rolled back, so people who can't edit members learn nothing from it.
-- **Ash policies on every read and write.** A person sees only workspaces they belong to; only org admins (or the superadmin) manage people and invites. One workspace's admin gets a 404 for another workspace's people. The route plugs are a second gate, not the only one.
+- **Ash policies on every read and write.** A person sees only workspaces they belong to; only org admins (or the superadmin) manage people and invites. Every `/api/orgs/:org_id` route answers 404 to anyone not in that workspace (`NoaWeb.Plugs.EnsureInOrg`), so an outsider can't tell it exists. The route plugs are a second gate, not the only one.
+- **Permission leak tests (2.16).** `api/test/noa_web/permissions_test.exs` calls every workspace route as a signed-out user, as another workspace's admin (with its own ids and with foreign ids), as a guest and as a member, and fails if any gets through or leaks data. A test also fails when a new workspace route is not in its list. They run in CI (`.github/workflows/api.yml`).
 
 ## Local development
 

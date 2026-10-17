@@ -13,6 +13,9 @@ defmodule Noa.Graph do
   - params can be strings, numbers, booleans, lists and maps, not dates or atoms, so
     pass `Noa.Events.json/1` output. There is no `date()` function; dates are ISO strings.
   - return properties, not whole nodes: each `select_graph` starts a schema cache process.
+  - `Graph.constraint_create` sends its arguments in the wrong order; constraints go
+    through `Redix.command/2` directly.
+  - no undirected `shortestPath`; order variable-length matches by length instead.
   """
   @conn __MODULE__.Redix
 
@@ -68,14 +71,44 @@ defmodule Noa.Graph do
     "CREATE INDEX FOR (n:Decision) ON (n.id)",
     "CREATE INDEX FOR (n:Topic) ON (n.id)",
     "CALL db.idx.fulltext.createNodeIndex('Episode', 'text')",
-    "CALL db.idx.fulltext.createNodeIndex('Task', 'title')"
+    "CALL db.idx.fulltext.createNodeIndex('Task', 'title')",
+    "CALL db.idx.fulltext.createNodeIndex('Decision', 'statement')"
   ]
 
   @doc """
-  Creates the org's indexes. Safe to run again: "already indexed" is ignored. The
-  vector index on Episode embeddings is added with embeddings (2.5).
+  Creates the org's indexes (range on every `id`, full-text on messages, task titles and
+  decisions) and unique constraints on `id`. Safe to run again.
   """
   def bootstrap(org_id) do
+    with :ok <- indexes(org_id), do: constraints(org_id)
+  end
+
+  @unique ~w(Person Identity Project Channel Task Episode Decision)
+
+  # One node per id, enforced by FalkorDB itself, so a replay can never duplicate a node.
+  # Sent as a raw command: falkordb 0.8.2's constraint_create puts the graph name before
+  # CREATE, which FalkorDB rejects ("Invalid constraint operation").
+  defp constraints(org_id) do
+    Enum.reduce_while(@unique, :ok, fn label, :ok ->
+      case Redix.command(@conn, [
+             "GRAPH.CONSTRAINT",
+             "CREATE",
+             name(org_id),
+             "UNIQUE",
+             "NODE",
+             label,
+             "PROPERTIES",
+             "1",
+             "id"
+           ]) do
+        {:ok, _} -> {:cont, :ok}
+        {:error, %{message: m}} = error -> if m =~ ~r/already exists/i, do: {:cont, :ok}, else: {:halt, error}
+        error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp indexes(org_id) do
     Enum.reduce_while(@indexes, :ok, fn cypher, :ok ->
       case query(org_id, cypher) do
         {:ok, _} ->

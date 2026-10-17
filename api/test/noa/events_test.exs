@@ -156,7 +156,7 @@ defmodule Noa.EventsTest do
 
   test "statements cover every work event type" do
     for type <- ~w(person.saved project.saved alias.saved alias.deleted allocation.saved channel.saved
-                   identity.saved task.saved message.received task.deleted) do
+                   identity.saved task.saved decision.saved change.saved message.received task.deleted) do
       assert [_ | _] = Projector.statements(%{type: type, data: %{"id" => "x", "episode_id" => "e"}}), type
     end
 
@@ -212,6 +212,32 @@ defmodule Noa.EventsTest do
       Graph.ro_query(org.id, "MATCH (p:Project {key: 'veriq'}) RETURN p.aliases AS aliases")
 
     assert "reports" in aliases
+
+    # The graph panel (3.13): the project's neighbourhood, and how Saish connects to Veriq.
+    {:ok, view} = Noa.Graph.View.project(org.id, veriq.id)
+    assert Enum.any?(view.nodes, &(&1.label == "Task" and &1.name == "Board report PDF export"))
+    assert Enum.any?(view.edges, &(&1.type == "EXTRACTED_FROM"))
+    {:ok, path} = Noa.Graph.View.path(org.id, saish.id, veriq.id)
+    assert hd(path) == saish.id and List.last(path) == veriq.id
+
+    # @noa reads from the graph once it exists, and says which routes it took.
+    {:ok, answer} = Noa.Agent.ask(org.id, "what is Saish working on in Veriq?", vedant)
+    assert answer.retrieval.store == "falkordb"
+    assert Enum.any?(answer.citations, &(&1.title == "Board report PDF export" and &1.via == "Project ← Task"))
+    assert Enum.any?(answer.citations, &(&1.source && &1.source["quote"] =~ "Board report PDF export"))
+
+    {:ok, found} = Noa.Agent.ask(org.id, "anything about the pdf export?", vedant)
+    assert Enum.any?(found.citations, &(&1.via in ["Full-text: tasks", "Full-text: messages"]))
+
+    {:ok, path} = Noa.Agent.ask(org.id, "how is Saish connected to Veriq?", vedant)
+    assert Enum.any?(path.citations, &(&1.via == "Shortest path"))
+
+    # The agent pack comes from the graph too (3.18).
+    {:ok, pack} = Noa.Packs.build(org.id, veriq.id, vedant, saish.id)
+    assert pack.store == "falkordb"
+    tasks_md = Enum.find(pack.files, &(&1.path == "tasks.md")).content
+    assert tasks_md =~ "Yours, Saish" and tasks_md =~ "Board report PDF export"
+    assert tasks_md =~ "on it, Board report PDF export by Friday"
 
     # Replaying twice changes nothing; a rebuild from the log gives the same graph.
     count = fn -> Graph.ro_query(org.id, "MATCH (n) RETURN count(n) AS n") |> elem(1) |> hd() end

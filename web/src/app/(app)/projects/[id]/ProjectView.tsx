@@ -2,23 +2,24 @@
 
 import { DndContext, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { CheckCircleIcon, GavelIcon, XIcon } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import { FormError } from "@/components/AuthCard";
+import { GraphPanel } from "@/components/GraphPanel";
 import { Avatar, Badge, Button, Card, SourceChip } from "@/components/ui";
-import { ApiError, type WorkProject, type WorkTask } from "@/lib/api";
+import { ApiError, downloadBrief, getBrief, type WorkDecision, type WorkProject, type WorkTask } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import { decisions, ktBrief, person, statusLabel, tasks as sampleTasks, type Source, type Status } from "@/lib/mock";
-import { dueLabel, isLate, nameInitials, projectChannels, projectPeople, toSource, useDirectory, useMoveTask, useProposals, useTasks } from "@/lib/work";
+import { statusLabel, type Source, type Status } from "@/lib/mock";
+import { ago, changeText, dueLabel, isLate, nameInitials, projectChannels, projectPeople, startOfToday, toSource, useChanges, useDecideChange, useDecisions, useDirectory, useEditTask, useMoveTask, useProposals, useTasks } from "@/lib/work";
 
-const tabs = ["Overview", "Board", "Timeline", "Decisions", "People", "KT"] as const;
+const tabs = ["Overview", "Board", "Timeline", "Decisions", "People", "KT", "Graph"] as const;
 type Tab = (typeof tabs)[number];
 const columns: Status[] = ["proposed", "todo", "in_progress", "blocked", "done"];
 
 /* Timeline, Decisions and KT still read sample data (2.11, 2.4, 3.2), keyed by the old sample ids. */
-const sampleId: Record<string, string> = { veriq: "a", emmarie: "b", "video-break": "c", tulpa: "d" };
 
 /* A board card: a task, or a pending task proposal shown dashed in the Proposed column. */
 type BoardCard = {
@@ -125,12 +126,13 @@ export function ProjectView({ projectKey }: { projectKey: string }) {
           </button>
         ))}
       </div>
-      {tab === "Overview" && <Overview id={sampleId[p.key]} cards={cards} onOpen={setOpenTask} />}
+      {tab === "Overview" && <Overview project={p} cards={cards} onOpen={setOpenTask} />}
       {tab === "Board" && <Board cards={cards} onOpen={setOpenTask} />}
-      {tab === "Timeline" && <Timeline id={sampleId[p.key]} />}
-      {tab === "Decisions" && <Decisions id={sampleId[p.key]} />}
+      {tab === "Timeline" && <Timeline project={p} />}
+      {tab === "Decisions" && <Decisions project={p} />}
       {tab === "People" && <People project={p} tasks={tasks} />}
-      {tab === "KT" && <KT />}
+      {tab === "KT" && <KT project={p} />}
+      {tab === "Graph" && dir.orgId && <GraphPanel orgId={dir.orgId} projectId={p.id} />}
 
       <TaskDrawer card={open} onClose={() => setOpenTask(null)} />
     </div>
@@ -138,10 +140,58 @@ export function ProjectView({ projectKey }: { projectKey: string }) {
 }
 
 /* Moves a task to another status, updating the board at once and rolling back on error. */
-function Overview({ id, cards, onOpen }: { id: string; cards: BoardCard[]; onOpen: (id: string) => void }) {
+/* Change records for the project's tasks (2.19): who changed what, and what waits for the lead. */
+function RecentChanges({ project }: { project: WorkProject }) {
+  const dir = useDirectory();
+  const changes = useChanges({ project_id: project.id }).data ?? [];
+  const tasks = useTasks({ project_id: project.id }).data ?? [];
+  const title = (id: string) => tasks.find((t) => t.id === id)?.title ?? "A task";
+  return (
+    <Card>
+      <p className="text-[14px] font-semibold">Recent changes</p>
+      <p className="mt-0.5 text-[12px] text-muted">Deadline and scope changes wait for the lead. Other edits apply at once and can be reverted.</p>
+      <ul className="mt-3 space-y-2">
+        {changes.length === 0 && <li className="text-[13px] text-muted">No changes yet.</li>}
+        {changes.slice(0, 12).map((c) => (
+          <li key={c.id} className="rounded-xl bg-bg px-3 py-2.5">
+            <p className="text-[13px]">
+              <span className="font-medium">{title(c.task_id)}</span> · {changeText(c, (id) => dir.person(id)?.name)}
+            </p>
+            <p className="text-[11.5px] text-muted">
+              {dir.byUser(c.requested_by_id)?.name ?? "Someone"} · {ago(c.inserted_at)}
+              {c.status !== "applied" && ` · ${c.status === "pending" ? "waiting for approval" : c.status}`}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+function DecisionItem({ d, replacedBy }: { d: WorkDecision; replacedBy?: WorkDecision }) {
+  const dir = useDirectory();
+  const who = dir.person(d.made_by_id)?.name;
+  const superseded = d.status === "superseded";
+  return (
+    <li className="rounded-2xl bg-bg p-3.5">
+      <p className={cn("text-[13.5px] font-medium", superseded && "text-muted line-through")}>{d.statement}</p>
+      <p className="mt-0.5 text-[12px] text-muted">
+        {[who, d.kind === "conclusion" ? "conclusion" : null, ago(d.inserted_at)].filter(Boolean).join(" · ")}
+        {replacedBy && <> · replaced by &ldquo;{replacedBy.statement}&rdquo;</>}
+      </p>
+      {d.source && (
+        <div className="mt-1.5">
+          <SourceChip source={toSource(d.source)} />
+        </div>
+      )}
+    </li>
+  );
+}
+
+function Overview({ project, cards, onOpen }: { project: WorkProject; cards: BoardCard[]; onOpen: (id: string) => void }) {
   const counts = columns.map((c) => ({ c, n: cards.filter((t) => t.status === c).length }));
   const blocked = cards.filter((t) => t.status === "blocked");
-  const recent = decisions.filter((d) => d.project === id);
+  const recent = (useDecisions({ project_id: project.id }).data ?? []).filter((d) => d.status === "active").slice(0, 4);
   return (
     <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
       <div className="space-y-5">
@@ -178,13 +228,7 @@ function Overview({ id, cards, onOpen }: { id: string; cards: BoardCard[]; onOpe
         <ul className="mt-3 space-y-3">
           {recent.length === 0 && <li className="text-[13px] text-muted">No decisions yet.</li>}
           {recent.map((d) => (
-            <li key={d.id} className="rounded-xl bg-bg p-3">
-              <p className="text-[13.5px] font-medium">{d.title}</p>
-              <p className="mt-0.5 text-[12px] text-muted">{d.affects}</p>
-              <div className="mt-1.5">
-                <SourceChip source={d.source} />
-              </div>
-            </li>
+            <DecisionItem key={d.id} d={d} />
           ))}
         </ul>
       </Card>
@@ -245,13 +289,16 @@ function People({ project, tasks }: { project: WorkProject; tasks: BoardCard[] }
 function TaskDrawer({ card: task, onClose }: { card: BoardCard | null; onClose: () => void }) {
   const dir = useDirectory();
   const move = useMoveTask();
-  const history = task
-    ? [
-        { at: task.source.when, who: task.task?.source?.author ?? "Noa", what: `said it in ${task.source.where}` },
-        ...(task.task?.done_at ? [{ at: new Date(task.task.done_at).toLocaleString("en", { weekday: "short", hour: "numeric", minute: "2-digit" }), who: "", what: "Marked done" }] : []),
-      ]
-    : [];
+  const changes = useChanges({ task_id: task?.id }, !!task).data ?? [];
+  const decide = useDecideChange();
   const owner = dir.person(task?.ownerId);
+  const project = dir.project(task?.task?.project_id);
+  const lead = dir.person(project?.lead_id);
+  const pending = changes.filter((c) => c.status === "pending");
+  const who = (userId: string | null) => dir.byUser(userId)?.name ?? "Someone";
+  const personName = (id: string | null) => dir.person(id)?.name;
+  const error = (move.error ?? decide.error) as ApiError | null;
+
   return (
     <AnimatePresence>
       {task && (
@@ -277,6 +324,15 @@ function TaskDrawer({ card: task, onClose }: { card: BoardCard | null; onClose: 
               </button>
             </div>
             <div className="flex-1 space-y-5 overflow-y-auto p-5">
+              {pending.map((c) => (
+                <div key={c.id} className="rounded-xl bg-mist/60 px-3 py-2.5 text-[12.5px]">
+                  <p>
+                    <span className="font-medium">{who(c.requested_by_id)}</span> asked to change the {changeText(c, personName)}
+                    {c.reason && <> because &ldquo;{c.reason}&rdquo;</>}.
+                  </p>
+                  <p className="mt-0.5 text-muted">Waiting for {lead?.name ?? "a lead"} to approve.</p>
+                </div>
+              ))}
               <dl className="grid grid-cols-2 gap-3 text-[13px]">
                 <div className="rounded-xl bg-bg p-3">
                   <dt className="text-[11px] text-muted">Owner</dt>
@@ -284,10 +340,7 @@ function TaskDrawer({ card: task, onClose }: { card: BoardCard | null; onClose: 
                     {owner && <Avatar initials={nameInitials(owner.name)} size={20} />} {owner?.name ?? "Unassigned"}
                   </dd>
                 </div>
-                <div className="rounded-xl bg-bg p-3">
-                  <dt className="text-[11px] text-muted">Due</dt>
-                  <dd className={cn("mt-1 font-medium", isLate(task.due) && task.status !== "done" && "text-bad")}>{dueLabel(task.due) ?? "No date"}</dd>
-                </div>
+                <DueEditor key={task.id} card={task} />
               </dl>
               <section>
                 <p className="text-[12px] font-semibold text-muted">Source</p>
@@ -301,20 +354,39 @@ function TaskDrawer({ card: task, onClose }: { card: BoardCard | null; onClose: 
               <section>
                 <p className="text-[12px] font-semibold text-muted">History</p>
                 <ol className="mt-2 space-y-3 border-l border-line pl-4">
-                  {history.map((h) => (
-                    <li key={h.at + h.what} className="relative">
+                  {changes.map((c) => (
+                    <li key={c.id} className="relative">
                       <span className="absolute top-1.5 -left-[21px] size-2.5 rounded-full bg-mist ring-2 ring-white" />
-                      <p className="text-[13px]">
-                        {h.who && <span className="font-medium">{h.who}</span>} {h.what}
+                      <p className={cn("text-[13px]", (c.status === "reverted" || c.status === "rejected") && "text-muted line-through")}>
+                        <span className="font-medium">{who(c.requested_by_id)}</span> changed the {changeText(c, personName)}
                       </p>
-                      <p className="text-[11.5px] text-muted">{h.at}</p>
+                      <p className="flex items-center gap-2 text-[11.5px] text-muted">
+                        {ago(c.inserted_at)}
+                        {c.status !== "applied" && <span>· {c.status === "pending" ? "waiting for approval" : c.status}</span>}
+                        {c.status === "applied" && (
+                          <button
+                            onClick={() => decide.mutate({ id: c.id, action: "revert" })}
+                            disabled={decide.isPending}
+                            className="font-medium text-accent-fg hover:underline"
+                          >
+                            Revert
+                          </button>
+                        )}
+                      </p>
                     </li>
                   ))}
+                  <li className="relative">
+                    <span className="absolute top-1.5 -left-[21px] size-2.5 rounded-full bg-mist ring-2 ring-white" />
+                    <p className="text-[13px]">
+                      <span className="font-medium">{task.task?.source?.author ?? "Noa"}</span> said it in {task.source.where}
+                    </p>
+                    <p className="text-[11.5px] text-muted">{task.source.when}</p>
+                  </li>
                 </ol>
               </section>
             </div>
             <div className="flex flex-wrap gap-2 border-t border-line p-4">
-              {move.error && <FormError>{(move.error as ApiError).message}</FormError>}
+              {error && <FormError>{error.message}</FormError>}
               {task.status === "done" ? (
                 <Button size="sm" variant="ghost" disabled={move.isPending} onClick={() => move.mutate({ id: task.id, status: "todo" })}>
                   Reopen
@@ -329,6 +401,60 @@ function TaskDrawer({ card: task, onClose }: { card: BoardCard | null; onClose: 
         </>
       )}
     </AnimatePresence>
+  );
+}
+
+/* The due date, with an editor. A member's change waits for the lead (2.20); a lead's applies at once. */
+function DueEditor({ card }: { card: BoardCard }) {
+  const edit = useEditTask();
+  const [open, setOpen] = useState(false);
+  const [due, setDue] = useState(card.due ?? "");
+  const [reason, setReason] = useState("");
+  const [sent, setSent] = useState<"applied" | "pending" | null>(null);
+
+  const save = () =>
+    edit.mutate(
+      { id: card.id, due_on: due || null, reason: reason || undefined },
+      {
+        onSuccess: (r) => {
+          setSent(r.pending_changes.some((c) => c.kind === "deadline") ? "pending" : "applied");
+          setOpen(false);
+          setReason("");
+        },
+      },
+    );
+
+  return (
+    <div className="rounded-xl bg-bg p-3">
+      <dt className="flex items-center justify-between text-[11px] text-muted">
+        Due
+        {!open && (
+          <button onClick={() => setOpen(true)} className="font-medium text-accent-fg hover:underline">
+            Change
+          </button>
+        )}
+      </dt>
+      {open ? (
+        <dd className="mt-1 space-y-1.5">
+          <input type="date" value={due} onChange={(e) => setDue(e.target.value)} aria-label="New due date" className="w-full rounded-lg bg-surface px-2 py-1 text-[12.5px] ring-1 ring-line focus:outline-none" />
+          <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Why? (optional)" aria-label="Reason" className="w-full rounded-lg bg-surface px-2 py-1 text-[12.5px] ring-1 ring-line focus:outline-none" />
+          <div className="flex gap-1.5">
+            <Button size="sm" disabled={edit.isPending} onClick={save}>
+              Save
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+          </div>
+          {edit.error && <FormError>{(edit.error as ApiError).message}</FormError>}
+        </dd>
+      ) : (
+        <dd className={cn("mt-1 font-medium", isLate(card.due) && card.status !== "done" && "text-bad")}>
+          {dueLabel(card.due) ?? "No date"}
+          {sent === "pending" && <span className="block text-[11px] font-normal text-muted">Sent to your lead to approve</span>}
+        </dd>
+      )}
+    </div>
   );
 }
 
@@ -412,128 +538,206 @@ function TaskCard({ card: task, onOpen }: { card: BoardCard; onOpen: (id: string
   );
 }
 
-const DAYS = ["Oct 13", "Oct 14", "Oct 15", "Oct 16", "Oct 17", "Oct 18", "Oct 19", "Oct 20", "Oct 21", "Oct 22"];
-function Timeline({ id }: { id: string }) {
-  const rows = sampleTasks.filter((t) => t.project === id && t.start && t.end);
-  const col = (d?: string) => Math.max(0, DAYS.indexOf(d ?? ""));
+/*
+  Timeline (2.11, read-only): each open task from the day it was created to its due
+  date, done tasks to the day they finished, late ones stretched to today in red.
+  Pending deadline changes for the project wait underneath for a lead.
+*/
+function Timeline({ project }: { project: WorkProject }) {
+  const dir = useDirectory();
+  const tasks = useTasks({ project_id: project.id }).data ?? [];
+  const pending = (useChanges({ project_id: project.id, status: "pending" }).data ?? []).filter((c) => c.kind === "deadline");
+  const decide = useDecideChange();
+  const me = dir.person(dir.me);
+  const lead = me?.role === "org_admin" || me?.role === "pm" || project.lead_id === me?.id;
+
+  const day = (iso: string) => {
+    const d = new Date(iso.length === 10 ? `${iso}T00:00:00` : iso);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  };
+  const DAY = 86_400_000;
+  const today = day(new Date().toISOString().slice(0, 10));
+  const rows = tasks
+    .map((t) => {
+      const start = day(t.inserted_at);
+      const end = t.status === "done" && t.done_at ? day(t.done_at) : t.due_on ? day(t.due_on) : null;
+      return { t, start, end, late: t.status !== "done" && t.due_on != null && day(t.due_on) < today };
+    })
+    .sort((a, b) => (a.end ?? Infinity) - (b.end ?? Infinity));
+  const first = Math.max(Math.min(today - 3 * DAY, ...rows.map((r) => r.start)), today - 10 * DAY);
+  const last = Math.min(Math.max(today + 10 * DAY, ...rows.map((r) => r.end ?? 0)), first + 27 * DAY);
+  const days = Array.from({ length: Math.round((last - first) / DAY) + 1 }, (_, i) => first + i * DAY);
+  const col = (t: number) => Math.min(days.length - 1, Math.max(0, Math.round((t - first) / DAY)));
+  const grid = { gridTemplateColumns: `200px repeat(${days.length}, minmax(28px, 1fr))` };
+  const taskTitle = (id: string) => tasks.find((t) => t.id === id)?.title ?? "A task";
+
   return (
     <Card className="overflow-x-auto p-0">
-      <div className="min-w-[760px]">
-        <div className="grid grid-cols-[180px_repeat(10,1fr)] border-b border-line/70 text-[11px] text-muted">
+      <div style={{ minWidth: 200 + days.length * 30 }}>
+        <div className="grid border-b border-line/70 text-[11px] text-muted" style={grid}>
           <span className="px-4 py-2.5">Task</span>
-          {DAYS.map((d) => (
-            <span key={d} className={cn("py-2.5 text-center", d === "Oct 15" && "font-semibold text-signal")}>
-              {d.slice(4)}
+          {days.map((d) => (
+            <span key={d} className={cn("py-2.5 text-center tabular-nums", d === today && "font-semibold text-signal")}>
+              {new Date(d).getDate()}
             </span>
           ))}
         </div>
-        {rows.map((t) => (
-          <div key={t.id} className="grid grid-cols-[180px_repeat(10,1fr)] items-center border-b border-line/50 py-2">
-            <span className="truncate px-4 text-[12.5px] font-medium">{t.title}</span>
-            <span
-              style={{ gridColumn: `${col(t.start) + 2} / ${col(t.end) + 3}` }}
-              className={cn(
-                "mx-0.5 h-5 rounded-full",
-                t.status === "blocked" ? "bg-bad/25" : t.status === "done" ? "bg-good/25" : "bg-accent/20",
+        {rows.length === 0 && <p className="px-4 py-6 text-[13px] text-muted">No tasks yet.</p>}
+        {rows.map(({ t, start, end, late }) => {
+          const from = col(start);
+          const to = end == null ? from : col(Math.max(end, start));
+          return (
+            <div key={t.id} className="relative grid items-center border-b border-line/50 py-2" style={grid}>
+              <span className="truncate px-4 text-[12.5px] font-medium" title={t.title}>
+                {t.title}
+              </span>
+              {end == null ? (
+                <span style={{ gridColumn: `${from + 2}` }} className="mx-auto size-2.5 rounded-full bg-accent/40" title="No due date" />
+              ) : (
+                <span
+                  style={{ gridColumn: `${from + 2} / ${to + 3}` }}
+                  title={`${t.title} · ${statusLabel[t.status]}${t.due_on ? ` · due ${dueLabel(t.due_on)}` : ""}`}
+                  className={cn(
+                    "mx-0.5 h-5 rounded-full",
+                    t.status === "blocked" ? "bg-bad/25" : t.status === "done" ? "bg-good/25" : t.status === "in_progress" ? "bg-accent/35" : "bg-accent/20",
+                  )}
+                />
               )}
-              title={t.dependsOn ? `Depends on ${t.dependsOn.join(", ")}` : undefined}
-            />
+              {late && end != null && (
+                <span style={{ gridColumn: `${to + 3} / ${col(today) + 3}`, gridRow: 1 }} className="mx-0.5 h-5 rounded-r-full border border-dashed border-bad/50 bg-bad/10" title="Late" />
+              )}
+            </div>
+          );
+        })}
+        {pending.map((c) => (
+          <div key={c.id} className="flex flex-wrap items-center justify-between gap-3 bg-mist/50 px-4 py-3 text-[12.5px]">
+            <span>
+              {dir.byUser(c.requested_by_id)?.name ?? "Someone"} wants to move <span className="font-medium">{taskTitle(c.task_id)}</span>:{" "}
+              {changeText(c, (id) => dir.person(id)?.name)}
+              {c.reason && <> · &ldquo;{c.reason}&rdquo;</>}
+            </span>
+            {lead ? (
+              <span className="flex gap-2">
+                <Button size="sm" disabled={decide.isPending} onClick={() => decide.mutate({ id: c.id, action: "approve" })}>
+                  Apply
+                </Button>
+                <Button size="sm" variant="ghost" disabled={decide.isPending} onClick={() => decide.mutate({ id: c.id, action: "reject" })}>
+                  Reject
+                </Button>
+              </span>
+            ) : (
+              <span className="text-muted">Waiting for the lead</span>
+            )}
           </div>
         ))}
-        <div className="flex items-center justify-between gap-4 bg-mist/50 px-4 py-3 text-[12.5px]">
-          <span>Noa heard &ldquo;push share links to next week&rdquo; in the weekly sync.</span>
-          <span className="flex gap-2">
-            <Button size="sm">Apply</Button>
-            <Button size="sm" variant="ghost">
-              Ignore
-            </Button>
-          </span>
-        </div>
       </div>
     </Card>
   );
 }
 
-function Decisions({ id }: { id: string }) {
-  const list = decisions.filter((d) => d.project === id);
+/* Decisions (2.4, 2.18): decided today, earlier ones still standing, and ones a later decision replaced. */
+function Decisions({ project }: { project: WorkProject }) {
+  const all = useDecisions({ project_id: project.id }).data ?? [];
+  const today = startOfToday();
+  const active = all.filter((d) => d.status === "active");
+  const groups = [
+    { title: "Decided today", items: active.filter((d) => d.inserted_at >= today), empty: "No decisions today." },
+    { title: "Earlier", items: active.filter((d) => d.inserted_at < today), empty: "" },
+    { title: "Replaced", items: all.filter((d) => d.status === "superseded"), empty: "" },
+  ];
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
       <Card>
-        <p className="mb-3 flex items-center gap-1.5 text-[14px] font-semibold">
-          <GavelIcon size={16} className="text-accent-fg" /> Decided today ({list.length})
-        </p>
-        <ul className="space-y-2.5">
-          {list.map((d) => (
-            <li key={d.id} className="rounded-2xl bg-bg p-3.5">
-              <p className="text-[13.5px] font-medium">{d.title}</p>
-              <p className="mt-0.5 text-[12px] text-muted">
-                {d.by.map((b) => person(b)?.name).join(", ")} · {d.affects}
-              </p>
-              <div className="mt-1.5">
-                <SourceChip source={d.source} />
+        {groups.map(
+          (g, i) =>
+            (g.items.length > 0 || g.empty) && (
+              <div key={g.title} className={i > 0 ? "mt-5" : ""}>
+                <p className="mb-3 flex items-center gap-1.5 text-[14px] font-semibold">
+                  {i === 0 && <GavelIcon size={16} className="text-accent-fg" />} {g.title} ({g.items.length})
+                </p>
+                <ul className="space-y-2.5">
+                  {g.items.map((d) => (
+                    <DecisionItem key={d.id} d={d} replacedBy={all.find((x) => x.id === d.superseded_by_id)} />
+                  ))}
+                  {g.items.length === 0 && <p className="text-[13px] text-muted">{g.empty}</p>}
+                </ul>
               </div>
-            </li>
-          ))}
-          {list.length === 0 && <p className="text-[13px] text-muted">No decisions today.</p>}
-        </ul>
+            ),
+        )}
+        <p className="mt-5 text-[12px] text-muted">Decisions come from chat. Noa proposes them in the Inbox, and they land here once approved.</p>
       </Card>
-      <Card>
-        <p className="text-[14px] font-semibold">Edit shared item</p>
-        <p className="mt-3 text-[11px] text-muted">Item</p>
-        <p className="text-[13.5px]">Board report PDF · deadline</p>
-        <div className="mt-3 flex gap-2">
-          {["Deadline", "Scope", "Owner", "Status"].map((c, i) => (
-            <Badge key={c} tone={i === 0 ? "accent" : "neutral"}>
-              {c}
-            </Badge>
-          ))}
-        </div>
-        <p className="mt-3 text-[15px] font-semibold">Fri → Mon</p>
-        <p className="mt-3 text-[11px] text-muted">Reason</p>
-        <p className="rounded-xl bg-bg px-3 py-2 text-[13px]">Waiting on the brand&apos;s logo pack</p>
-        <p className="mt-3 rounded-xl bg-mist/60 px-3 py-2 text-[12.5px]">Needs approval from Vedant, your lead. Owners are notified once approved.</p>
-        <div className="mt-4 flex justify-end gap-2">
-          <Button variant="ghost" size="sm">
-            Cancel
-          </Button>
-          <Button size="sm">Submit</Button>
-        </div>
-      </Card>
+      <RecentChanges project={project} />
     </div>
   );
 }
 
-function KT() {
+/* KT brief (3.2): what someone joining this project needs on day one, from the project's data, cited. */
+function KT({ project }: { project: WorkProject }) {
+  const dir = useDirectory();
+  const me = dir.me;
+  const brief = useQuery({ queryKey: ["brief", dir.orgId, project.id, me], queryFn: () => getBrief(dir.orgId!, project.id, me), enabled: !!dir.orgId });
+  const [done, setDone] = useState<Record<string, boolean>>({});
+  const sections = brief.data?.sections ?? [];
+  const meet = sections.find((x) => x.title === "People to meet")?.items ?? [];
+  const mine = sections.find((x) => x.title === "Your tasks")?.items ?? [];
+  const checklist = [
+    "Read the brief",
+    ...meet.slice(0, 2).map((m) => `Meet ${m.text.split(" ")[0]}`),
+    ...(mine[0] && !mine[0].text.startsWith("Nothing") ? [`Pick up ${mine[0].text.split(" · ")[0]}`] : []),
+    "Day-7 check-in with the lead",
+  ];
+
   return (
     <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
       <Card>
-        <p className="mb-3 text-[14px] font-semibold">KT brief · for people joining this project</p>
-        <ul className="space-y-2.5">
-          {ktBrief.map((l) => (
-            <li key={l.title} className="flex items-start gap-3 rounded-2xl bg-bg p-3.5">
-              <CheckCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-accent-fg" />
-              <div className="flex-1">
-                <p className="text-[12.5px] font-semibold">{l.title}</p>
-                <p className="text-[13px] text-ink/75">{l.body}</p>
-              </div>
-              <span className="font-mono text-[10.5px] text-muted">{l.src}</span>
-            </li>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <p className="text-[14px] font-semibold">KT brief · for people joining {project.name}</p>
+          <Button size="sm" variant="ghost" disabled={!brief.data} onClick={() => downloadBrief(dir.orgId!, project.id, me)}>
+            Download brief.md
+          </Button>
+        </div>
+        {brief.isLoading && <p className="text-[13px] text-muted">Putting the brief together…</p>}
+        <div className="space-y-4">
+          {sections.map((sec) => (
+            <section key={sec.title}>
+              <p className="mb-1.5 text-[12px] font-semibold text-muted">{sec.title}</p>
+              <ul className="space-y-1.5">
+                {sec.items.map((it, i) => (
+                  <li key={i} className="flex items-start gap-2.5 rounded-xl bg-bg px-3 py-2.5">
+                    <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-accent-fg" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px]">{it.text}</p>
+                      {it.source && (
+                        <div className="mt-1">
+                          <SourceChip source={toSource(it.source)} />
+                        </div>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
           ))}
-        </ul>
+        </div>
       </Card>
-      <Card>
-        <p className="text-[14px] font-semibold">Checklist</p>
+      <Card className="h-fit">
+        <p className="text-[14px] font-semibold">First week</p>
         <ul className="mt-3 space-y-2 text-[13px]">
-          {["Read the brief", "Meet Vedant", "Meet Ojas about Workers", "Pick up Coverage notes v2", "Day-7 check-in"].map((c, i) => (
-            <li key={c} className="flex items-center gap-2">
-              <span className={cn("grid size-4 place-items-center rounded-[5px]", i < 3 ? "bg-accent text-white" : "ring-1 ring-line")}>
-                {i < 3 && <CheckCircleIcon size={10} weight="bold" />}
-              </span>
-              {c}
+          {checklist.map((c) => (
+            <li key={c}>
+              <button onClick={() => setDone((d) => ({ ...d, [c]: !d[c] }))} className="flex items-center gap-2 text-left">
+                <span className={cn("grid size-4 place-items-center rounded-[5px]", done[c] ? "bg-accent text-white" : "ring-1 ring-line")}>
+                  {done[c] && <CheckCircleIcon size={10} weight="bold" />}
+                </span>
+                <span className={cn(done[c] && "text-muted line-through")}>{c}</span>
+              </button>
             </li>
           ))}
         </ul>
-        <p className="mt-4 text-[12px] text-muted">Questions about the old project still reach the previous owner for 2 weeks.</p>
+        <Link href="/ask" className="mt-4 block rounded-xl bg-mist/60 px-3 py-2.5 text-[12.5px] hover:bg-mist">
+          Anything else? Ask <span className="font-medium text-accent-fg">@noa</span> about {project.name}. Answers cite their sources.
+        </Link>
       </Card>
     </div>
   );

@@ -7,8 +7,9 @@ export function AuthCard({ title, sub, children, footer }: { title: string; sub?
     <div className="grid min-h-screen place-items-center p-4 mist-wash">
       <div className="w-full max-w-sm">
         <div className="rounded-[28px] bg-surface p-8 card-shadow">
-          <div className="flex items-center gap-2 text-[17px] font-semibold">
-            <BrandMark size={28} /> Noa
+          <div className="flex items-center gap-2">
+            <BrandMark size={28} />
+            <span className="font-wordmark text-[26px] leading-none">NOA</span>
           </div>
           <h1 className="mt-6 text-[24px] leading-tight font-semibold tracking-[-0.03em]">{title}</h1>
           {sub && <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted">{sub}</p>}

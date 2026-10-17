@@ -1,21 +1,248 @@
 {
   "_about": "Sample tasks and Inbox proposals for local development only (mix noa.seed --sample), so the board and Inbox have something on them before Discord ingest (1.13) runs. Never load this into a real workspace. due_in and hours_ago are relative to when it is loaded.",
   "tasks": [
-    { "project": "veriq", "title": "Prompt plan review", "status": "todo", "owner": "so", "due_in": 0, "source": { "channel": "#veriq", "author": "Vedant", "hours_ago": 30, "quote": "Soha can you review the prompt plan before we lock it?" } },
-    { "project": "veriq", "title": "Report share links", "status": "todo", "owner": "sa", "due_in": 4, "source": { "channel": "#veriq", "author": "Ojas", "hours_ago": 50, "quote": "we need share links on reports before the client call" } },
-    { "project": "veriq", "title": "Score weights v2", "status": "in_progress", "owner": "ve", "due_in": 2, "source": { "channel": "#veriq", "author": "Vedant", "hours_ago": 6, "quote": "I'll take score weights v2" } },
-    { "project": "veriq", "title": "Practitioner report layout", "status": "in_progress", "owner": "sa", "due_in": 5, "source": { "channel": "#veriq", "author": "Saish", "hours_ago": 60, "quote": "starting the practitioner report layout" } },
-    { "project": "veriq", "title": "Brand logo pack import", "status": "blocked", "owner": "sa", "due_in": 3, "blocked_reason": "Waiting on the brand's logo pack", "source": { "channel": "WhatsApp, Vedant", "author": "Saish", "hours_ago": 44, "quote": "still waiting on the brand's logo pack" } },
-    { "project": "veriq", "title": "AI Overview lane", "status": "done", "owner": "oj", "source": { "channel": "#veriq", "author": "Ojas", "hours_ago": 7, "quote": "AI Overview lane is green again" } },
-    { "project": "veriq", "title": "Encrypted R2 reports", "status": "done", "owner": "ve", "source": { "channel": "#veriq", "author": "Vedant", "hours_ago": 70, "quote": "encrypted R2 reports are merged" } },
-    { "project": "emmarie", "title": "Motion-test queue fix", "status": "todo", "owner": "oj", "due_in": 0, "source": { "channel": "#emmarie", "author": "Ojas", "hours_ago": 40, "quote": "queue timed out again on the project's Durable Object" } },
-    { "project": "emmarie", "title": "Storyboard screen polish", "status": "todo", "owner": "sa", "due_in": 4, "source": { "channel": "#emmarie", "author": "Vedant", "hours_ago": 20, "quote": "Saish can you polish the storyboard screen?" } },
-    { "project": "video-break", "title": "Hook analysis: 20 reels", "status": "todo", "owner": "so", "due_in": 4, "source": { "channel": "WhatsApp, Abhishek", "author": "Abhishek", "hours_ago": 5, "quote": "Soha pick 20 reels and mark the hooks" } }
+    {
+      "project": "veriq",
+      "title": "Prompt plan review",
+      "status": "todo",
+      "owner": "so",
+      "due_in": 0,
+      "source": {
+        "channel": "#veriq",
+        "author": "Vedant",
+        "hours_ago": 30,
+        "quote": "Soha can you review the prompt plan before we lock it?"
+      }
+    },
+    {
+      "project": "veriq",
+      "title": "Report share links",
+      "status": "todo",
+      "owner": "sa",
+      "due_in": 4,
+      "source": {
+        "channel": "#veriq",
+        "author": "Ojas",
+        "hours_ago": 50,
+        "quote": "we need share links on reports before the client call"
+      }
+    },
+    {
+      "project": "veriq",
+      "title": "Score weights v2",
+      "status": "in_progress",
+      "owner": "ve",
+      "due_in": 2,
+      "source": {
+        "channel": "#veriq",
+        "author": "Vedant",
+        "hours_ago": 6,
+        "quote": "I'll take score weights v2"
+      }
+    },
+    {
+      "project": "veriq",
+      "title": "Practitioner report layout",
+      "status": "in_progress",
+      "owner": "sa",
+      "due_in": 5,
+      "source": {
+        "channel": "#veriq",
+        "author": "Saish",
+        "hours_ago": 60,
+        "quote": "starting the practitioner report layout"
+      }
+    },
+    {
+      "project": "veriq",
+      "title": "Brand logo pack import",
+      "status": "blocked",
+      "owner": "sa",
+      "due_in": 3,
+      "blocked_reason": "Waiting on the brand's logo pack",
+      "source": {
+        "channel": "WhatsApp, Vedant",
+        "author": "Saish",
+        "hours_ago": 44,
+        "quote": "still waiting on the brand's logo pack"
+      }
+    },
+    {
+      "project": "veriq",
+      "title": "AI Overview lane",
+      "status": "done",
+      "owner": "oj",
+      "source": {
+        "channel": "#veriq",
+        "author": "Ojas",
+        "hours_ago": 7,
+        "quote": "AI Overview lane is green again"
+      }
+    },
+    {
+      "project": "veriq",
+      "title": "Encrypted R2 reports",
+      "status": "done",
+      "owner": "ve",
+      "source": {
+        "channel": "#veriq",
+        "author": "Vedant",
+        "hours_ago": 70,
+        "quote": "encrypted R2 reports are merged"
+      }
+    },
+    {
+      "project": "emmarie",
+      "title": "Motion-test queue fix",
+      "status": "todo",
+      "owner": "oj",
+      "due_in": 0,
+      "source": {
+        "channel": "#emmarie",
+        "author": "Ojas",
+        "hours_ago": 40,
+        "quote": "queue timed out again on the project's Durable Object"
+      }
+    },
+    {
+      "project": "emmarie",
+      "title": "Storyboard screen polish",
+      "status": "todo",
+      "owner": "sa",
+      "due_in": 4,
+      "source": {
+        "channel": "#emmarie",
+        "author": "Vedant",
+        "hours_ago": 20,
+        "quote": "Saish can you polish the storyboard screen?"
+      }
+    },
+    {
+      "project": "video-break",
+      "title": "Hook analysis: 20 reels",
+      "status": "todo",
+      "owner": "so",
+      "due_in": 4,
+      "source": {
+        "channel": "WhatsApp, Abhishek",
+        "author": "Abhishek",
+        "hours_ago": 5,
+        "quote": "Soha pick 20 reels and mark the hooks"
+      }
+    }
   ],
   "proposals": [
-    { "kind": "task", "project": "veriq", "owner": "sa", "summary": "Board report PDF export", "confidence": 0.86, "data": { "title": "Board report PDF export", "owner": "Saish", "due_in": 1 }, "source": { "channel": "#veriq", "author": "Saish", "hours_ago": 1, "quote": "on it, Board report PDF export by Friday" } },
-    { "kind": "status_change", "project": "veriq", "owner": "ve", "task": "Score weights v2", "summary": "Score weights v2 → done", "confidence": 0.91, "data": { "status": "done" }, "source": { "channel": "#veriq", "author": "Vedant", "hours_ago": 1, "quote": "score weights v2 is merged" } },
-    { "kind": "deadline_change", "project": "veriq", "owner": "so", "task": "Prompt plan review", "summary": "Prompt plan review moves out 2 days", "confidence": 0.74, "data": { "new_due_in": 2, "reason": "waiting on the final prompt list" }, "source": { "channel": "#veriq", "author": "Soha", "hours_ago": 2, "quote": "can I do the prompt plan review on Saturday? still waiting on the final list" } },
-    { "kind": "task", "project": null, "owner": null, "summary": "Caption style guide for reels", "confidence": 0.55, "data": { "title": "Caption style guide for reels", "route": { "rule": "ask", "candidates": ["emmarie", "video-break"] } }, "source": { "channel": "WhatsApp, Abhishek", "author": "Abhishek", "hours_ago": 3, "quote": "can someone write a caption style guide?" } }
+    {
+      "kind": "task",
+      "project": "veriq",
+      "owner": "sa",
+      "summary": "Board report PDF export",
+      "confidence": 0.86,
+      "data": {
+        "title": "Board report PDF export",
+        "owner": "Saish",
+        "due_in": 1
+      },
+      "source": {
+        "channel": "#veriq",
+        "author": "Saish",
+        "hours_ago": 1,
+        "quote": "on it, Board report PDF export by Friday"
+      }
+    },
+    {
+      "kind": "status_change",
+      "project": "veriq",
+      "owner": "ve",
+      "task": "Score weights v2",
+      "summary": "Score weights v2 → done",
+      "confidence": 0.91,
+      "data": {
+        "status": "done"
+      },
+      "source": {
+        "channel": "#veriq",
+        "author": "Vedant",
+        "hours_ago": 1,
+        "quote": "score weights v2 is merged"
+      }
+    },
+    {
+      "kind": "deadline_change",
+      "project": "veriq",
+      "owner": "so",
+      "task": "Prompt plan review",
+      "summary": "Prompt plan review moves out 2 days",
+      "confidence": 0.74,
+      "data": {
+        "new_due_in": 2,
+        "reason": "waiting on the final prompt list"
+      },
+      "source": {
+        "channel": "#veriq",
+        "author": "Soha",
+        "hours_ago": 2,
+        "quote": "can I do the prompt plan review on Saturday? still waiting on the final list"
+      }
+    },
+    {
+      "kind": "task",
+      "project": null,
+      "owner": null,
+      "summary": "Caption style guide for reels",
+      "confidence": 0.55,
+      "data": {
+        "title": "Caption style guide for reels",
+        "route": {
+          "rule": "ask",
+          "candidates": [
+            "emmarie",
+            "video-break"
+          ]
+        }
+      },
+      "source": {
+        "channel": "WhatsApp, Abhishek",
+        "author": "Abhishek",
+        "hours_ago": 3,
+        "quote": "can someone write a caption style guide?"
+      }
+    },
+    {
+      "kind": "decision",
+      "project": "veriq",
+      "owner": "ve",
+      "summary": "Score all seven model families in every report",
+      "confidence": 0.88,
+      "data": {
+        "statement": "Score all seven model families in every report",
+        "kind": "decision",
+        "affects": []
+      },
+      "source": {
+        "channel": "#veriq",
+        "author": "Vedant",
+        "hours_ago": 2,
+        "quote": "ok final: we score all seven families in every report, no partial runs"
+      }
+    },
+    {
+      "kind": "decision",
+      "project": "veriq",
+      "owner": "sa",
+      "summary": "Render the board report PDF with Typst, not headless Chrome",
+      "confidence": 0.8,
+      "data": {
+        "statement": "Render the board report PDF with Typst, not headless Chrome",
+        "kind": "decision",
+        "affects": []
+      },
+      "source": {
+        "channel": "#veriq",
+        "author": "Saish",
+        "hours_ago": 1,
+        "quote": "going with typst for the pdf, chrome was too slow on the big reports"
+      }
+    }
   ]
 }

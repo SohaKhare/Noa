@@ -1,0 +1,189 @@
+defmodule Noa.WhatsApp.Notifier do
+  @moduledoc """
+  Turns the event log into WhatsApp messages (2.21 WhatsApp side, 2.7, 3.5): a reader of
+  the log like the graph projector, with its own position (`whatsapp`). On first start it
+  begins at the end of the log, so it never sends old news.
+
+  - A task gets an owner (not themselves): "Vedant put you on …", buttons Start / Done / Need help.
+  - A deadline or scope change waits for a lead: to the project lead, buttons Approve / Reject.
+  - A pending change is decided: to whoever asked.
+  - Someone moves projects: to them, with links to their brief and agent pack.
+
+  Only people who chose WhatsApp and gave a number get messages (2.15). Quiet hours hold
+  everything except approvals waiting on a lead.
+  """
+  use GenServer
+  require Logger
+  require Ash.Query
+
+  alias Noa.{Events, WhatsApp, Work}
+
+  @name "whatsapp"
+  @every 3_000
+
+  def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+
+  @impl true
+  def init(_opts) do
+    if Events.position(@name) == 0, do: Events.put_position(@name, latest())
+    Events.subscribe()
+    send(self(), :tick)
+    {:ok, %{}}
+  end
+
+  @impl true
+  def handle_info(:tick, state) do
+    run()
+    Process.send_after(self(), :tick, @every)
+    {:noreply, state}
+  end
+
+  def handle_info({:appended, _org}, state) do
+    run()
+    {:noreply, state}
+  end
+
+  defp latest do
+    import Ecto.Query
+    Noa.Repo.one(from(e in Events.Event, select: max(e.id))) || 0
+  end
+
+  defp run do
+    for event <- Events.since(Events.position(@name), limit: 100) do
+      try do
+        handle(event)
+      rescue
+        e -> Logger.warning("WhatsApp notifier skipped event #{event.id}: #{Exception.message(e)}")
+      end
+
+      Events.put_position(@name, event.id)
+    end
+  end
+
+  @doc "The messages one event causes, sent now. Returns the list of `{person, text, opts}` it sent."
+  def handle(%{type: "task.saved", data: d} = event) do
+    previous = previous(event)
+
+    if d["owner_id"] && d["status"] != "done" && (is_nil(previous) or previous.data["owner_id"] != d["owner_id"]) do
+      owner = person(d["owner_id"])
+      by = actor_name(event)
+      due = d["due_on"] && ", due #{d["due_on"]}"
+
+      deliver(event, owner, "#{by || "Noa"} put you on \"#{d["title"]}\" in #{project_name(d["project_id"])}#{due}.",
+        buttons: [{"start:#{d["id"]}", "Start now"}, {"done:#{d["id"]}", "Done"}, {"help:#{d["id"]}", "Need help"}],
+        context: %{"task_id" => d["id"]}
+      )
+    else
+      []
+    end
+  end
+
+  def handle(%{type: "change.saved", data: %{"status" => "pending"} = d} = event) do
+    if is_nil(previous(event)) do
+      task = Ash.get!(Work.Task, d["task_id"], authorize?: false)
+
+      for lead <- leads(task) do
+        deliver(
+          event,
+          lead,
+          "#{actor_name(event) || "Someone"} wants to change the #{d["kind"]} of \"#{task.title}\": #{d["old_value"] || "none"} → #{d["new_value"] || "none"}#{d["reason"] && " (#{d["reason"]})"}.",
+          buttons: [{"approve_change:#{d["id"]}", "Approve"}, {"reject_change:#{d["id"]}", "Reject"}],
+          context: %{"change_id" => d["id"], "task_id" => d["task_id"]},
+          urgent: true
+        )
+      end
+      |> List.flatten()
+    else
+      []
+    end
+  end
+
+  def handle(%{type: "change.saved", data: %{"status" => status} = d} = event) when status in ["applied", "rejected"] do
+    case previous(event) do
+      %{data: %{"status" => "pending"}} ->
+        task = Ash.get!(Work.Task, d["task_id"], authorize?: false)
+        asker = d["requested_by_id"] && person_for_user(d["requested_by_id"], task.org_id)
+        verb = if status == "applied", do: "approved", else: "turned down"
+
+        deliver(
+          event,
+          asker,
+          "#{actor_name(event) || "Your lead"} #{verb} your #{d["kind"]} change to \"#{task.title}\" (#{d["new_value"]}).",
+          context: %{"task_id" => d["task_id"]}
+        )
+
+      _ ->
+        []
+    end
+  end
+
+  def handle(%{type: "shift.saved", data: d} = event) do
+    to = d["to_project_id"] && project_name(d["to_project_id"])
+    from = d["from_project_id"] && project_name(d["from_project_id"])
+    web = Application.fetch_env!(:noa, :web_origin)
+
+    text =
+      "You're moving #{if from, do: "from #{from} "}to #{to || "the bench"} from #{d["starts_on"]}." <>
+        if(to, do: " Your brief and agent pack: #{web}/pack. Ask me anything about #{to} here.", else: "")
+
+    deliver(event, person(d["person_id"]), text, context: %{"shift_id" => d["id"]})
+  end
+
+  def handle(_event), do: []
+
+  ## Delivery
+
+  defp deliver(_event, nil, _text, _opts), do: []
+
+  defp deliver(event, %Work.Person{} = p, text, opts) do
+    to_self = p.membership_id && event.actor_id && membership_user(p) == event.actor_id
+
+    cond do
+      to_self -> []
+      Work.notify_target(p) |> elem_or_nil(0) != :whatsapp -> []
+      Work.quiet?(p) and not Keyword.get(opts, :urgent, false) -> []
+      true -> [WhatsApp.send(p, text, Keyword.take(opts, [:buttons, :context]))]
+    end
+  end
+
+  defp elem_or_nil(t, i) when is_tuple(t), do: elem(t, i)
+  defp elem_or_nil(_, _), do: nil
+
+  ## Lookups (as Noa: the events were already authorized)
+
+  defp previous(%{subject_id: nil}), do: nil
+
+  defp previous(event) do
+    event.org_id |> Events.history(event.subject_id) |> Enum.filter(&(&1.id < event.id)) |> List.last()
+  end
+
+  defp person(nil), do: nil
+  defp person(id), do: Ash.get!(Work.Person, id, authorize?: false)
+
+  defp person_for_user(user_id, org_id) do
+    Work.Person
+    |> Ash.Query.filter(org_id == ^org_id and membership.user_id == ^user_id)
+    |> Ash.read_one!(authorize?: false)
+  end
+
+  defp membership_user(%{membership_id: id}), do: Ash.get!(Noa.Orgs.Membership, id, authorize?: false).user_id
+
+  defp actor_name(%{actor_id: nil}), do: nil
+  defp actor_name(%{actor_id: id, org_id: org}), do: (p = person_for_user(id, org)) && p.name
+
+  defp project_name(nil), do: "a project"
+  defp project_name(id), do: Ash.get!(Work.Project, id, authorize?: false).name
+
+  # The project's lead, or the workspace's admins and PMs if it has none.
+  defp leads(task) do
+    project = Ash.get!(Work.Project, task.project_id, authorize?: false)
+
+    if project.lead_id do
+      [person(project.lead_id)]
+    else
+      Work.Person
+      |> Ash.Query.filter(org_id == ^task.org_id and membership.role in [:org_admin, :pm])
+      |> Ash.read!(authorize?: false)
+    end
+  end
+end

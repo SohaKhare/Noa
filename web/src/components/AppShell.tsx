@@ -22,14 +22,14 @@ import {
   UsersThreeIcon,
   type Icon,
 } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
-import { roleLabel, signOut } from "@/lib/api";
-import { notifications, type Notification } from "@/lib/mock";
-import { useDirectory, useProposals } from "@/lib/work";
+import { getFeed, roleLabel, signOut, type FeedItem } from "@/lib/api";
+import { ago, useDirectory, useOrgId, useProposals } from "@/lib/work";
 import { currentMembership, initials, isOrgAdmin, useMe, useSetMe } from "@/lib/session";
 import { BrandMark } from "./BrandMark";
 import { Avatar } from "./ui";
@@ -87,6 +87,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen bg-bg">
       <aside className="sticky top-0 hidden h-screen w-[248px] shrink-0 flex-col border-r border-line bg-surface md:flex">
+        <Link href="/" className="mx-5 mt-4 flex items-center gap-2">
+          <BrandMark size={26} />
+          <span className="font-wordmark text-[22px] leading-none">NOA</span>
+        </Link>
         <button className="mx-3 mt-3 flex items-center gap-2.5 rounded-xl px-2 py-2 text-left hover:bg-bg">
           <BrandMark size={28} />
           <span className="min-w-0 flex-1 leading-tight">
@@ -221,6 +225,10 @@ function TopBar({ path }: { path: string }) {
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-bg/85 px-5 backdrop-blur-md sm:px-8">
+      <Link href="/" className="flex items-center gap-1.5 md:hidden">
+        <BrandMark size={22} />
+        <span className="font-wordmark text-[18px] leading-none">NOA</span>
+      </Link>
       <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-2 text-[13.5px]">
         {crumbs.map((c, i) => (
           <span key={c.label} className="flex items-center gap-2">
@@ -245,17 +253,42 @@ function TopBar({ path }: { path: string }) {
   );
 }
 
-const notifIcon: Record<Notification["kind"], Icon> = {
+const notifIcon: Record<FeedItem["kind"], Icon> = {
   approval: GavelIcon,
-  mention: AtIcon,
+  change: AtIcon,
   shift: ArrowsLeftRightIcon,
   decision: CheckCircleIcon,
 };
 
+const SEEN = "noa.feed.seen";
+const readSeen = () => {
+  try {
+    return localStorage.getItem(SEEN) ?? "";
+  } catch {
+    return "";
+  }
+};
+
+/* The bell: what waits on you and what changed around you, from /feed. Unread = newer than when you last opened it. */
 function Notifications() {
   const [open, setOpen] = useState(false);
+  const [seen, setSeen] = useState(readSeen);
   const ref = useRef<HTMLDivElement>(null);
-  const unread = notifications.filter((n) => n.unread).length;
+  const router = useRouter();
+  const orgId = useOrgId();
+  const feed = useQuery({ queryKey: ["feed", orgId], queryFn: () => getFeed(orgId!), enabled: !!orgId, refetchInterval: 30_000 });
+  const items = feed.data ?? [];
+  const unread = items.filter((n) => n.at > seen).length;
+
+  const markRead = () => {
+    const now = new Date().toISOString();
+    setSeen(now);
+    try {
+      localStorage.setItem(SEEN, now);
+    } catch {
+      /* private mode: unread resets on reload */
+    }
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -284,24 +317,37 @@ function Notifications() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.16 }}
-            className="absolute right-0 mt-2 w-[340px] overflow-hidden rounded-2xl bg-surface card-shadow"
+            className="absolute right-0 z-50 mt-2 w-[360px] overflow-hidden rounded-2xl bg-surface card-shadow"
           >
             <p className="flex items-center justify-between border-b border-line px-4 py-3 text-[13px] font-semibold">
-              Notifications <button className="text-[12px] font-normal text-muted hover:text-ink">Mark all read</button>
+              Notifications
+              <button onClick={markRead} className="text-[12px] font-normal text-muted hover:text-ink">
+                Mark all read
+              </button>
             </p>
-            <ul className="max-h-[360px] divide-y divide-line overflow-y-auto">
-              {notifications.map((n) => {
+            <ul className="max-h-[380px] divide-y divide-line overflow-y-auto">
+              {items.length === 0 && <li className="px-4 py-6 text-center text-[13px] text-muted">All quiet. Nothing waits on you.</li>}
+              {items.map((n) => {
                 const I = notifIcon[n.kind];
+                const fresh = n.at > seen;
                 return (
-                  <li key={n.id} className="flex gap-3 px-4 py-3 hover:bg-bg">
-                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-mist text-accent">
-                      <I size={15} />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className={cn("block text-[13px]", n.unread && "font-medium")}>{n.text}</span>
-                      <span className="text-[11.5px] text-muted">{n.at} ago</span>
-                    </span>
-                    {n.unread && <span className="mt-1.5 size-2 shrink-0 rounded-full bg-signal" />}
+                  <li key={n.id}>
+                    <button
+                      onClick={() => {
+                        setOpen(false);
+                        if (n.href) router.push(n.href);
+                      }}
+                      className="flex w-full gap-3 px-4 py-3 text-left hover:bg-bg"
+                    >
+                      <span className="grid size-8 shrink-0 place-items-center rounded-full bg-mist text-accent">
+                        <I size={15} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className={cn("block text-[13px]", fresh && "font-medium")}>{n.text}</span>
+                        <span className="text-[11.5px] text-muted">{ago(n.at)}</span>
+                      </span>
+                      {fresh && <span className="mt-1.5 size-2 shrink-0 rounded-full bg-signal" />}
+                    </button>
                   </li>
                 );
               })}
@@ -317,6 +363,10 @@ function ApiDown({ message }: { message: string }) {
   return (
     <div className="grid min-h-screen place-items-center bg-bg p-6 text-center">
       <div className="max-w-sm">
+        <div className="mb-4 flex items-center justify-center gap-2">
+          <BrandMark size={28} />
+          <span className="font-wordmark text-[26px] leading-none">NOA</span>
+        </div>
         <p className="text-[18px] font-semibold">Noa can&rsquo;t reach its server</p>
         <p className="mt-1.5 text-[13.5px] text-muted">{message}</p>
         <button onClick={() => location.reload()} className="mt-4 rounded-full bg-accent px-4 py-2 text-[13.5px] font-medium text-white hover:bg-accent-soft">

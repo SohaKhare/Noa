@@ -55,9 +55,8 @@ defmodule Noa.Events do
   end
 
   @doc """
-  Tells readers (the projector) to look at the log. Appends inside an outer transaction
-  (every Ash write) are not visible until it commits, so they are not announced; the
-  projector's timer finds them within a couple of seconds.
+  Tells readers (the projector) to look at the log. Ash writes announce themselves after
+  they commit (`Noa.Events.Record`); the projector's 2-second timer catches anything else.
   """
   def notify(%Event{} = event) do
     notify(event.org_id)
@@ -108,6 +107,7 @@ defmodule Noa.Events do
   def json(%Date{} = d), do: Date.to_iso8601(d)
   def json(%DateTime{} = d), do: DateTime.to_iso8601(d)
   def json(%NaiveDateTime{} = d), do: NaiveDateTime.to_iso8601(d)
+  def json(%Time{} = t), do: Time.to_iso8601(t)
   def json(%Ash.CiString{} = s), do: to_string(s)
   def json(%{__struct__: _} = s), do: s |> Map.from_struct() |> json()
   def json(map) when is_map(map), do: Map.new(map, fn {k, v} -> {to_string(k), json(v)} end)

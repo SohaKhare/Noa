@@ -12,6 +12,9 @@ defmodule NoaWeb.FallbackController do
     used: {410, "This invite was already used. Sign in instead."},
     needs_project: {422, "Pick a project before approving this."},
     already_decided: {409, "Someone already approved or dismissed this."},
+    not_a_lead: {403, "Only workspace admins and PMs can move people."},
+    same_project: {422, "They're already on that project."},
+    changed_since: {409, "This was changed again since. Change it back by hand."},
     not_found: {404, "Not found."}
   }
 

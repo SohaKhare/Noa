@@ -8,6 +8,7 @@ defmodule NoaWeb.PlatformController do
 
     with {:ok, orgs} <- Orgs.list_orgs(actor) do
       orgs = Ash.load!(orgs, [memberships: :user, invites: []], actor: actor)
+      usage = Noa.LLM.usage()
 
       json(conn, %{
         orgs:
@@ -16,7 +17,8 @@ defmodule NoaWeb.PlatformController do
             |> Map.merge(%{
               admins: for(m <- org.memberships, m.role == :org_admin, do: m.user.name || to_string(m.user.email)),
               member_count: length(org.memberships),
-              pending_invites: Enum.count(org.invites, &(&1.status == :pending))
+              pending_invites: Enum.count(org.invites, &(&1.status == :pending)),
+              llm_24h: usage[org.id] || %{calls: 0, errors: 0, avg_ms: nil, approx_tokens: 0}
             })
           end)
       })

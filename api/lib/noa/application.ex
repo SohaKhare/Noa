@@ -4,6 +4,8 @@ defmodule Noa.Application do
 
   @impl true
   def start(_type, _args) do
+    NoaWeb.Plugs.RateLimit.setup()
+
     children =
       [
         Noa.Repo,
@@ -12,6 +14,7 @@ defmodule Noa.Application do
         {Oban, Application.fetch_env!(:noa, Oban)},
         Noa.Graph,
         projector(),
+        if(Application.get_env(:noa, Noa.WhatsApp, [])[:notifier], do: Noa.WhatsApp.Notifier),
         discord_children(),
         NoaWeb.Endpoint
       ]

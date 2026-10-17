@@ -35,7 +35,12 @@ export type InviteInfo = {
   org: { name: string };
   has_account: boolean;
 };
-export type PlatformOrg = Org & { admins: string[]; member_count: number; pending_invites: number };
+export type PlatformOrg = Org & {
+  admins: string[];
+  member_count: number;
+  pending_invites: number;
+  llm_24h?: { calls: number; errors: number; avg_ms: number | null; approx_tokens: number };
+};
 
 export class ApiError extends Error {
   constructor(
@@ -107,6 +112,7 @@ export type WorkPerson = {
   handles: string[];
   joined: boolean;
   role: Role | null;
+  user_id: string | null;
   allocations: Allocation[];
 };
 export type WorkProject = {
@@ -141,7 +147,16 @@ export type WorkProposal = {
   id: string;
   kind: ProposalKind;
   summary: string;
-  data: Record<string, unknown> & { title?: string; due?: string; new_due?: string; status?: TaskStatus; route?: { rule: string; candidates?: string[] } };
+  data: Record<string, unknown> & {
+    title?: string;
+    due?: string;
+    new_due?: string;
+    status?: TaskStatus;
+    route?: { rule: string; candidates?: string[] };
+    duplicate_of?: { task_id: string; title: string };
+    auto?: boolean;
+    undone?: boolean;
+  };
   confidence: number | null;
   source: MessageSource | null;
   status: "pending" | "approved" | "rejected";
@@ -159,9 +174,163 @@ export const getTasks = (orgId: string, filters: { project_id?: string; owner_id
 };
 export const createTask = (orgId: string, data: Partial<WorkTask> & { title: string; project_id: string }) =>
   post<{ task: WorkTask }>(`/api/orgs/${orgId}/tasks`, data).then((r) => r.task);
-export const updateTask = (orgId: string, id: string, data: Partial<Pick<WorkTask, "title" | "detail" | "status" | "due_on" | "blocked_reason" | "owner_id" | "project_id">>) =>
-  api<{ task: WorkTask }>(`/api/orgs/${orgId}/tasks/${id}`, { method: "PATCH", body: JSON.stringify(data) }).then((r) => r.task);
-export const getProposals = (orgId: string) => api<{ proposals: WorkProposal[] }>(`/api/orgs/${orgId}/proposals`).then((r) => r.proposals);
+export const updateTask = (
+  orgId: string,
+  id: string,
+  data: Partial<Pick<WorkTask, "title" | "detail" | "status" | "due_on" | "blocked_reason" | "owner_id" | "project_id">> & { reason?: string },
+) => api<{ task: WorkTask; pending_changes: WorkChange[] }>(`/api/orgs/${orgId}/tasks/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+export type ChangeKind = "deadline" | "scope" | "owner" | "status" | "title";
+export type WorkChange = {
+  id: string;
+  kind: ChangeKind;
+  old_value: string | null;
+  new_value: string | null;
+  reason: string | null;
+  status: "applied" | "pending" | "rejected" | "reverted";
+  source: MessageSource | null;
+  task_id: string;
+  project_id: string;
+  requested_by_id: string | null;
+  decided_by_id: string | null;
+  decided_at: string | null;
+  inserted_at: string;
+};
+export const getChanges = (orgId: string, filters: { task_id?: string; project_id?: string; status?: WorkChange["status"] } = {}) => {
+  const q = new URLSearchParams(Object.entries(filters).filter(([, v]) => v) as [string, string][]).toString();
+  return api<{ changes: WorkChange[] }>(`/api/orgs/${orgId}/changes${q ? `?${q}` : ""}`).then((r) => r.changes);
+};
+export const decideChange = (orgId: string, id: string, action: "approve" | "reject" | "revert") =>
+  api<{ change: WorkChange }>(`/api/orgs/${orgId}/changes/${id}/${action}`, { method: "POST" }).then((r) => r.change);
+export const updateChannel = (orgId: string, id: string, data: Partial<Pick<Channel, "project_id" | "split" | "read">>) =>
+  api<{ channel: Channel }>(`/api/orgs/${orgId}/channels/${id}`, { method: "PATCH", body: JSON.stringify(data) }).then((r) => r.channel);
+export type WorkDecision = {
+  id: string;
+  statement: string;
+  kind: "decision" | "conclusion";
+  status: "active" | "superseded";
+  affects: string[];
+  source: MessageSource | null;
+  project_id: string | null;
+  made_by_id: string | null;
+  superseded_by_id: string | null;
+  inserted_at: string;
+};
+export const getDecisions = (orgId: string, filters: { project_id?: string; since?: string; status?: "active" | "superseded" } = {}) => {
+  const q = new URLSearchParams(Object.entries(filters).filter(([, v]) => v) as [string, string][]).toString();
+  return api<{ decisions: WorkDecision[] }>(`/api/orgs/${orgId}/decisions${q ? `?${q}` : ""}`).then((r) => r.decisions);
+};
+export type Citation = {
+  id: string;
+  kind: "task" | "decision" | "message" | "shift" | "expert" | "path";
+  via?: string | null;
+  title: string;
+  text: string;
+  href: string | null;
+  project_id: string | null;
+  status: string | null;
+  source: MessageSource | null;
+};
+export const ask = (orgId: string, question: string) =>
+  api<{ answer: string; citations: Citation[]; retrieval?: { store: "falkordb" | "postgres"; routes: string[] } }>(`/api/orgs/${orgId}/ask`, { method: "POST", body: JSON.stringify({ question }) });
+export type ShiftPlanTask = { task_id: string; title: string; status: TaskStatus; due_on: string | null; to_owner_id: string | null };
+export type WorkShift = {
+  id: string;
+  person_id: string;
+  from_project_id: string | null;
+  to_project_id: string | null;
+  percent: number;
+  starts_on: string;
+  routes_until: string | null;
+  handover: { task_id: string; title: string; to_owner_id: string | null }[];
+  note: string | null;
+  inserted_at: string;
+};
+export const planShift = (orgId: string, personId: string, fromProjectId: string | null) =>
+  api<{ tasks: ShiftPlanTask[] }>(
+    `/api/orgs/${orgId}/shifts/plan?person_id=${personId}&from_project_id=${fromProjectId ?? ""}`,
+  ).then((r) => r.tasks);
+export const createShift = (
+  orgId: string,
+  body: { person_id: string; from_project_id: string | null; to_project_id: string | null; percent?: number; starts_on?: string; handover: Record<string, string>; note?: string },
+) => api<{ shift: WorkShift }>(`/api/orgs/${orgId}/shifts`, { method: "POST", body: JSON.stringify(body) }).then((r) => r.shift);
+export const getShifts = (orgId: string) => api<{ shifts: WorkShift[] }>(`/api/orgs/${orgId}/shifts`).then((r) => r.shifts);
+export type BriefItem = { text: string; href: string | null; source: MessageSource | null };
+export type Brief = { project_id: string; person_id: string | null; sections: { title: string; items: BriefItem[] }[] };
+export const getBrief = (orgId: string, projectId: string, personId?: string | null) =>
+  api<Brief>(`/api/orgs/${orgId}/projects/${projectId}/brief${personId ? `?person_id=${personId}` : ""}`);
+/* Downloads brief.md (3.19) through the browser, with the session cookie. */
+export async function downloadBrief(orgId: string, projectId: string, personId?: string | null) {
+  const q = new URLSearchParams({ format: "md", ...(personId ? { person_id: personId } : {}) });
+  const res = await fetch(`${API_URL}/api/orgs/${orgId}/projects/${projectId}/brief?${q}`, { credentials: "include" });
+  if (!res.ok) throw new ApiError(res.status, "error", "Couldn't download the brief.");
+  const name = res.headers.get("content-disposition")?.match(/filename="([^"]+)"/)?.[1] ?? "brief.md";
+  const url = URL.createObjectURL(await res.blob());
+  const a = Object.assign(document.createElement("a"), { href: url, download: name });
+  a.click();
+  URL.revokeObjectURL(url);
+}
+export type Pack = {
+  project: { id: string; key: string; name: string };
+  person: { id: string; name: string } | null;
+  store: "falkordb" | "postgres";
+  files: { path: string; content: string }[];
+  steps: { label: string; kind: string }[];
+};
+export const getPack = (orgId: string, projectId: string, personId?: string | null) =>
+  api<Pack>(`/api/orgs/${orgId}/projects/${projectId}/pack${personId ? `?person_id=${personId}` : ""}`);
+export type FeedItem = { id: string; kind: "approval" | "change" | "decision" | "shift"; text: string; at: string; href: string | null };
+export const getFeed = (orgId: string) => api<{ items: FeedItem[] }>(`/api/orgs/${orgId}/feed`).then((r) => r.items);
+export type McpToken = { id: string; name: string; inserted_at: string; last_used_at: string | null };
+export const getMcpTokens = (orgId: string) => api<{ tokens: McpToken[]; url: string }>(`/api/orgs/${orgId}/mcp_tokens`);
+export const createMcpToken = (orgId: string, name: string) =>
+  api<{ token: string; info: McpToken; url: string }>(`/api/orgs/${orgId}/mcp_tokens`, { method: "POST", body: JSON.stringify({ name }) });
+export const revokeMcpToken = (orgId: string, id: string) => api<unknown>(`/api/orgs/${orgId}/mcp_tokens/${id}`, { method: "DELETE" });
+export type WhatsAppMessage = {
+  id: string;
+  person_id: string | null;
+  direction: "in" | "out";
+  kind: string;
+  body: string | null;
+  buttons: Record<string, string> | null;
+  status: "sent" | "simulated" | "failed" | "received";
+  inserted_at: string;
+};
+export const getWhatsApp = (orgId: string) =>
+  api<{ configured: boolean; scope: "workspace" | "you"; messages: WhatsAppMessage[] }>(`/api/orgs/${orgId}/whatsapp`);
+export type GraphNode = { id: string; label: string; name: string };
+export type GraphView = { nodes: GraphNode[]; edges: { from: string; to: string; type: string }[]; graph: boolean };
+export const getGraph = (orgId: string, projectId: string) => api<GraphView>(`/api/orgs/${orgId}/graph?project_id=${projectId}`);
+export const getGraphPath = (orgId: string, from: string, to: string) =>
+  api<{ path: string[] }>(`/api/orgs/${orgId}/graph/path?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`).then((r) => r.path);
+export type NotifyVia = "whatsapp" | "discord" | "email" | "in_app";
+export type NotificationPrefs = {
+  notify_via: NotifyVia;
+  phone: string | null;
+  digest_at: string | null;
+  quiet_from: string | null;
+  quiet_to: string | null;
+  utc_offset: number;
+};
+export const getNotifications = (orgId: string) =>
+  api<{ notifications: NotificationPrefs }>(`/api/orgs/${orgId}/me/notifications`).then((r) => r.notifications);
+export const updateNotifications = (orgId: string, data: Partial<NotificationPrefs>) =>
+  api<{ notifications: NotificationPrefs }>(`/api/orgs/${orgId}/me/notifications`, { method: "PATCH", body: JSON.stringify(data) }).then(
+    (r) => r.notifications,
+  );
+export type Experts = {
+  experts: { person_id: string; name: string; weight: number; share: number }[];
+  key_people: { person_id: string; name: string; score: number }[];
+  bus_factor: { project_id: string; project: string; person_id: string; name: string; share: number }[];
+  groups?: { people: string[]; projects: string[] }[];
+  bridges?: { person_id: string; name: string; score: number }[];
+  graph: boolean;
+};
+export const getExperts = (orgId: string, projectId?: string) =>
+  api<Experts>(`/api/orgs/${orgId}/experts${projectId ? `?project_id=${projectId}` : ""}`);
+export const getProposals = (orgId: string, status: "pending" | "approved" | "rejected" = "pending") =>
+  api<{ proposals: WorkProposal[] }>(`/api/orgs/${orgId}/proposals${status === "pending" ? "" : `?status=${status}`}`).then((r) => r.proposals);
+export const undoProposal = (orgId: string, id: string) =>
+  api<{ proposal: WorkProposal }>(`/api/orgs/${orgId}/proposals/${id}/undo`, { method: "POST" }).then((r) => r.proposal);
 export const approveProposal = (orgId: string, id: string, edits: ApproveEdits = {}) =>
   post<{ proposal: WorkProposal; task: WorkTask | null }>(`/api/orgs/${orgId}/proposals/${id}/approve`, edits);
 export const rejectProposal = (orgId: string, id: string) => post<{ proposal: WorkProposal }>(`/api/orgs/${orgId}/proposals/${id}/reject`);

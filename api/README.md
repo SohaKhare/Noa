@@ -7,6 +7,7 @@ What is here today:
 - **Accounts, workspaces, invites** (1.4, 1.5, 1.6, 1.22): invite-only sign-in with password or magic link, work-email domains per workspace, Ash policies on every read. See [docs/auth.md](../docs/auth.md).
 - **Extraction core** (1.16, 1.17, 1.21): chat lines in, typed and routed proposals out. See [docs/extraction.md](../docs/extraction.md).
 - **Work** (1.23, 1.24): people, projects, allocations, channels, aliases, tasks and the Inbox, with the seed loader. See [docs/schema.md](../docs/schema.md).
+- **`@noa`** (2.5): `Noa.Agent.ask/3` answers with numbered citations from tasks, decisions and chat messages the asker can see. With `OPENAI_API_KEY` it calls the model (strict schema, may only cite given sources); without it, it lists what it found. Discord and WhatsApp bots call the same function.
 - **Event log and graph** (1.8 to 1.11): every Work write appends an event in its transaction; chat ingest records messages with `Noa.Work.record_message/2`, which resolves the author through `identities`; `Noa.Graph.Projector` mirrors the log into one FalkorDB graph per workspace.
 
 ```sh

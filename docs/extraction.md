@@ -99,7 +99,7 @@ The model returns one object with one array per type, so a single call can find 
 | `change` | enum | `add`, `remove`, `change` |
 | `summary` | string | What changed, one sentence |
 
-Scope and deadline changes always need the editor's lead to approve (2.20), whatever the confidence.
+Scope and deadline changes always need the editor's lead to approve (2.20), whatever the confidence. New tasks and owner-reported status changes at 0.9 or above apply themselves, with undo (2.2; see docs/schema.md).
 
 ## Prompt (1.17)
 

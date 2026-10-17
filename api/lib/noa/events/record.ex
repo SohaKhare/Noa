@@ -11,6 +11,16 @@ defmodule Noa.Events.Record do
   @impl true
   def change(changeset, opts, context) do
     changeset
+    # Tell the projector as soon as the write commits, so the graph is current when
+    # someone asks @noa right after approving something.
+    |> Ash.Changeset.after_transaction(fn
+      _changeset, {:ok, record} = result ->
+        Noa.Events.notify(record.org_id)
+        result
+
+      _changeset, result ->
+        result
+    end)
     |> Ash.Changeset.after_action(fn changeset, record ->
       type = "#{opts[:name]}.#{if changeset.action_type == :destroy, do: "deleted", else: "saved"}"
       actor = context.actor && Map.get(context.actor, :id)

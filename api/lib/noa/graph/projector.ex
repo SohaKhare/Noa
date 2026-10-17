@@ -205,13 +205,54 @@ defmodule Noa.Graph.Projector do
       {"""
        MERGE (t:Task {id: $id})
        SET t.title = $title, t.detail = $detail, t.status = $status, t.due = $due_on,
-           t.blocked_reason = $blocked_reason, t.done_at = $done_at, t.created_at = $inserted_at
-       """, params(d, ~w(id title detail status due_on blocked_reason done_at inserted_at))},
+           t.blocked_reason = $blocked_reason, t.done_at = $done_at, t.created_at = $inserted_at,
+           t.src_channel = $src_channel, t.src_author = $src_author, t.src_at = $src_at, t.src_quote = $src_quote
+       """,
+       params(d, ~w(id title detail status due_on blocked_reason done_at inserted_at)) |> Map.merge(source_params(d))},
       {"MATCH (:Task {id: $id})-[r:BELONGS_TO|ASSIGNED_TO]->() DELETE r", %{"id" => d["id"]}}
     ] ++
       edge_to(d["project_id"], "MATCH (t:Task {id: $id}) MERGE (p:Project {id: $to}) MERGE (t)-[:BELONGS_TO]->(p)", d) ++
       edge_to(d["owner_id"], "MATCH (t:Task {id: $id}) MERGE (p:Person {id: $to}) MERGE (t)-[:ASSIGNED_TO]->(p)", d) ++
       edge_to(episode, "MATCH (t:Task {id: $id}) MERGE (e:Episode {id: $to}) MERGE (t)-[:EXTRACTED_FROM]->(e)", d)
+  end
+
+  defp statements("decision.saved", d) do
+    [
+      {"""
+       MERGE (x:Decision {id: $id})
+       SET x.statement = $statement, x.kind = $kind, x.status = $status, x.at = $inserted_at,
+           x.src_channel = $src_channel, x.src_author = $src_author, x.src_at = $src_at, x.src_quote = $src_quote
+       """, params(d, ~w(id statement kind status inserted_at)) |> Map.merge(source_params(d))},
+      {"MATCH (:Person)-[r:DECIDED]->(:Decision {id: $id}) DELETE r", %{"id" => d["id"]}},
+      {"MATCH (:Decision {id: $id})-[r:AFFECTS]->() DELETE r", %{"id" => d["id"]}}
+    ] ++
+      edge_to(d["made_by_id"], "MATCH (x:Decision {id: $id}) MERGE (p:Person {id: $to}) MERGE (p)-[:DECIDED]->(x)", d) ++
+      edge_to(d["project_id"], "MATCH (x:Decision {id: $id}) MERGE (p:Project {id: $to}) MERGE (x)-[:AFFECTS]->(p)", d) ++
+      Enum.flat_map(
+        d["affects"] || [],
+        &edge_to(&1, "MATCH (x:Decision {id: $id}) MERGE (t:Task {id: $to}) MERGE (x)-[:AFFECTS]->(t)", d)
+      ) ++
+      edge_to(
+        d["superseded_by_id"],
+        "MATCH (x:Decision {id: $id}) MERGE (n:Decision {id: $to}) MERGE (n)-[:SUPERSEDES]->(x)",
+        d
+      ) ++
+      edge_to(
+        get_in(d, ["source", "episode_id"]),
+        "MATCH (x:Decision {id: $id}) MERGE (e:Episode {id: $to}) MERGE (x)-[:EXTRACTED_FROM]->(e)",
+        d
+      )
+  end
+
+  defp statements("change.saved", d) do
+    [
+      {"""
+       MERGE (c:ChangeRecord {id: $id})
+       SET c.kind = $kind, c.old = $old_value, c.new = $new_value, c.status = $status, c.reason = $reason, c.at = $inserted_at
+       MERGE (t:Task {id: $task_id})
+       MERGE (c)-[:CHANGED]->(t)
+       """, params(d, ~w(id kind old_value new_value status reason inserted_at task_id))}
+    ]
   end
 
   defp statements("message.received", d) do
@@ -232,7 +273,7 @@ defmodule Noa.Graph.Projector do
 
   defp statements(type, d) do
     case String.split(type, ".") do
-      [thing, "deleted"] when thing in ~w(person project channel identity task) ->
+      [thing, "deleted"] when thing in ~w(person project channel identity task decision) ->
         [{"MATCH (n:#{label(thing)} {id: $id}) DETACH DELETE n", %{"id" => d["id"]}}]
 
       _ ->
@@ -241,6 +282,18 @@ defmodule Noa.Graph.Projector do
   end
 
   defp label(thing), do: thing |> Macro.camelize()
+
+  # Where a task or decision was said, kept on the node so answers from the graph can cite it.
+  defp source_params(d) do
+    src = d["source"] || %{}
+
+    %{
+      "src_channel" => src["channel"],
+      "src_author" => src["author"],
+      "src_at" => src["at"],
+      "src_quote" => src["quote"]
+    }
+  end
 
   # Every name the Cypher uses must be sent, so missing fields go as null.
   defp params(d, keys), do: Map.new(keys, &{&1, d[&1]})

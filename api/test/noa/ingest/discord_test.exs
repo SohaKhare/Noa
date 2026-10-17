@@ -57,7 +57,7 @@ defmodule Noa.Ingest.DiscordTest do
   end
 
   test "consumer ignores non-message gateway events before touching Work" do
-    assert {:ignore, :unsupported_event} = Consumer.handle_event({:READY, %{}, %{}})
+    assert :noop = Consumer.handle_event({:READY, %{}, %{}})
   end
 
   defp message_payload do

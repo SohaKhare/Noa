@@ -31,7 +31,8 @@ export default function AdminConsole() {
     <div className="min-h-screen bg-bg">
       <header className="flex h-14 items-center gap-3 border-b border-line bg-surface px-5 sm:px-8">
         <BrandMark size={26} />
-        <span className="text-[14px] font-semibold">Noa platform</span>
+        <span className="font-wordmark text-[22px] leading-none">NOA</span>
+        <span className="text-[14px] font-semibold">platform</span>
         <Badge tone="signal">Superadmin</Badge>
         <span className="ml-auto text-[13px] text-muted">{user.email}</span>
         {user.memberships.length > 0 && (
@@ -73,6 +74,13 @@ export default function AdminConsole() {
                 <span className="text-[12.5px] text-muted">
                   {o.member_count} {o.member_count === 1 ? "person" : "people"}
                   {o.pending_invites > 0 && ` · ${o.pending_invites} invite${o.pending_invites === 1 ? "" : "s"} pending`}
+                  {o.llm_24h && (
+                    <span className="block text-right">
+                      AI today: {o.llm_24h.calls} {o.llm_24h.calls === 1 ? "call" : "calls"}
+                      {o.llm_24h.calls > 0 && ` · ~${o.llm_24h.approx_tokens.toLocaleString()} tokens`}
+                      {o.llm_24h.errors > 0 && <span className="text-bad"> · {o.llm_24h.errors} failed</span>}
+                    </span>
+                  )}
                 </span>
               </Card>
             ))}

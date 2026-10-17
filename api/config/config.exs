@@ -3,8 +3,18 @@ import Config
 # The graph (1.9). Locally: `docker compose --profile graph up -d`. Prod sets FALKORDB_URL.
 config :noa, Noa.Graph, url: "redis://127.0.0.1:6379", projector: true
 
+# Noa.Events.Record notifies the projector after a commit; inside an outer transaction
+# that is an early, harmless poke, so Ash's warning about it is off.
+config :ash, warn_on_transaction_hooks?: false
+
+# Never log these request fields (4.3).
+config :phoenix, :filter_parameters, ["password", "token", "reset_token", "secret", "api_key", "key"]
+
 # Background jobs. Extraction runs one channel at a time per org (1.17).
-config :noa, Oban, repo: Noa.Repo, queues: [extraction: 2]
+config :noa, Oban, repo: Noa.Repo, queues: [extraction: 2, whatsapp: 4]
+
+# Proposals at or above this confidence apply themselves, with undo (2.2). nil turns it off.
+config :noa, Noa.Work, auto_apply: 0.9
 
 # Extraction waits this long after a channel's latest message, so a burst is one model call.
 config :noa, Noa.Extraction, debounce_seconds: 20, utc_offset: 19_800

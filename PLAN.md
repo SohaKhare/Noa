@@ -47,7 +47,7 @@ Slack · Discord · Google Meet · WhatsApp (Kapso) · GitHub
   → append-only event log in Postgres (source of truth)
   → Oban jobs: typed extraction (OpenAI Structured Outputs via InstructorLite)
   → projector writes FalkorDB (one graph per org)
-  → Work API (Ash) · Notifier · Agent (@noa, KT) · MCP server (ash_ai)
+  → Work API (Ash) · Notifier · Agent (@noa, KT) · MCP server (graph tools for coding agents)
   → Next.js web app (client of the API: ash_typescript RPC + Phoenix Channels); Next.js landing site; chat bots; coding agents
 ```
 
@@ -101,7 +101,7 @@ Extraction types: `TaskProposal`, `StatusChange`, `DeadlineChange`, `Decision`, 
 
 - **Backend:** Elixir, Phoenix, Ash 3 (AshPostgres, AshAuthentication, policies, multitenancy by org), Oban + AshOban.
 - **Graph:** FalkorDB Cloud, through the official `falkordb` Hex client (built on Redix).
-- **AI:** OpenAI Structured Outputs via InstructorLite; `ash_ai` for agent tools and the MCP server.
+- **AI:** OpenAI Structured Outputs via InstructorLite. The MCP server speaks the protocol directly (Streamable HTTP, JSON-RPC) rather than through `ash_ai`, to keep its tools as plain FalkorDB queries run as the person.
 - **Frontend:** Next.js 16 (App Router) for both `web/` (the app) and `landing/` (marketing site), Tailwind v4, Motion for animation, Phosphor icons, TanStack Query, dnd-kit for drag and drop, `ash_typescript` for the RPC client. The app uses no Next.js API routes or server actions: Phoenix is the only backend.
 - **Design:** shared tokens in `packages/theme` (Mio- and Elf-inspired, graph-themed). See [docs/design.md](docs/design.md).
 - **Connectors:** Nostrum for Discord, Slack Events API, Google Meet REST API, Kapso for WhatsApp.
@@ -206,10 +206,12 @@ The demo story: Vedant drags Soha from Video Break to Emmarie, confirms, and Soh
 
 | Owner | Must have | If time |
 | --- | --- | --- |
-| Saish | 3.1 shift backend; 3.17 staffing board with the confirm popover (absorbs 3.11); 3.3 experts by PageRank ("people to meet") and bus factor; 3.2 KT brief; 3.9 portfolio on real data | 3.19 `brief.md` only |
-| Soha | 3.18 agent pack generator (`CLAUDE.md`, `tasks.md` from the project); 3.5 KT delivery on WhatsApp; 3.10 project page tabs on real data; 3.20 access checklist; 3.15 run the real shift with the team | 3.6 MCP server; 1.12 v1 import |
+| Saish | 3.1 shift backend; 3.17 staffing board with the confirm popover (absorbs 3.11); 3.3 experts by PageRank ("people to meet") and bus factor; 3.2 KT brief; 3.9 portfolio on real data; 3.18 agent pack; 3.6 MCP server and 3.22 tokens | 3.19 `brief.md` only |
+| Soha | 3.5 KT delivery on WhatsApp; 3.23 pack link on a shift; 3.20 access checklist; 3.15 run the real shift with the team | 1.12 v1 import |
 
-Proposed cuts: 3.4 slip propagation, 3.7 GitHub, 3.8 voice notes, 3.12 (folded into 3.2), 3.13 graph panel, 3.14 beyond the first slice that exists, 3.16 (one replay test instead), 3.21 beyond one-time links, 3.22 MCP tokens, 3.23 "add to repo" PR.
+Proposed cuts: 3.4 slip propagation, 3.7 GitHub, 3.8 voice notes, 3.14 beyond the first slice that exists, 3.21 beyond one-time links, 3.23 "add to repo" PR.
+
+Update Oct 17 evening: the agent pack (3.18), graph panel (3.13), KT page (3.12) and graph rebuild drill (3.16) are built. **How a pack reaches someone:** (1) download from the pack page, works today; (2) a shift sends the person a WhatsApp or Discord link to their pack and brief (3.23, Soha, after 1.15); (3) their coding agent connects to Noa's MCP server and pulls context live (3.6 and 3.22, Saish, now in scope). MCP tools are FalkorDB queries run with the person's own permissions: `project_context`, `my_tasks`, `ask`, `who_knows`, `how_connected`, `decisions`, `list_projects`, and `update_task_status` under the lead rules. Tokens are per person and workspace, shown once, stored hashed and revocable. MCP also covers Track 01 (graph algorithms as agent tools).
 
 ### Phase 4: Harden and ship (Oct 18)
 

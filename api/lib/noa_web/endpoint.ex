@@ -9,6 +9,8 @@ defmodule NoaWeb.Endpoint do
     signing_salt: "noa-session",
     same_site: "Lax",
     http_only: true,
+    # HTTPS-only in production (4.3).
+    secure: Application.compile_env(:noa, :secure_cookies, false),
     max_age: 60 * 60 * 24 * 30
   ]
 
@@ -18,13 +20,22 @@ defmodule NoaWeb.Endpoint do
   plug(Plug.Parsers,
     parsers: [:urlencoded, :json],
     pass: ["*/*"],
-    json_decoder: Phoenix.json_library()
+    # Nothing Noa accepts is anywhere near 1 MB (4.3).
+    length: 1_000_000,
+    json_decoder: Phoenix.json_library(),
+    # Webhooks keep their raw bytes for signature checks.
+    body_reader: {NoaWeb.RawBody, :read_body, []}
   )
 
   plug(Plug.MethodOverride)
   plug(Plug.Head)
   plug(Plug.Session, @session_options)
-  plug(CORSPlug, origin: &NoaWeb.Endpoint.cors_origins/0, credentials: true)
+
+  plug(CORSPlug,
+    origin: &NoaWeb.Endpoint.cors_origins/0,
+    credentials: true,
+    expose: ["content-disposition", "retry-after"]
+  )
 
   if code_reloading? do
     plug(Phoenix.CodeReloader)

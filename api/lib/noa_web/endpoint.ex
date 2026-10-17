@@ -9,6 +9,8 @@ defmodule NoaWeb.Endpoint do
     signing_salt: "noa-session",
     same_site: "Lax",
     http_only: true,
+    # HTTPS-only in production (4.3).
+    secure: Application.compile_env(:noa, :secure_cookies, false),
     max_age: 60 * 60 * 24 * 30
   ]
 
@@ -18,6 +20,8 @@ defmodule NoaWeb.Endpoint do
   plug(Plug.Parsers,
     parsers: [:urlencoded, :json],
     pass: ["*/*"],
+    # Nothing Noa accepts is anywhere near 1 MB (4.3).
+    length: 1_000_000,
     json_decoder: Phoenix.json_library()
   )
 

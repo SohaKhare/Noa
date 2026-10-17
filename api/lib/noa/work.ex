@@ -708,10 +708,17 @@ defmodule Noa.Work do
     vocab = vocabulary(org_id)
     people = Person |> Ash.Query.filter(org_id == ^org_id) |> Ash.read!(authorize?: false) |> Map.new(&{&1.key, &1.id})
 
-    Enum.map(proposals, fn %Extraction.Proposal{} = p ->
+    open = Task |> Ash.Query.filter(org_id == ^org_id and status != :done) |> Ash.read!(authorize?: false)
+    pending = Proposal |> Ash.Query.filter(org_id == ^org_id and status == :pending) |> Ash.read!(authorize?: false)
+
+    proposals
+    |> Enum.reject(&already_pending?(&1, projects[&1.route.project], pending))
+    |> Enum.map(fn %Extraction.Proposal{} = p ->
       first = by_line[List.first(p.evidence)]
       data = p.item |> Map.from_struct() |> Map.drop([:evidence_sequences, :confidence, :project]) |> stringify()
       owner = Extraction.Vocabulary.person(vocab, owner_name(p, first))
+      project_id = projects[p.route.project]
+      data = Map.merge(data, duplicate_of(p, project_id, open))
 
       Proposal
       |> Ash.Changeset.for_create(:create, %{
@@ -726,13 +733,147 @@ defmodule Noa.Work do
         confidence: p.confidence,
         source: first && source(first),
         org_id: org_id,
-        project_id: projects[p.route.project],
+        project_id: project_id,
         owner_id: owner && people[owner.id],
         task_id: task_ref(p)
       })
       |> Ash.create!(authorize?: false)
+      |> auto_apply()
     end)
   end
+
+  ## Auto-apply (2.2)
+
+  # Applies a proposal without waiting for the Inbox when Noa is sure enough and it is
+  # safe to undo: a new task with a project and an owner (not a likely duplicate), or a
+  # status change said by the task's own owner. Deadlines, scope and decisions always
+  # wait for a person. It acts as the person who said it, so change records stay honest,
+  # and only for people who have joined. Threshold: `config :noa, Noa.Work, auto_apply: 0.9`.
+  defp auto_apply(proposal) do
+    threshold = Application.get_env(:noa, __MODULE__, [])[:auto_apply]
+    user = threshold && (proposal.confidence || 0) >= threshold && auto_kind?(proposal) && owner_user(proposal)
+
+    if user do
+      Repo.transaction(fn ->
+        with {:ok, task} <- apply_proposal(proposal, user),
+             {:ok, decided} <-
+               proposal
+               |> Ash.Changeset.for_update(:decide, %{
+                 status: :approved,
+                 task_id: task && task.id,
+                 data: Map.put(proposal.data, "auto", true)
+               })
+               |> Ash.update(authorize?: false) do
+          decided
+        else
+          {:error, error} -> Repo.rollback(error)
+        end
+      end)
+      |> case do
+        {:ok, decided} -> decided
+        _ -> proposal
+      end
+    else
+      proposal
+    end
+  end
+
+  defp auto_kind?(%{kind: :task} = p), do: p.project_id != nil and p.owner_id != nil and is_nil(p.data["duplicate_of"])
+
+  defp auto_kind?(%{kind: :status_change, task_id: task_id, owner_id: owner_id}) when not is_nil(task_id) do
+    match?(%{owner_id: ^owner_id}, Ash.get!(Task, task_id, authorize?: false)) and owner_id != nil
+  end
+
+  defp auto_kind?(_p), do: false
+
+  defp owner_user(%{owner_id: nil}), do: nil
+
+  defp owner_user(%{owner_id: owner_id}) do
+    case Ash.get!(Person, owner_id, authorize?: false, load: [membership: :user]) do
+      %{membership: %{user: user}} when not is_nil(user) -> user
+      _ -> nil
+    end
+  end
+
+  @doc """
+  Undoes an automatically applied proposal (2.2) and puts it back in the Inbox: a task
+  it created is removed if nobody has touched it since; a status change is reverted.
+  A lead or the person it is about can undo.
+  """
+  def undo(proposal_id, actor) do
+    with {:ok, p} <- Ash.get(Proposal, proposal_id, actor: actor),
+         :ok <- if(p.status == :approved and p.data["auto"], do: :ok, else: {:error, :already_decided}),
+         :ok <- if(may_undo?(p, actor), do: :ok, else: {:error, :not_a_lead}) do
+      Repo.transaction(fn ->
+        with :ok <- unapply(p, actor),
+             {:ok, back} <-
+               p
+               |> Ash.Changeset.for_update(:decide, %{
+                 status: :pending,
+                 task_id: if(p.kind == :task, do: nil, else: p.task_id),
+                 data: p.data |> Map.delete("auto") |> Map.put("undone", true)
+               })
+               |> Ash.update(authorize?: false) do
+          back
+        else
+          {:error, error} -> Repo.rollback(error)
+        end
+      end)
+    end
+  end
+
+  defp may_undo?(p, actor) do
+    Map.get(actor, :is_superadmin) || lead?(actor.id, p.org_id, p.project_id) ||
+      match?(%{id: id} when id == actor.id, owner_user(p))
+  end
+
+  defp unapply(%{kind: :task, task_id: task_id}, _actor) when not is_nil(task_id) do
+    task = Ash.get!(Task, task_id, authorize?: false)
+    touched = Change |> Ash.Query.filter(task_id == ^task.id) |> Ash.exists?(authorize?: false)
+
+    if task.status == :todo and not touched do
+      task |> Ash.Changeset.for_destroy(:destroy) |> Ash.destroy(authorize?: false)
+    else
+      {:error, :changed_since}
+    end
+  end
+
+  defp unapply(%{kind: :status_change, task_id: task_id}, actor) when not is_nil(task_id) do
+    change =
+      Change
+      |> Ash.Query.filter(task_id == ^task_id and kind == :status and status == :applied)
+      |> Ash.Query.sort(inserted_at: :desc)
+      |> Ash.read!(authorize?: false)
+      |> List.first()
+
+    case change && revert_change(change.id, actor) do
+      {:ok, _} -> :ok
+      nil -> {:error, :changed_since}
+      error -> error
+    end
+  end
+
+  defp unapply(_p, _actor), do: :ok
+
+  # Overlapping windows can find the same task twice; keep the first proposal (2.3).
+  defp already_pending?(%{type: :task, item: %{title: title}}, project_id, pending) do
+    Enum.any?(
+      pending,
+      &(&1.kind == :task and &1.project_id == project_id and Noa.Work.Similar.same?(&1.summary, title))
+    )
+  end
+
+  defp already_pending?(_p, _project_id, _pending), do: false
+
+  # A new task that matches an open one in the same project is flagged for the Inbox (2.3).
+  defp duplicate_of(%{type: :task, item: %{title: title}}, project_id, open) when not is_nil(project_id) do
+    case Noa.Work.Similar.find(title, Enum.filter(open, &(&1.project_id == project_id))) do
+      nil -> %{}
+      task -> %{"duplicate_of" => %{"task_id" => task.id, "title" => task.title}}
+    end
+  end
+
+  defp duplicate_of(_p, _project_id, _open), do: %{}
 
   defp owner_name(%{type: :task, item: %{owner: owner}}, _first) when is_binary(owner), do: owner
   defp owner_name(_p, %{author: author}), do: author

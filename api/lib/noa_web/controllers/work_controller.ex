@@ -235,6 +235,16 @@ defmodule NoaWeb.WorkController do
     end
   end
 
+  @doc "Undo an automatically applied proposal (2.2); it goes back to the Inbox."
+  def undo(conn, %{"org_id" => org_id, "id" => id}) do
+    actor = conn.assigns.current_user
+
+    with :ok <- in_org(Proposal, id, org_id, actor),
+         {:ok, proposal} <- Work.undo(id, actor) do
+      json(conn, %{proposal: Payload.proposal(proposal)})
+    end
+  end
+
   def reject(conn, %{"org_id" => org_id, "id" => id}) do
     actor = conn.assigns.current_user
 

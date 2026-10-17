@@ -99,6 +99,11 @@ A lead is an org admin or PM, or the person set as the project's lead (`Noa.Work
 
 `Noa.Work.shift/3` moves a person in one transaction: it ends their allocation on the old project the day before `starts_on`, starts one on the new project (same percent unless given), and hands each open task they owned there to the owner the lead picked, or to the suggestion: the least-loaded other person on that project, else its lead. Each handover is an `owner` change record ("Handed over in a shift"), so it can be reverted. For 14 days `@noa` tells people to ask the person who left about the old project.
 
+## Duplicates and auto-apply (2.3, 2.2)
+
+- A new task proposal whose title names the same work as an open task in its project (`Noa.Work.Similar`: one title's words contain the other's, or 60% overlap) gets `data.duplicate_of` and the Inbox offers to dismiss it. A proposal matching one already pending is not stored again, since extraction windows overlap.
+- At or above `config :noa, Noa.Work, auto_apply: 0.9`, two kinds apply themselves: a new task with a project and owner (not flagged as a duplicate), and a status change said by the task's own owner. Deadlines, scope and decisions always wait. It acts as the person who said it, and only if they have joined. The proposal is marked `data.auto`; `POST /proposals/:id/undo` (a lead or that person) removes a created task if nobody touched it, or reverts the status, and puts the proposal back in the Inbox.
+
 ## Approving a proposal
 
 `Noa.Work.approve/3` runs in one transaction:
@@ -128,6 +133,7 @@ A lead is an org admin or PM, or the person set as the project's lead (`Noa.Work
 | `GET /proposals` | Pending proposals, newest first |
 | `POST /proposals/:id/approve` | Body can carry `summary`, `project_id`, `owner_id`, `data.title`, `data.due`, `data.new_due` |
 | `POST /proposals/:id/reject` | Dismiss |
+| `POST /proposals/:id/undo` | Undo an automatically applied proposal; it returns to the Inbox |
 
 Ids in the path, and project or owner ids in a body, must belong to the org in the path, or the API answers 404.
 

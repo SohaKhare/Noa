@@ -4,6 +4,8 @@ defmodule Noa.Application do
 
   @impl true
   def start(_type, _args) do
+    NoaWeb.Plugs.RateLimit.setup()
+
     children =
       [
         Noa.Repo,

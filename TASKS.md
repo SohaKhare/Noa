@@ -87,8 +87,8 @@ Exit test: NYI uses no other tracker; a developer and a non-tech teammate both r
 | # | Item | Source | Owner | Status | PR |
 | --- | --- | --- | --- | --- | --- |
 | 2.1 | Status, blocker and deadline extraction | New | Saish | Not started |  |
-| 2.2 | Auto-apply with undo above a confidence threshold | New | Saish | Not started |  |
-| 2.3 | Duplicate task matching before proposing | New | Saish | Not started |  |
+| 2.2 | Auto-apply with undo above a confidence threshold | New | Saish | In review |  |
+| 2.3 | Duplicate task matching before proposing | New | Saish | In review |  |
 | 2.4 | Decisions and supersession | Port | Saish | In review |  |
 | 2.5 | `@noa` agent with citations (ash_ai tools, audience-first rules) | Port | Saish | In review |  |
 | 2.6 | Approval buttons in Discord, Slack, WhatsApp | New | Soha | Not started |  |

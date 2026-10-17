@@ -170,6 +170,11 @@ defmodule NoaWeb.WorkTest do
 
     [saved] = Noa.Work.save_proposals(org.id, [proposal], [line])
     assert saved.summary == "Report share links v2"
+
+    # It names work already on the board, so the Inbox flags it (2.3)...
+    assert saved.data["duplicate_of"]["title"] == "Report share links"
+    # ...and the same proposal from an overlapping window is not stored twice.
+    assert Noa.Work.save_proposals(org.id, [proposal], [line]) == []
     assert saved.source["quote"] =~ "share links"
 
     p = proposal(vedant, org, "Report share links v2")
@@ -463,5 +468,102 @@ defmodule NoaWeb.WorkTest do
   test "experts answers even without graph data", %{org: org, saish: saish} do
     body = signed_in(saish) |> get("/api/orgs/#{org.id}/experts") |> json_response(200)
     assert Map.has_key?(body, "key_people") and Map.has_key?(body, "bus_factor")
+  end
+
+  test "titles that name the same work match; different work doesn't" do
+    alias Noa.Work.Similar
+    assert Similar.same?("Board report PDF export", "PDF export for the board report")
+    assert Similar.same?("Report share links", "report share link")
+    refute Similar.same?("Board report PDF export", "Brand logo pack import")
+    refute Similar.same?("Fix", "Update")
+  end
+
+  describe "auto-apply with undo (2.2)" do
+    defp extracted(org, type, item, confidence, task_ref \\ nil) do
+      line = %Noa.Extraction.Line{
+        id: "a#{System.unique_integer([:positive])}",
+        seq: 1,
+        channel: "#veriq",
+        author: "Saish",
+        at: DateTime.utc_now(),
+        body: "said in chat"
+      }
+
+      item = if task_ref, do: Map.put(item, :task_ref, task_ref), else: item
+      route = %Noa.Extraction.Routing{project: "veriq", confidence: 1.0, rule: :channel}
+
+      [p] =
+        Noa.Work.save_proposals(
+          org.id,
+          [%Noa.Extraction.Proposal{type: type, item: item, route: route, confidence: confidence, evidence: [line.id]}],
+          [line]
+        )
+
+      p
+    end
+
+    defp task_titled(org, title),
+      do: Noa.Work.Task |> Ash.read!(authorize?: false) |> Enum.find(&(&1.org_id == org.id and &1.title == title))
+
+    test "a sure new task for someone who has joined applies itself, and undo takes it back", %{
+      org: org,
+      saish: saish,
+      soha: soha
+    } do
+      item = %Noa.Extraction.Types.TaskProposal{
+        title: "Caption style for share cards",
+        owner: "Saish",
+        confidence: 0.95
+      }
+
+      p = extracted(org, :task, item, 0.95)
+
+      assert p.status == :approved and p.data["auto"]
+      task = task_titled(org, "Caption style for share cards")
+      assert task.created_by_id == saish.id
+
+      # A guest can't undo it; Saish (it is about him) can.
+      assert signed_in(soha) |> post("/api/orgs/#{org.id}/proposals/#{p.id}/undo") |> json_response(403)
+      body = signed_in(saish) |> post("/api/orgs/#{org.id}/proposals/#{p.id}/undo") |> json_response(200)
+      assert body["proposal"]["status"] == "pending" and body["proposal"]["data"]["undone"]
+      assert task_titled(org, "Caption style for share cards") == nil
+    end
+
+    test "a sure status change from the task's owner applies; undo reverts it", %{org: org, saish: saish} do
+      task = task_titled(org, "Report share links")
+      item = %Noa.Extraction.Types.StatusChange{status: :in_progress, confidence: 0.96}
+      p = extracted(org, :status_change, item, 0.96, task.id)
+
+      assert p.status == :approved
+      assert task_titled(org, "Report share links").status == :in_progress
+
+      signed_in(saish) |> post("/api/orgs/#{org.id}/proposals/#{p.id}/undo") |> json_response(200)
+      assert task_titled(org, "Report share links").status == task.status
+    end
+
+    test "less sure proposals, deadlines and decisions wait in the Inbox", %{org: org} do
+      unsure =
+        extracted(
+          org,
+          :task,
+          %Noa.Extraction.Types.TaskProposal{title: "Retry queue alerts", owner: "Saish", confidence: 0.8},
+          0.8
+        )
+
+      assert unsure.status == :pending
+
+      task = task_titled(org, "Report share links")
+
+      deadline =
+        extracted(
+          org,
+          :deadline_change,
+          %Noa.Extraction.Types.DeadlineChange{new_due: ~D[2026-12-01], confidence: 0.99},
+          0.99,
+          task.id
+        )
+
+      assert deadline.status == :pending
+    end
   end
 end

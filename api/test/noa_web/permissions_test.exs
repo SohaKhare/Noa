@@ -36,7 +36,8 @@ defmodule NoaWeb.PermissionsTest do
     {:post, "/changes/:change/revert"},
     {:get, "/proposals"},
     {:post, "/proposals/:proposal/approve"},
-    {:post, "/proposals/:proposal/reject"}
+    {:post, "/proposals/:proposal/reject"},
+    {:post, "/proposals/:proposal/undo"}
   ]
 
   @body %{

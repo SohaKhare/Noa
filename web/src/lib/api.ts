@@ -142,7 +142,16 @@ export type WorkProposal = {
   id: string;
   kind: ProposalKind;
   summary: string;
-  data: Record<string, unknown> & { title?: string; due?: string; new_due?: string; status?: TaskStatus; route?: { rule: string; candidates?: string[] } };
+  data: Record<string, unknown> & {
+    title?: string;
+    due?: string;
+    new_due?: string;
+    status?: TaskStatus;
+    route?: { rule: string; candidates?: string[] };
+    duplicate_of?: { task_id: string; title: string };
+    auto?: boolean;
+    undone?: boolean;
+  };
   confidence: number | null;
   source: MessageSource | null;
   status: "pending" | "approved" | "rejected";
@@ -251,7 +260,10 @@ export type Experts = {
 };
 export const getExperts = (orgId: string, projectId?: string) =>
   api<Experts>(`/api/orgs/${orgId}/experts${projectId ? `?project_id=${projectId}` : ""}`);
-export const getProposals = (orgId: string) => api<{ proposals: WorkProposal[] }>(`/api/orgs/${orgId}/proposals`).then((r) => r.proposals);
+export const getProposals = (orgId: string, status: "pending" | "approved" | "rejected" = "pending") =>
+  api<{ proposals: WorkProposal[] }>(`/api/orgs/${orgId}/proposals${status === "pending" ? "" : `?status=${status}`}`).then((r) => r.proposals);
+export const undoProposal = (orgId: string, id: string) =>
+  api<{ proposal: WorkProposal }>(`/api/orgs/${orgId}/proposals/${id}/undo`, { method: "POST" }).then((r) => r.proposal);
 export const approveProposal = (orgId: string, id: string, edits: ApproveEdits = {}) =>
   post<{ proposal: WorkProposal; task: WorkTask | null }>(`/api/orgs/${orgId}/proposals/${id}/approve`, edits);
 export const rejectProposal = (orgId: string, id: string) => post<{ proposal: WorkProposal }>(`/api/orgs/${orgId}/proposals/${id}/reject`);

@@ -10,12 +10,12 @@ import {
   UserIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { FormError } from "@/components/AuthCard";
 import { Avatar, Badge, Button, SourceChip } from "@/components/ui";
-import { ApiError, approveProposal, rejectProposal, type ApproveEdits, type WorkProposal, type WorkTask } from "@/lib/api";
+import { ApiError, approveProposal, getProposals, rejectProposal, undoProposal, type ApproveEdits, type WorkProposal, type WorkTask } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { ago, changeText, dueLabel, nameInitials, toSource, useChanges, useDecideChange, useDirectory, useProposals, useTasks } from "@/lib/work";
 
@@ -95,6 +95,7 @@ export default function Inbox() {
       )}
 
       <ChangeRequests />
+      <AutoApplied />
 
       <div className="grid min-h-[560px] overflow-hidden rounded-[22px] bg-surface card-shadow lg:grid-cols-[380px_1fr]">
         <div className="flex flex-col border-b border-line lg:border-r lg:border-b-0">
@@ -125,6 +126,7 @@ export default function Inbox() {
                   >
                     <span className="flex items-center gap-2">
                       <Badge tone={label(p) === "Which project?" ? "warn" : "accent"}>{label(p)}</Badge>
+                      {p.data.duplicate_of && <Badge tone="warn">Duplicate?</Badge>}
                       {project(p.project_id) && <span className="text-[11.5px] text-muted">{project(p.project_id)!.name}</span>}
                       {p.confidence != null && <span className="ml-auto font-mono text-[10.5px] text-muted">{Math.round(p.confidence * 100)}%</span>}
                     </span>
@@ -204,6 +206,17 @@ function Detail({
         />
       ) : (
         <h2 className="mt-3 text-[20px] font-semibold tracking-tight">{p.summary}</h2>
+      )}
+
+      {p.data.duplicate_of && (
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl bg-warn/10 px-4 py-3 text-[13px] ring-1 ring-warn/20">
+          <span className="min-w-0 flex-1">
+            Looks like <span className="font-medium">{p.data.duplicate_of.title}</span>, which is already on the board.
+          </span>
+          <Button size="sm" variant="ghost" disabled={busy} onClick={() => onResolve(p, "reject")}>
+            Same task, dismiss
+          </Button>
+        </div>
       )}
 
       <div className="mt-5 rounded-2xl bg-surface p-4 ring-1 ring-line">
@@ -332,6 +345,51 @@ function ChangeRequests() {
             </Button>
             <Button size="sm" variant="ghost" disabled={decide.isPending} onClick={() => decide.mutate({ id: c.id, action: "reject" })}>
               Reject
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/* Applied automatically in the last day (2.2), each with Undo. */
+function AutoApplied() {
+  const dir = useDirectory();
+  const client = useQueryClient();
+  const approved = useQuery({ queryKey: ["proposals", dir.orgId, "approved"], queryFn: () => getProposals(dir.orgId!, "approved"), enabled: !!dir.orgId });
+  const undo = useMutation({
+    mutationFn: (id: string) => undoProposal(dir.orgId!, id),
+    onSettled: () => {
+      for (const key of ["proposals", "tasks", "changes"]) client.invalidateQueries({ queryKey: [key, dir.orgId] });
+    },
+  });
+  const [since] = useState(() => Date.now() - 86_400_000);
+  const auto = (approved.data ?? []).filter((p) => p.data.auto && new Date(p.inserted_at).getTime() > since);
+  if (auto.length === 0) return null;
+
+  return (
+    <section className="mb-5 rounded-[22px] bg-surface p-5 card-shadow">
+      <p className="flex items-center gap-1.5 text-[14px] font-semibold">
+        <LightningIcon size={14} weight="fill" className="text-signal" /> Applied automatically ({auto.length})
+      </p>
+      <p className="mt-0.5 text-[12.5px] text-muted">Noa was sure enough to apply these. Undo puts one back in your Inbox.</p>
+      {undo.error && (
+        <div className="mt-2">
+          <FormError>{(undo.error as ApiError).message}</FormError>
+        </div>
+      )}
+      <ul className="mt-3 space-y-2">
+        {auto.map((p) => (
+          <li key={p.id} className="flex flex-wrap items-center gap-3 rounded-xl bg-bg px-3.5 py-2.5">
+            <div className="min-w-0 flex-1">
+              <p className="text-[13.5px] font-medium">{p.summary}</p>
+              <p className="text-[12px] text-muted">
+                {[dir.project(p.project_id)?.name, dir.person(p.owner_id)?.name, ago(p.inserted_at)].filter(Boolean).join(" · ")}
+              </p>
+            </div>
+            <Button size="sm" variant="ghost" disabled={undo.isPending} onClick={() => undo.mutate(p.id)}>
+              Undo
             </Button>
           </li>
         ))}

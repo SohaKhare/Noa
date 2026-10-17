@@ -1,3 +1,4 @@
+import { BrandMark } from "./BrandMark";
 import { navLinks } from "@/lib/links";
 
 export function Footer() {
@@ -5,8 +6,9 @@ export function Footer() {
     <footer className="mx-auto max-w-7xl px-5 pt-16 pb-12">
       <div className="flex flex-col justify-between gap-10 md:flex-row md:items-start">
         <div>
-          <a href="#top" className="flex items-center gap-2 text-[15px] font-semibold tracking-tight">
-            Noa
+          <a href="#top" className="flex items-center gap-2">
+            <BrandMark size={26} />
+            <span className="font-wordmark text-[22px] leading-none">NOA</span>
           </a>
           <p className="mt-4 max-w-xs text-[14px] leading-relaxed text-muted">
             The company brain for teams that live in chat.

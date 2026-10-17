@@ -14,6 +14,32 @@
   --color-good: #2a6fbf;
 }
 
+.font-wordmark {
+  font-family: var(--font-gothic), sans-serif;
+  letter-spacing: 0.04em;
+}
+
+.brand-mark path {
+  fill: none;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: brand-draw 3.2s ease-in-out infinite;
+}
+.brand-mark path:nth-child(1) { animation-delay: 0.02s; }
+.brand-mark path:nth-child(2) { animation-delay: 0.08s; }
+.brand-mark path:nth-child(3) { animation-delay: 0.14s; }
+.brand-mark path:nth-child(4) { animation-delay: 0.2s; }
+.brand-mark path:nth-child(5) { animation-delay: 0.26s; }
+.brand-mark path:nth-child(6) { animation-delay: 0.32s; }
+.brand-mark path:nth-child(7) { animation-delay: 0.38s; }
+.brand-mark path:nth-child(8) { animation-delay: 0.44s; }
+@keyframes brand-draw {
+  0% { stroke-dashoffset: 1; }
+  22% { stroke-dashoffset: 0; }
+  68% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: 1; }
+}
+
 body::after {
   content: "";
   position: fixed;
@@ -35,6 +61,32 @@ body::after {
 }
 @media (prefers-reduced-motion: reduce) {
   .valley-drift { animation: none; }
+}
+
+/* Three short streaks across the hero sky. Most of each loop is still. */
+.shooting-star {
+  position: absolute;
+  width: 5.5rem;
+  height: 1.5px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15) 40%, #fff);
+  box-shadow: 0 0 8px 1px rgba(186, 214, 255, 0.45);
+  opacity: 0;
+  animation: shooting-star 18s linear infinite;
+}
+.shooting-star-1 { top: 8%; left: 78%; --angle: 152deg; }
+.shooting-star-2 { top: 14%; left: 58%; --angle: 142deg; animation-duration: 22s; animation-delay: 7s; }
+.shooting-star-3 { top: 4%; left: 92%; --angle: 160deg; animation-duration: 20s; animation-delay: 13s; width: 4.25rem; }
+
+@keyframes shooting-star {
+  0% { transform: rotate(var(--angle)) translateX(0); opacity: 0; }
+  2% { opacity: 0.85; }
+  9% { transform: rotate(var(--angle)) translateX(34vw); opacity: 0; }
+  100% { transform: rotate(var(--angle)) translateX(34vw); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .shooting-star { animation: none; display: none; }
+  .brand-mark path { animation: none; stroke-dashoffset: 0; }
 }
 
 /* Faint static dot texture for clean panels (no motion). */

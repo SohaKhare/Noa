@@ -34,16 +34,6 @@ export function CellText({ title, body, tone = "ink" }: { title: string; body: s
   );
 }
 
-/* Clean wash used where Elf had a photo. */
-export function Wash() {
-  return (
-    <>
-      <div aria-hidden className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,#dbe6f3,#f3f5f8_80%)]" />
-      <div aria-hidden className="dot-grid absolute inset-0 -z-10" />
-    </>
-  );
-}
-
 const sources = [
   { label: "Discord", Icon: DiscordLogoIcon },
   { label: "Slack", Icon: SlackLogoIcon },
@@ -73,8 +63,7 @@ export function FeatureBento() {
       />
 
       <div className="mt-14 grid gap-4 lg:grid-cols-12">
-        <Cell className="lg:col-span-7">
-          <Wash />
+        <Cell className="bg-[#d7e7f8] lg:col-span-7">
           <LiveFeed size="sm" className="max-w-md" />
           <div className="glass mt-6 w-fit max-w-full rounded-chip p-2 text-ink">
             <ul className="flex flex-wrap gap-1.5">
@@ -90,7 +79,7 @@ export function FeatureBento() {
           </div>
         </Cell>
 
-        <Cell className="bg-mist lg:col-span-5" delay={0.06}>
+        <Cell className="bg-[#c5daf6] lg:col-span-5" delay={0.06}>
           <div className="rounded-[20px] bg-surface p-4 card-shadow">
             <p className="text-[12px] font-medium text-muted">Deadline change · needs your approval</p>
             <p className="mt-1 text-[15px] font-semibold">Board report PDF: Fri → Mon?</p>
@@ -105,25 +94,24 @@ export function FeatureBento() {
           </div>
         </Cell>
 
-        <Cell className="bg-surface ring-1 ring-black/[0.04] lg:col-span-5" delay={0.04}>
+        <Cell className="bg-[#163e6e] text-white lg:col-span-5" delay={0.04}>
           <ul className="space-y-2">
             {learned.map((row) => (
-              <li key={row.k} className="flex items-center justify-between gap-3 rounded-[14px] bg-bg px-4 py-3 text-[14px]">
-                <span className="text-muted">{row.k}</span>
+              <li key={row.k} className="flex items-center justify-between gap-3 rounded-[14px] bg-white/10 px-4 py-3 text-[14px]">
+                <span className="text-white/75">{row.k}</span>
                 <span className="flex items-center gap-1.5 font-semibold">
-                  <CheckIcon size={14} weight="bold" className="text-accent-fg" /> {row.v}
+                  <CheckIcon size={14} weight="bold" className="text-white" /> {row.v}
                 </span>
               </li>
             ))}
           </ul>
           <div className="mt-auto pt-8">
-            <CellText title="Smarter every day" body="It learns who knows what, the names your team uses, and what changed while you were out." />
+            <CellText tone="light" title="Smarter every day" body="It learns who knows what, the names your team uses, and what changed while you were out." />
           </div>
         </Cell>
 
-        <Cell className="lg:col-span-7" delay={0.1}>
+        <Cell className="bg-[#e7f1fb] lg:col-span-7" delay={0.1}>
           <div id="privacy" className="absolute -top-24" aria-hidden />
-          <Wash />
           <h3 className="text-2xl font-semibold tracking-tight">Your team&apos;s context stays yours.</h3>
           <ul className="mt-auto grid gap-3 pt-8 sm:grid-cols-3">
             {privacy.map(({ Icon, title, body }) => (

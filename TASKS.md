@@ -63,7 +63,7 @@ Exit test: A real Discord message becomes a proposed task in the right project a
 | 1.10 | Event-to-FalkorDB projector | New | Saish | In review | #2 |
 | 1.11 | Identity: `Person` + `Identity` nodes | Port | Saish | In review | #2 |
 | 1.12 | Import Tulpa v1 history, decisions, projects, aliases, people | Import | Soha | Not started |  |
-| 1.13 | Discord ingest: privacy gate, consumer, membership, backfill | Port | Soha | Not started |  |
+| 1.13 | Discord ingest: privacy gate, consumer, membership, backfill | Port | Soha | In progress |  |
 | 1.14 | Slack Events webhook ingest | New | Soha | Not started |  |
 | 1.15 | Kapso WhatsApp send and receive | New | Soha | Not started |  |
 | 1.16 | Project routing: channel map, aliases, thread, author's projects | New | Saish | In review | #1 |

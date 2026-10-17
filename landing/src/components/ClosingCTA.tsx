@@ -2,6 +2,7 @@ import { ArrowRightIcon } from "@phosphor-icons/react/ssr";
 import { cdnAsset } from "@/lib/cdn";
 import { APP_URL } from "@/lib/links";
 import Image from "next/image";
+import { BrandMark } from "./BrandMark";
 import { Reveal } from "./Reveal";
 
 /* Elf's closing card: same size, night water behind a light wash. */
@@ -12,6 +13,10 @@ export function ClosingCTA() {
         <Image src={cdnAsset("/night-water.jpg")} alt="" fill sizes="(min-width: 1024px) 896px, 100vw" className="object-cover -z-20" />
         <div aria-hidden className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(238,243,248,0.78),rgba(238,243,248,0.5)_45%,rgba(238,243,248,0.7))]" />
         <Reveal className="flex flex-col items-center">
+          <div className="mb-5 flex items-center gap-2">
+            <BrandMark size={32} />
+            <span className="font-wordmark text-[28px] leading-none">NOA</span>
+          </div>
           <h2 id="cta-title" className="max-w-2xl text-[clamp(2.1rem,5vw,3.75rem)] leading-[0.98] font-bold tracking-[-0.05em] text-ink">
             Just @noa. It&apos;s handled.
           </h2>

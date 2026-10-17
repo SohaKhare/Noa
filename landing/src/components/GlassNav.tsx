@@ -3,6 +3,7 @@
 import { useLenis } from "lenis/react";
 import { AnimatePresence, motion, useMotionValueEvent, useReducedMotion, useScroll } from "motion/react";
 import { useEffect, useState, type MouseEvent } from "react";
+import { BrandMark } from "./BrandMark";
 import { APP_URL, navLinks as links } from "@/lib/links";
 
 export function GlassNav() {
@@ -54,9 +55,10 @@ export function GlassNav() {
             transition={spring}
             href="#top"
             onClick={go("#top")}
-            className="flex items-center gap-2 rounded-full text-[16px] font-semibold tracking-tight"
+            className="flex items-center gap-2 rounded-full"
           >
-            Noa
+            <BrandMark size={28} />
+            <span className="font-wordmark text-[22px] leading-none">NOA</span>
           </motion.a>
 
           <motion.ul layout="position" transition={spring} className="hidden items-center gap-0.5 lg:flex">

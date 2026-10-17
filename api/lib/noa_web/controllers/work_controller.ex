@@ -181,7 +181,7 @@ defmodule NoaWeb.WorkController do
     end
   end
 
-  @doc "KT brief (3.2) for a project; `person_id` adds that person's tasks and leaves them out of people to meet."
+  @doc "KT brief (3.2) for a project; `person_id` adds that person's tasks and leaves them out of people to meet. `format=md` downloads `brief.md` (3.19)."
   def brief(conn, %{"org_id" => org_id, "project_id" => project_id} = params) do
     actor = conn.assigns.current_user
     person_id = blank(params["person_id"])
@@ -189,7 +189,17 @@ defmodule NoaWeb.WorkController do
     with :ok <- in_org(Project, project_id, org_id, actor),
          :ok <- refs_in_org(%{owner_id: person_id}, org_id, actor),
          {:ok, brief} <- Work.brief(org_id, project_id, actor, person_id) do
-      json(conn, brief)
+      if params["format"] == "md" do
+        project = Ash.get!(Project, project_id, actor: actor)
+        person = person_id && Ash.get!(Person, person_id, actor: actor)
+
+        conn
+        |> put_resp_content_type("text/markdown")
+        |> put_resp_header("content-disposition", ~s(attachment; filename="#{project.key}-brief.md"))
+        |> send_resp(200, Noa.Work.Brief.markdown(brief, project.name, person && person.name))
+      else
+        json(conn, brief)
+      end
     end
   end
 
@@ -210,6 +220,36 @@ defmodule NoaWeb.WorkController do
       json(conn, graph)
     end
   end
+
+  @doc "The signed-in person's notification preferences (2.15)."
+  def notifications(conn, %{"org_id" => org_id}) do
+    case Work.person_for(conn.assigns.current_user, org_id) do
+      nil -> {:error, :not_found}
+      person -> json(conn, %{notifications: Payload.notifications(person)})
+    end
+  end
+
+  @doc "Change them. Body: notify_via, phone, digest_at, quiet_from, quiet_to (HH:MM), utc_offset (minutes)."
+  def update_notifications(conn, %{"org_id" => org_id} = params) do
+    actor = conn.assigns.current_user
+
+    attrs =
+      params
+      |> Map.take(~w(notify_via phone digest_at quiet_from quiet_to utc_offset))
+      |> Map.new(fn {k, v} -> {String.to_existing_atom(k), time(blank(v))} end)
+
+    with %Person{} = me <- Work.person_for(actor, org_id) || {:error, :not_found},
+         {:ok, person} <- Work.set_notifications(me.id, attrs, actor) do
+      json(conn, %{notifications: Payload.notifications(person)})
+    end
+  end
+
+  # "21:00" from a time input becomes 21:00:00.
+  defp time(v) when is_binary(v) do
+    if v =~ ~r/^\d{2}:\d{2}$/, do: v <> ":00", else: v
+  end
+
+  defp time(v), do: v
 
   def proposals(conn, %{"org_id" => org_id} = params) do
     status = if params["status"] in ~w(approved rejected), do: String.to_existing_atom(params["status"]), else: :pending

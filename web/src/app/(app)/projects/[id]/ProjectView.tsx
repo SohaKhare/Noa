@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import { FormError } from "@/components/AuthCard";
 import { Avatar, Badge, Button, Card, SourceChip } from "@/components/ui";
-import { ApiError, getBrief, type WorkDecision, type WorkProject, type WorkTask } from "@/lib/api";
+import { ApiError, downloadBrief, getBrief, type WorkDecision, type WorkProject, type WorkTask } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { statusLabel, type Source, type Status } from "@/lib/mock";
 import { ago, changeText, dueLabel, isLate, nameInitials, projectChannels, projectPeople, startOfToday, toSource, useChanges, useDecideChange, useDecisions, useDirectory, useEditTask, useMoveTask, useProposals, useTasks } from "@/lib/work";
@@ -689,7 +689,12 @@ function KT({ project }: { project: WorkProject }) {
   return (
     <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
       <Card>
-        <p className="mb-3 text-[14px] font-semibold">KT brief · for people joining {project.name}</p>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <p className="text-[14px] font-semibold">KT brief · for people joining {project.name}</p>
+          <Button size="sm" variant="ghost" disabled={!brief.data} onClick={() => downloadBrief(dir.orgId!, project.id, me)}>
+            Download brief.md
+          </Button>
+        </div>
         {brief.isLoading && <p className="text-[13px] text-muted">Putting the brief together…</p>}
         <div className="space-y-4">
           {sections.map((sec) => (

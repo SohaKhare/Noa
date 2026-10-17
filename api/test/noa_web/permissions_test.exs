@@ -27,6 +27,8 @@ defmodule NoaWeb.PermissionsTest do
     {:get, "/changes"},
     {:post, "/ask"},
     {:get, "/shifts"},
+    {:get, "/me/notifications"},
+    {:patch, "/me/notifications"},
     {:get, "/projects/:project/brief"},
     {:get, "/experts"},
     {:get, "/shifts/plan?person_id=:person"},
@@ -135,9 +137,17 @@ defmodule NoaWeb.PermissionsTest do
       conn = call(signed_in(nyi.soha), method, path(nyi.org.id, route, nyi.ids), nyi.ids)
 
       cond do
-        method == :get or route == "/ask" -> assert conn.status == 200, "#{method} #{route} gave #{conn.status}"
+        # Reading and asking are open to guests.
+        method == :get or route == "/ask" ->
+          assert conn.status == 200, "#{method} #{route} gave #{conn.status}"
+
+        # So are their own notification settings (personal, not the workspace's).
+        route == "/me/notifications" ->
+          assert conn.status == 200, "#{method} #{route} gave #{conn.status}"
+
         # Never a success; usually 403, or 409 when the row isn't in a state anyone could change.
-        true -> assert conn.status in 400..499, "guest #{method} #{route} gave #{conn.status}"
+        true ->
+          assert conn.status in 400..499, "guest #{method} #{route} gave #{conn.status}"
       end
     end
   end

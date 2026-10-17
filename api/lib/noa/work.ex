@@ -268,6 +268,45 @@ defmodule Noa.Work do
     |> Ash.update(authorize?: false)
   end
 
+  ## Notification preferences (2.15)
+
+  @doc "Sets a person's notification preferences. They can set their own; admins and PMs anyone's."
+  def set_notifications(person_id, attrs, actor) do
+    with {:ok, person} <- Ash.get(Person, person_id, actor: actor) do
+      person |> Ash.Changeset.for_update(:notifications, attrs, actor: actor) |> Ash.update()
+    end
+  end
+
+  @doc """
+  Where to reach a person (for 2.9 and 2.21): `{:whatsapp, phone}`, `{:discord, handle}`,
+  `{:email, email}` or `:in_app` when the chosen channel has no address yet.
+  """
+  def notify_target(%Person{} = p) do
+    case p.notify_via do
+      :whatsapp when is_binary(p.phone) -> {:whatsapp, p.phone}
+      :discord when p.handles != [] -> {:discord, hd(p.handles)}
+      :email when not is_nil(p.email) -> {:email, to_string(p.email)}
+      _ -> :in_app
+    end
+  end
+
+  @doc """
+  Whether `at` (UTC) falls in the person's quiet hours, in their local time. Quiet hours
+  may wrap midnight (21:00 to 08:00). Approvals that block someone may still go out.
+  """
+  def quiet?(person, at \\ DateTime.utc_now())
+
+  def quiet?(%Person{quiet_from: from, quiet_to: to} = p, at)
+      when not is_nil(from) and not is_nil(to) do
+    local = at |> DateTime.add(p.utc_offset * 60, :second) |> DateTime.to_time()
+
+    if Time.compare(from, to) == :lt,
+      do: Time.compare(local, from) != :lt and Time.compare(local, to) == :lt,
+      else: Time.compare(local, from) != :lt or Time.compare(local, to) == :lt
+  end
+
+  def quiet?(_person, _at), do: false
+
   ## Shifts (3.1)
 
   # Questions about the old project go to the person who left it for this long.

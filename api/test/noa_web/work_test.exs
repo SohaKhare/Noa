@@ -462,6 +462,16 @@ defmodule NoaWeb.WorkTest do
       assert sections["Your tasks"] |> hd() =~ "Nothing assigned to you yet"
       assert Enum.any?(sections["People to meet"], &(&1 =~ "Vedant leads the project"))
       refute Enum.any?(sections["People to meet"], &(&1 =~ "Soha"))
+
+      # The same brief as brief.md (3.19).
+      conn =
+        signed_in(vedant)
+        |> get("/api/orgs/#{org.id}/projects/#{emmarie["id"]}/brief?person_id=#{soha["id"]}&format=md")
+
+      assert conn.status == 200 and get_resp_header(conn, "content-disposition") |> hd() =~ "emmarie-brief.md"
+
+      assert conn.resp_body =~ "# Emmarie brief" and conn.resp_body =~ "For Soha." and
+               conn.resp_body =~ "## People to meet"
     end
   end
 
@@ -564,6 +574,43 @@ defmodule NoaWeb.WorkTest do
         )
 
       assert deadline.status == :pending
+    end
+  end
+
+  describe "notification preferences (2.15)" do
+    test "people set their own; delivery reads where and when", %{org: org, saish: saish, vedant: vedant} do
+      path = "/api/orgs/#{org.id}/me/notifications"
+      assert signed_in(saish) |> get(path) |> json_response(200) |> get_in(["notifications", "notify_via"]) == "in_app"
+
+      body =
+        signed_in(saish)
+        |> patch(path, %{
+          notify_via: "whatsapp",
+          phone: "+919800000000",
+          digest_at: "09:30",
+          quiet_from: "21:00",
+          quiet_to: "08:00"
+        })
+        |> json_response(200)
+
+      assert body["notifications"]["notify_via"] == "whatsapp" and body["notifications"]["quiet_from"] == "21:00:00"
+      assert signed_in(saish) |> patch(path, %{phone: "98000"}) |> json_response(422)
+
+      saish_person = Noa.Work.person_for(saish, org.id)
+      assert Noa.Work.notify_target(saish_person) == {:whatsapp, "+919800000000"}
+      # 17:00 UTC is 22:30 IST (quiet); 05:00 UTC is 10:30 IST (not).
+      assert Noa.Work.quiet?(saish_person, ~U[2026-10-17 17:00:00Z])
+      refute Noa.Work.quiet?(saish_person, ~U[2026-10-17 05:00:00Z])
+
+      # Vedant (admin) can change Saish's; nobody changes theirs through someone else's path.
+      assert {:ok, _} = Noa.Work.set_notifications(saish_person.id, %{notify_via: :email}, vedant)
+    end
+
+    test "a member can't change someone else's", %{org: org, saish: saish, vedant: vedant} do
+      vedant_person = Noa.Work.person_for(vedant, org.id)
+
+      assert {:error, %Ash.Error.Forbidden{}} =
+               Noa.Work.set_notifications(vedant_person.id, %{notify_via: :email}, saish)
     end
   end
 end

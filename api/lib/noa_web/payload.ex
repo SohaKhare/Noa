@@ -51,6 +51,10 @@ defmodule NoaWeb.Payload do
     }
   end
 
+  def notifications(p) do
+    Map.take(p, [:notify_via, :phone, :digest_at, :quiet_from, :quiet_to, :utc_offset])
+  end
+
   def project(p) do
     %{
       id: p.id,

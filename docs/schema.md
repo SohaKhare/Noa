@@ -18,7 +18,7 @@ Every table has `org_id`. Reads need a membership in that org. Writes are checke
 
 | Table | Graph node or edge | Key fields | Who writes |
 | --- | --- | --- | --- |
-| `people` | `Person` | `key` (seed id, e.g. `ve`), `name`, `title`, `email`, `handles` (chat and git names), `membership_id` once they join | Admins, PMs, the seed |
+| `people` | `Person` | `key` (seed id, e.g. `ve`), `name`, `title`, `email`, `handles` (chat and git names), `membership_id` once they join; notification preferences (2.15): `notify_via` (whatsapp, discord, email, in_app), `phone` (E.164), `digest_at`, `quiet_from`, `quiet_to`, `utc_offset` (minutes, 330 = IST) | Admins, PMs, the seed; each person sets their own preferences |
 | `projects` | `Project` | `key` (e.g. `veriq`), `name`, `about`, `repo`, `status`, `lead_id` → person | Admins, PMs, the seed |
 | `project_aliases` | alias on `Project` | `alias` (case-insensitive, unique per org), `project_id` | Admins, PMs, the seed |
 | `allocations` | `WORKS_ON` | `person_id`, `project_id`, `percent`, `role`, `starts_on`, `ends_on`; never deleted, a shift sets `ends_on` | Admins, PMs, the seed |
@@ -125,6 +125,7 @@ A lead is an org admin or PM, or the person set as the project's lead (`Noa.Work
 | `GET /decisions?project_id=&since=&status=` | Decisions, newest first; `since` is ISO 8601, `status` is active or superseded |
 | `PATCH /channels/:id` | Map a channel: `project_id`, `split`, `read` (org admins) |
 | `POST /ask` | `@noa` (2.5): body `question`; answers `answer` (text with `[n]` markers) and `citations` (task, decision or message, with title, link and source). Reads only what the asker can see |
+| `GET /me/notifications`, `PATCH /me/notifications` | The signed-in person's notification preferences. For delivery (2.9, 2.21): `Noa.Work.notify_target(person)` gives `{:whatsapp, phone}`, `{:discord, handle}`, `{:email, email}` or `:in_app`; `Noa.Work.quiet?(person)` says whether it is their quiet hours |
 | `GET /shifts/plan?person_id=&from_project_id=` | What a move would hand over, with suggested owners |
 | `POST /shifts` | Move someone: `person_id`, `from_project_id`, `to_project_id` (empty is the bench), `percent`, `starts_on`, `handover` (`{task_id: owner_id or ""}`), `note`. Org admins and PMs |
 | `GET /shifts` | Moves, newest first |

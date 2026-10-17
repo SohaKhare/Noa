@@ -10,12 +10,12 @@ import {
   WhatsappLogoIcon,
   type Icon,
 } from "@phosphor-icons/react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { FormError } from "@/components/AuthCard";
 import { Badge, Button, Card, PageHeader } from "@/components/ui";
 import { PeopleSettings } from "@/components/PeopleSettings";
-import { ApiError, roleLabel, updateChannel, type Channel } from "@/lib/api";
+import { ApiError, getNotifications, roleLabel, updateChannel, updateNotifications, type Channel, type NotificationPrefs, type NotifyVia } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { currentMembership, useMe } from "@/lib/session";
 import { accessBundles, connectors } from "@/lib/mock";
@@ -212,30 +212,93 @@ function Bundles() {
   );
 }
 
+const viaLabel: Record<NotifyVia, string> = { whatsapp: "WhatsApp", discord: "Discord DM", email: "Email", in_app: "In app only" };
+const hhmm = (t: string | null) => (t ? t.slice(0, 5) : "");
+
+/* Notification preferences (2.15): where Noa reaches you, the digest time and quiet hours. */
 function NotificationPrefs() {
-  const [channel, setChannel] = useState("WhatsApp");
+  const dir = useDirectory();
+  const client = useQueryClient();
+  const prefs = useQuery({ queryKey: ["notifications", dir.orgId], queryFn: () => getNotifications(dir.orgId!), enabled: !!dir.orgId });
+  const save = useMutation({
+    mutationFn: (data: Partial<NotificationPrefs>) => updateNotifications(dir.orgId!, data),
+    onSuccess: (n) => client.setQueryData(["notifications", dir.orgId], n),
+  });
+  const p = prefs.data;
+  const [phone, setPhone] = useState<string | null>(null);
+
+  if (prefs.error) return <FormError>{(prefs.error as ApiError).message}</FormError>;
+  if (!p) return <Card>Loading…</Card>;
+
   return (
     <Card>
       <p className="text-[14px] font-semibold">Your notifications</p>
-      <div className="mt-4 grid gap-4 sm:grid-cols-3">
+      <p className="mt-0.5 text-[12.5px] text-muted">Approvals, changes to your work and the daily digest go here.</p>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <label className="block text-[12px] text-muted">
           Send to
-          <select value={channel} onChange={(e) => setChannel(e.target.value)} className="mt-1 w-full rounded-xl bg-bg px-3 py-2 text-[13px] text-ink focus:outline-none">
-            {["WhatsApp", "Discord DM", "Slack DM", "Email", "In app only"].map((c) => (
-              <option key={c}>{c}</option>
+          <select
+            value={p.notify_via}
+            onChange={(e) => save.mutate({ notify_via: e.target.value as NotifyVia })}
+            className="mt-1 w-full rounded-xl bg-bg px-3 py-2 text-[13px] text-ink focus:outline-none"
+          >
+            {(Object.keys(viaLabel) as NotifyVia[]).map((v) => (
+              <option key={v} value={v}>
+                {viaLabel[v]}
+              </option>
             ))}
           </select>
         </label>
+        {p.notify_via === "whatsapp" && (
+          <label className="block text-[12px] text-muted">
+            WhatsApp number
+            <input
+              value={phone ?? p.phone ?? ""}
+              onChange={(e) => setPhone(e.target.value)}
+              onBlur={() => phone !== null && phone !== p.phone && save.mutate({ phone: phone || null })}
+              placeholder="+91 98000 00000"
+              className="mt-1 w-full rounded-xl bg-bg px-3 py-2 text-[13px] text-ink focus:outline-none"
+            />
+          </label>
+        )}
         <label className="block text-[12px] text-muted">
           Daily digest
-          <input type="time" defaultValue="09:30" className="mt-1 w-full rounded-xl bg-bg px-3 py-2 text-[13px] text-ink focus:outline-none" />
+          <input
+            type="time"
+            value={hhmm(p.digest_at)}
+            onChange={(e) => save.mutate({ digest_at: e.target.value || null })}
+            className="mt-1 w-full rounded-xl bg-bg px-3 py-2 text-[13px] text-ink focus:outline-none"
+          />
         </label>
-        <label className="block text-[12px] text-muted">
+        <div className="block text-[12px] text-muted">
           Quiet hours
-          <input defaultValue="21:00 to 08:00" className="mt-1 w-full rounded-xl bg-bg px-3 py-2 text-[13px] text-ink focus:outline-none" />
-        </label>
+          <div className="mt-1 flex items-center gap-2">
+            <input
+              type="time"
+              aria-label="Quiet from"
+              value={hhmm(p.quiet_from)}
+              onChange={(e) => save.mutate({ quiet_from: e.target.value || null })}
+              className="w-full rounded-xl bg-bg px-3 py-2 text-[13px] text-ink focus:outline-none"
+            />
+            <span>to</span>
+            <input
+              type="time"
+              aria-label="Quiet to"
+              value={hhmm(p.quiet_to)}
+              onChange={(e) => save.mutate({ quiet_to: e.target.value || null })}
+              className="w-full rounded-xl bg-bg px-3 py-2 text-[13px] text-ink focus:outline-none"
+            />
+          </div>
+        </div>
       </div>
-      <p className="mt-4 text-[12px] text-muted">Approvals that need you still arrive during quiet hours only if they block someone.</p>
+      {save.error && (
+        <div className="mt-3">
+          <FormError>{(save.error as ApiError).message}</FormError>
+        </div>
+      )}
+      <p className="mt-4 text-[12px] text-muted">
+        {save.isPending ? "Saving…" : "Saved as you change it."} Approvals that need you still arrive during quiet hours only if they block someone. Times are in India time.
+      </p>
     </Card>
   );
 }

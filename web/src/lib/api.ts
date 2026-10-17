@@ -252,6 +252,32 @@ export type BriefItem = { text: string; href: string | null; source: MessageSour
 export type Brief = { project_id: string; person_id: string | null; sections: { title: string; items: BriefItem[] }[] };
 export const getBrief = (orgId: string, projectId: string, personId?: string | null) =>
   api<Brief>(`/api/orgs/${orgId}/projects/${projectId}/brief${personId ? `?person_id=${personId}` : ""}`);
+/* Downloads brief.md (3.19) through the browser, with the session cookie. */
+export async function downloadBrief(orgId: string, projectId: string, personId?: string | null) {
+  const q = new URLSearchParams({ format: "md", ...(personId ? { person_id: personId } : {}) });
+  const res = await fetch(`${API_URL}/api/orgs/${orgId}/projects/${projectId}/brief?${q}`, { credentials: "include" });
+  if (!res.ok) throw new ApiError(res.status, "error", "Couldn't download the brief.");
+  const name = res.headers.get("content-disposition")?.match(/filename="([^"]+)"/)?.[1] ?? "brief.md";
+  const url = URL.createObjectURL(await res.blob());
+  const a = Object.assign(document.createElement("a"), { href: url, download: name });
+  a.click();
+  URL.revokeObjectURL(url);
+}
+export type NotifyVia = "whatsapp" | "discord" | "email" | "in_app";
+export type NotificationPrefs = {
+  notify_via: NotifyVia;
+  phone: string | null;
+  digest_at: string | null;
+  quiet_from: string | null;
+  quiet_to: string | null;
+  utc_offset: number;
+};
+export const getNotifications = (orgId: string) =>
+  api<{ notifications: NotificationPrefs }>(`/api/orgs/${orgId}/me/notifications`).then((r) => r.notifications);
+export const updateNotifications = (orgId: string, data: Partial<NotificationPrefs>) =>
+  api<{ notifications: NotificationPrefs }>(`/api/orgs/${orgId}/me/notifications`, { method: "PATCH", body: JSON.stringify(data) }).then(
+    (r) => r.notifications,
+  );
 export type Experts = {
   experts: { person_id: string; name: string; weight: number; share: number }[];
   key_people: { person_id: string; name: string; score: number }[];

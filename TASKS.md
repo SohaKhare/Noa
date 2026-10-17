@@ -32,7 +32,7 @@ Exit test: Skeleton deploys to Fly with login; API reaches FalkorDB; graph and e
 | 0.7 | Spike: Google Meet transcript API on one NYI meeting | New | Soha | Not started |  |
 | 0.8 | Spike: ash_ai tools + MCP, ash_typescript, React Gantt library | New | Saish | Not started |  |
 | 0.9 | Spike: extraction prompt on 40 real NYI messages | Port | Saish | In progress |  |
-| 0.10 | Register Discord, Slack and Google apps (Internal + External testing) | New | Soha | Not started |  |
+| 0.10 | Register Discord, Slack and Google apps (Internal + External testing) | New | Soha | In progress |  |
 | 0.11 | Kapso account, 3 WhatsApp templates, start Meta verification | New | Soha | Not started |  |
 | 0.12 | FalkorDB Cloud, Fly.io, Postgres, Logfire, Sentry, domain | Copy | Soha | Not started |  |
 | 0.13 | Privacy policy and terms text | New | Soha | Not started |  |
@@ -63,7 +63,7 @@ Exit test: A real Discord message becomes a proposed task in the right project a
 | 1.10 | Event-to-FalkorDB projector | New | Saish | In review | #2 |
 | 1.11 | Identity: `Person` + `Identity` nodes | Port | Saish | In review | #2 |
 | 1.12 | Import Tulpa v1 history, decisions, projects, aliases, people | Import | Soha | Not started |  |
-| 1.13 | Discord ingest: privacy gate, consumer, membership, backfill | Port | Soha | Not started |  |
+| 1.13 | Discord ingest: privacy gate, consumer, membership, backfill | Port | Soha | In progress |  |
 | 1.14 | Slack Events webhook ingest | New | Soha | Not started |  |
 | 1.15 | Kapso WhatsApp send and receive | New | Soha | Not started |  |
 | 1.16 | Project routing: channel map, aliases, thread, author's projects | New | Saish | In review | #1 |
@@ -75,7 +75,7 @@ Exit test: A real Discord message becomes a proposed task in the right project a
 | 1.22 | Reporting lines (reports-to) in org map and people settings | New | Saish | In review | #1 |
 | 1.23 | Seed loader: `mix noa.seed` loads `docs/seeds/nyi.json` (projects, channels, aliases, allocations, git handles) | New | Saish | In review | #2 |
 | 1.24 | Work API: projects, tasks and proposals as Ash resources with policies; endpoints the web app uses instead of `mock.ts` | New | Saish | In review | #2 |
-| 1.25 | Real email delivery for invites, magic links and resets (Swoosh adapter in prod) | New | Soha | Not started |  |
+| 1.25 | Real email delivery for invites, magic links and resets (Swoosh adapter in prod) | New | Soha | In progress |  |
 | 1.26 | Guard against removing or demoting a workspace's last admin | New | Saish | In review | #2 |
 
 ## Phase 2: Work loop (Oct 17, 11:00 to 20:00)
@@ -86,7 +86,7 @@ Exit test: NYI uses no other tracker; a developer and a non-tech teammate both r
 
 | # | Item | Source | Owner | Status | PR |
 | --- | --- | --- | --- | --- | --- |
-| 2.1 | Status, blocker and deadline extraction | New | Saish | Not started |  |
+| 2.1 | Status, blocker and deadline extraction | New | Saish | In review |  |
 | 2.2 | Auto-apply with undo above a confidence threshold | New | Saish | In review |  |
 | 2.3 | Duplicate task matching before proposing | New | Saish | In review |  |
 | 2.4 | Decisions and supersession | Port | Saish | In review |  |
@@ -98,9 +98,9 @@ Exit test: NYI uses no other tracker; a developer and a non-tech teammate both r
 | 2.10 | Message edit and delete handling | New | Unassigned | Not started |  |
 | 2.11 | Gantt timeline: milestones, dependencies, drag dates | New | Saish | In review |  |
 | 2.12 | My day and my work (simple and detailed views) | New | Saish | In review | #2 |
-| 2.13 | Task detail: sources, history, undo | New | Soha | Not started |  |
+| 2.13 | Task detail: sources, history, undo | New | Saish | In review |  |
 | 2.14 | Live updates over Phoenix Channels | New | Soha | Not started |  |
-| 2.15 | Notification preferences: channel, digest time, quiet hours | New | Saish | Not started |  |
+| 2.15 | Notification preferences: channel, digest time, quiet hours | New | Saish | In review |  |
 | 2.16 | Permission leakage tests in CI | New | Saish | In review |  |
 | 2.17 | Eval harness on the golden set | Port | Unassigned | Not started |  |
 | 2.18 | Decided today panel (per project and per person) | New | Saish | In review |  |
@@ -125,16 +125,16 @@ Exit test: A real NYI teammate moves projects using only Noa, gets a KT brief an
 | 3.7 | GitHub PR merged closes card (beta) | New | Unassigned | Not started |  |
 | 3.8 | WhatsApp voice notes, transcribed (beta) | New | Unassigned | Not started |  |
 | 3.9 | Portfolio: project health, workload heatmap, risks | New | Saish | In review |  |
-| 3.10 | Project page: board, timeline, decisions, people, KT tabs | New | Soha | Not started |  |
+| 3.10 | Project page: board, timeline, decisions, people, KT tabs | New | Saish | In review |  |
 | 3.11 | Shift wizard | New | Saish | In review |  |
-| 3.12 | KT brief page and checklist | New | Unassigned | Not started |  |
+| 3.12 | KT brief page and checklist | New | Saish | In review |  |
 | 3.13 | Graph panel with path highlighting | New | Unassigned | Not started |  |
-| 3.14 | Superadmin console: orgs, connectors, ops, LLM usage | Copy | Unassigned | Not started |  |
+| 3.14 | Superadmin console: orgs, connectors, ops, LLM usage | Copy | Saish | In progress |  |
 | 3.15 | Run one real NYI shift end to end | New | Soha | Not started |  |
-| 3.16 | Backfill and rebuild-the-graph drill | New | Unassigned | Not started |  |
+| 3.16 | Backfill and rebuild-the-graph drill | New | Saish | In review |  |
 | 3.17 | Staffing board: drag-and-drop people with confirm popover | New | Saish | In review |  |
 | 3.18 | Agent pack generator: `CLAUDE.md`/`AGENTS.md`, `tasks.md`, `.mcp.json` from the project subgraph; regenerate on change | New | Soha | Not started |  |
-| 3.19 | Role pack templates: `brief.md`, `client.md`, `runbook.md`, `project-state.md` | New | Saish | Not started |  |
+| 3.19 | Role pack templates: `brief.md`, `client.md`, `runbook.md`, `project-state.md` | New | Saish | In review |  |
 | 3.20 | Access bundles per project: GitHub team, Discord role, Drive share; checklist for the rest | New | Soha | Not started |  |
 | 3.21 | Secrets vault: encrypted per project, one-time 24-hour links, fetch audit, revoke on shift | New | Unassigned | Not started |  |
 | 3.22 | Per-person, per-project MCP tokens | New | Unassigned | Not started |  |
@@ -147,13 +147,13 @@ Exit test: A new team reaches its first proposed tasks in under 10 minutes witho
 | # | Item | Source | Owner | Status | PR |
 | --- | --- | --- | --- | --- | --- |
 | 4.1 | Feature freeze at noon IST | New | Saish | Not started |  |
-| 4.2 | Load test on NYI's full history | New | Saish | Not started |  |
-| 4.3 | Security pass: tokens, webhooks, policies | New | Saish | Not started |  |
+| 4.2 | Load test on NYI's full history | New | Saish | In review |  |
+| 4.3 | Security pass: tokens, webhooks, policies | New | Saish | In review |  |
 | 4.4 | Empty, loading and error states on every page | New | Soha | Not started |  |
 | 4.5 | Landing, privacy and terms pages (from v1 landing) | Copy | Soha | Not started |  |
 | 4.6 | Second-team onboarding test on a fresh org | New | Soha | Not started |  |
 | 4.7 | 3-minute video of real NYI use | New | Saish | Not started |  |
-| 4.8 | README with architecture and setup; blog post | New | Saish | Not started |  |
+| 4.8 | README with architecture and setup; blog post | New | Saish | In progress |  |
 | 4.9 | Submit on WeMakeDevs (all tracks allowed) | New | Saish | Not started |  |
 
 ## Phase 5: After the event (Later)

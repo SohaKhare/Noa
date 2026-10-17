@@ -28,7 +28,12 @@ defmodule NoaWeb.Endpoint do
   plug(Plug.MethodOverride)
   plug(Plug.Head)
   plug(Plug.Session, @session_options)
-  plug(CORSPlug, origin: &NoaWeb.Endpoint.cors_origins/0, credentials: true)
+
+  plug(CORSPlug,
+    origin: &NoaWeb.Endpoint.cors_origins/0,
+    credentials: true,
+    expose: ["content-disposition", "retry-after"]
+  )
 
   if code_reloading? do
     plug(Phoenix.CodeReloader)

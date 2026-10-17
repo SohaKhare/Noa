@@ -28,6 +28,22 @@ defmodule Noa.Work.Person do
     attribute(:title, :string, public?: true)
     attribute(:email, :ci_string, public?: true)
     attribute(:handles, {:array, :string}, allow_nil?: false, default: [], public?: true)
+
+    # Notification preferences (2.15). Delivery (2.9, 2.21) reads these through
+    # `Noa.Work.notify_target/1` and `Noa.Work.quiet?/2`.
+    attribute(:notify_via, :atom,
+      constraints: [one_of: [:whatsapp, :discord, :email, :in_app]],
+      allow_nil?: false,
+      default: :in_app,
+      public?: true
+    )
+
+    attribute(:phone, :string, public?: true, constraints: [match: ~r/^\+[1-9]\d{7,14}$/])
+    attribute(:digest_at, :time, public?: true)
+    attribute(:quiet_from, :time, public?: true)
+    attribute(:quiet_to, :time, public?: true)
+    # Minutes east of UTC; 330 is IST.
+    attribute(:utc_offset, :integer, allow_nil?: false, default: 330, public?: true, constraints: [min: -720, max: 840])
     create_timestamp(:inserted_at)
     update_timestamp(:updated_at)
   end
@@ -56,6 +72,11 @@ defmodule Noa.Work.Person do
     update :update do
       accept([:name, :title, :email, :handles, :membership_id])
     end
+
+    # Anyone can set their own; admins and PMs can set anyone's.
+    update :notifications do
+      accept([:notify_via, :phone, :digest_at, :quiet_from, :quiet_to, :utc_offset])
+    end
   end
 
   policies do
@@ -67,7 +88,12 @@ defmodule Noa.Work.Person do
       authorize_if(expr(exists(org.memberships, user_id == ^actor(:id))))
     end
 
-    policy action_type([:create, :update, :destroy]) do
+    policy action([:create, :update, :destroy]) do
+      authorize_if({Noa.Work.Checks.ActorInOrg, roles: [:org_admin, :pm]})
+    end
+
+    policy action(:notifications) do
+      authorize_if(expr(membership.user_id == ^actor(:id)))
       authorize_if({Noa.Work.Checks.ActorInOrg, roles: [:org_admin, :pm]})
     end
   end

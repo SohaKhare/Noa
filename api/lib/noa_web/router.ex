@@ -79,6 +79,8 @@ defmodule NoaWeb.Router do
     patch("/orgs/:org_id/channels/:id", WorkController, :update_channel)
     get("/orgs/:org_id/decisions", WorkController, :decisions)
     get("/orgs/:org_id/changes", WorkController, :changes)
+    get("/orgs/:org_id/me/notifications", WorkController, :notifications)
+    patch("/orgs/:org_id/me/notifications", WorkController, :update_notifications)
     get("/orgs/:org_id/shifts", WorkController, :shifts)
     get("/orgs/:org_id/projects/:project_id/brief", WorkController, :brief)
     get("/orgs/:org_id/experts", WorkController, :experts)

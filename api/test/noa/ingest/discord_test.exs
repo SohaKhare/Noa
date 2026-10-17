@@ -27,6 +27,19 @@ defmodule Noa.Ingest.DiscordTest do
     assert message.at == ~U[2026-10-17 04:30:00Z]
   end
 
+  test "normalizes Nostrum-style atom-keyed structs at the gateway boundary" do
+    payload = %{
+      id: "message-2",
+      guild_id: "guild-1",
+      channel_id: "channel-1",
+      content: "hello",
+      timestamp: "2026-10-17T04:30:00Z",
+      author: %{id: "user-2", username: "member"}
+    }
+
+    assert {:ok, %{message_id: "message-2", author_id: "user-2"}} = Discord.normalize(payload)
+  end
+
   test "rejects DMs before they reach Work" do
     assert {:ignore, :direct_message} = Discord.normalize(Map.delete(message_payload(), "guild_id"))
   end
@@ -44,7 +57,7 @@ defmodule Noa.Ingest.DiscordTest do
   end
 
   test "consumer ignores non-message gateway events before touching Work" do
-    assert {:ignore, :unsupported_event} = Consumer.handle_event("org-1", {:ready, %{}})
+    assert {:ignore, :unsupported_event} = Consumer.handle_event({:READY, %{}, %{}})
   end
 
   defp message_payload do

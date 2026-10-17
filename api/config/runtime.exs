@@ -14,7 +14,12 @@ if config_env() == :prod do
     token_signing_secret: System.fetch_env!("TOKEN_SIGNING_SECRET"),
     mail_from: {System.get_env("MAIL_FROM_NAME", "Noa"), System.fetch_env!("MAIL_FROM_EMAIL")},
     discord_bot_token: System.get_env("DISCORD_BOT_TOKEN"),
-    discord_guild_id: System.get_env("DISCORD_GUILD_ID")
+    discord_guild_id: System.get_env("DISCORD_GUILD_ID"),
+    discord_org_id: System.get_env("DISCORD_ORG_ID")
+
+  config :nostrum,
+    token: System.get_env("DISCORD_BOT_TOKEN"),
+    gateway_intents: [:guilds, :guild_messages, :guild_members, :message_content]
 
   config :noa, Noa.Mailer,
     adapter: Noa.Mailer.Resend

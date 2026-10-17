@@ -9,16 +9,25 @@ defmodule Noa.Ingest.Discord do
   """
 
   alias Noa.Work
+  alias Noa.Work.Channel
 
   @discord_api "https://discord.com/api/v10"
   @default_limit 100
   @max_limit 100
 
-  @type reason :: :direct_message | :bot | :system_message | :empty | :wrong_guild | :invalid
+  @type reason ::
+          :direct_message
+          | :bot
+          | :system_message
+          | :empty
+          | :wrong_guild
+          | :invalid
+          | :unknown_workspace
 
   @doc "Normalizes a Discord MESSAGE_CREATE or backfill payload into Work's message shape."
   @spec normalize(map()) :: {:ok, map()} | {:ignore, reason()}
   def normalize(payload) when is_map(payload) do
+    payload = normalize_payload(payload)
     author = payload["author"] || %{}
     guild_id = payload["guild_id"]
     content = payload["content"] |> to_string() |> String.trim()
@@ -57,6 +66,67 @@ defmodule Noa.Ingest.Discord do
       Work.record_message(org_id, message)
     end
   end
+
+  @doc "Resolves a Discord gateway message to the workspace mapped to its channel."
+  @spec ingest(map()) :: term()
+  def ingest(payload) do
+    payload = normalize_payload(payload)
+
+    with {:ok, org_id} <- org_id_for(payload), do: ingest(org_id, payload)
+  end
+
+  @doc "Links a Discord guild member to a Noa identity without ingesting a message."
+  @spec ingest_member(String.t(), map()) :: {:ok, term()} | {:ignore, reason()} | {:error, term()}
+  def ingest_member(org_id, payload) do
+    payload = normalize_payload(payload)
+    user = payload["user"] || payload["author"] || %{}
+
+    cond do
+      not allowed_guild?(payload["guild_id"]) -> {:ignore, :wrong_guild}
+      user["bot"] == true -> {:ignore, :bot}
+      not present?(user["id"]) -> {:ignore, :invalid}
+      true -> Work.identify(org_id, :discord, user["id"], display_name(user))
+    end
+  end
+
+  @doc "Returns whether the Discord gateway should be started in this environment."
+  def enabled?, do: present?(Application.get_env(:noa, :discord_bot_token) || System.get_env("DISCORD_BOT_TOKEN"))
+
+  @doc false
+  def guild_allowed?(guild_id), do: allowed_guild?(guild_id)
+
+  @doc false
+  def normalize_payload(%{__struct__: _} = payload), do: payload |> Map.from_struct() |> normalize_payload()
+  def normalize_payload(payload) when is_map(payload), do: Map.new(payload, fn {key, value} -> {to_string(key), normalize_value(value)} end)
+  def normalize_payload(payload), do: payload
+
+  defp normalize_value(%{__struct__: _} = value), do: value |> Map.from_struct() |> normalize_payload()
+  defp normalize_value(value) when is_map(value), do: normalize_payload(value)
+  defp normalize_value(value) when is_list(value), do: Enum.map(value, &normalize_value/1)
+  defp normalize_value(value), do: value
+
+  defp org_id_for(payload) do
+    configured_org = Application.get_env(:noa, :discord_org_id) || System.get_env("DISCORD_ORG_ID")
+
+    cond do
+      present?(configured_org) and allowed_guild?(payload["guild_id"]) -> {:ok, configured_org}
+      present?(payload["channel_id"]) -> org_id_for_channel(payload["channel_id"])
+      true -> {:ignore, :unknown_workspace}
+    end
+  end
+
+  defp org_id_for_channel(channel_id) do
+    Channel
+    |> Ash.Query.filter(platform == :discord and external_id == ^to_string(channel_id) and read == true)
+    |> Ash.read(authorize?: false)
+    |> case do
+      {:ok, [%{org_id: org_id} | _]} -> {:ok, org_id}
+      {:ok, []} -> {:ignore, :unknown_workspace}
+      {:error, error} -> {:error, error}
+    end
+  end
+
+  defp display_name(user), do: user["global_name"] || user["display_name"] || user["username"]
 
   @doc "Backfills mapped Discord channel messages, oldest first, with Discord's REST API."
   @spec backfill(String.t(), String.t(), keyword()) :: {:ok, non_neg_integer()} | {:error, term()}

@@ -8,14 +8,38 @@ defmodule Noa.Ingest.Discord.Consumer do
   rejected by the normalizer before they reach the database.
   """
 
+  use Nostrum.Consumer
+
   alias Noa.Ingest.Discord
 
-  @spec handle_event(String.t(), tuple() | map()) :: term()
-  def handle_event(org_id, {:message_create, payload}), do: Discord.ingest(org_id, payload)
-  def handle_event(org_id, {:MESSAGE_CREATE, payload, _state}), do: Discord.ingest(org_id, payload)
+  @impl true
+  def handle_event({:MESSAGE_CREATE, payload, _state}), do: Discord.ingest(payload)
 
-  def handle_event(org_id, %{"t" => "MESSAGE_CREATE", "d" => payload}),
-    do: Discord.ingest(org_id, payload)
+  @impl true
+  def handle_event({:GUILD_MEMBER_ADD, payload, _state}) do
+    with {:ok, org_id} <- configured_org(payload.guild_id),
+         do: Discord.ingest_member(org_id, payload)
+  end
 
-  def handle_event(_org_id, _event), do: {:ignore, :unsupported_event}
+  @impl true
+  def handle_event({:GUILD_CREATE, guild, _state}) do
+    guild = Discord.normalize_payload(guild)
+
+    with {:ok, org_id} <- configured_org(guild["id"]) do
+      Enum.each(guild["members"] || [], fn member ->
+        Discord.ingest_member(org_id, Map.put(member, "guild_id", guild["id"]))
+      end)
+    end
+  end
+
+  @impl true
+  def handle_event(_event), do: {:ignore, :unsupported_event}
+
+  defp configured_org(guild_id) do
+    case Application.get_env(:noa, :discord_org_id) || System.get_env("DISCORD_ORG_ID") do
+      nil -> {:ignore, :unknown_workspace}
+      "" -> {:ignore, :unknown_workspace}
+      org_id -> if Discord.guild_allowed?(guild_id), do: {:ok, org_id}, else: {:ignore, :wrong_guild}
+    end
+  end
 end

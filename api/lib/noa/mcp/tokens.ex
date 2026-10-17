@@ -33,7 +33,12 @@ defmodule Noa.MCP.Tokens do
     from(t in "mcp_tokens",
       where: t.org_id == type(^org_id, :binary_id) and t.user_id == type(^user_id, :binary_id) and is_nil(t.revoked_at),
       order_by: [desc: t.inserted_at],
-      select: %{id: type(t.id, :binary_id), name: t.name, inserted_at: t.inserted_at, last_used_at: t.last_used_at}
+      select: %{
+        id: type(t.id, :binary_id),
+        name: t.name,
+        inserted_at: type(t.inserted_at, :utc_datetime_usec),
+        last_used_at: type(t.last_used_at, :utc_datetime_usec)
+      }
     )
     |> Repo.all()
   end

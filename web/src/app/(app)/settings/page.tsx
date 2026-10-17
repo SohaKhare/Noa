@@ -15,20 +15,11 @@ import { useState } from "react";
 import { FormError } from "@/components/AuthCard";
 import { Badge, Button, Card, PageHeader } from "@/components/ui";
 import { PeopleSettings } from "@/components/PeopleSettings";
-import {
-  ApiError,
-  getNotifications,
-  roleLabel,
-  updateChannel,
-  updateNotifications,
-  type Channel,
-  type NotificationPrefs,
-  type NotifyVia,
-} from "@/lib/api";
+import { ApiError, type Channel, type NotificationPrefs, type NotifyVia, type WhatsAppMessage, getNotifications, getWhatsApp, roleLabel, updateChannel, updateNotifications } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { currentMembership, useMe } from "@/lib/session";
 import { accessBundles, connectors } from "@/lib/mock";
-import { useDirectory } from "@/lib/work";
+import { ago, useDirectory } from "@/lib/work";
 
 /* Settings: org admin surfaces (1.5, 1.6, 1.18, 1.22, 2.15, 3.20). */
 
@@ -95,32 +86,87 @@ export default function Settings() {
 }
 
 function Connectors() {
+  const dir = useDirectory();
+  const wa = useQuery({ queryKey: ["whatsapp", dir.orgId], queryFn: () => getWhatsApp(dir.orgId!), enabled: !!dir.orgId, refetchInterval: 15_000 });
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {connectors.map((c) => {
-        const I = connectorIcon[c.id];
-        return (
-          <Card key={c.id} className="flex items-center gap-4 p-4">
-            <span className="grid size-11 place-items-center rounded-2xl bg-mist text-accent">
-              <I size={22} />
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        {connectors.map((c) => {
+          const I = connectorIcon[c.id];
+          const whatsapp = c.id === "whatsapp";
+          const connected = whatsapp ? wa.data?.configured : c.status === "connected";
+          return (
+            <Card key={c.id} className="flex items-center gap-4 p-4">
+              <span className="grid size-11 place-items-center rounded-2xl bg-mist text-accent">
+                <I size={22} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[14px] font-semibold">{whatsapp ? "WhatsApp (Kapso)" : c.name}</p>
+                <p className="truncate text-[12.5px] text-muted">
+                  {whatsapp ? (connected ? "Sending and receiving through Kapso" : "Not connected: messages stay in the outbox below") : c.detail}
+                </p>
+              </div>
+              {connected ? (
+                <Badge tone="good">
+                  <CheckCircleIcon size={12} weight="fill" /> Connected
+                </Badge>
+              ) : whatsapp ? (
+                <Badge tone="warn">Simulated</Badge>
+              ) : (
+                <Button size="sm" variant="ghost">
+                  Connect
+                </Button>
+              )}
+            </Card>
+          );
+        })}
+      </div>
+      <WhatsAppLog messages={wa.data?.messages ?? []} scope={wa.data?.scope} />
+    </div>
+  );
+}
+
+/* What Noa sent and received on WhatsApp (1.15): admins see the workspace's, others their own. */
+function WhatsAppLog({ messages, scope }: { messages: WhatsAppMessage[]; scope?: "workspace" | "you" }) {
+  const dir = useDirectory();
+  return (
+    <Card className="p-0">
+      <div className="border-b border-line px-5 py-3">
+        <p className="text-[14px] font-semibold">WhatsApp messages</p>
+        <p className="text-[12.5px] text-muted">
+          {scope === "workspace" ? "Everything Noa sent and received in this workspace." : "Messages between Noa and you."} People choose WhatsApp and add their
+          number under Notifications.
+        </p>
+      </div>
+      <ul className="max-h-[420px] divide-y divide-line overflow-y-auto">
+        {messages.length === 0 && <li className="px-5 py-5 text-[13px] text-muted">No WhatsApp messages yet.</li>}
+        {messages.map((m) => (
+          <li key={m.id} className="flex gap-3 px-5 py-3 text-[13px]">
+            <span
+              className={cn(
+                "mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-medium",
+                m.direction === "out" ? "bg-mist text-accent-fg" : "bg-bg text-ink/70",
+              )}
+            >
+              {m.direction === "out" ? "Noa →" : "→ Noa"}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-[14px] font-semibold">{c.name}</p>
-              <p className="truncate text-[12.5px] text-muted">{c.detail}</p>
+              <p className="whitespace-pre-wrap">{m.body}</p>
+              {m.buttons && Object.keys(m.buttons).length > 0 && (
+                <p className="mt-1 flex flex-wrap gap-1.5">
+                  {Object.values(m.buttons).map((b) => (
+                    <span key={b} className="rounded-full bg-bg px-2 py-0.5 text-[11px] ring-1 ring-line">
+                      {b}
+                    </span>
+                  ))}
+                </p>
+              )}
+              <p className="mt-1 text-[11.5px] text-muted">{[dir.person(m.person_id)?.name, ago(m.inserted_at), m.status].filter(Boolean).join(" · ")}</p>
             </div>
-            {c.status === "connected" ? (
-              <Badge tone="good">
-                <CheckCircleIcon size={12} weight="fill" /> Connected
-              </Badge>
-            ) : (
-              <Button size="sm" variant="ghost">
-                Connect
-              </Button>
-            )}
-          </Card>
-        );
-      })}
-    </div>
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 }
 

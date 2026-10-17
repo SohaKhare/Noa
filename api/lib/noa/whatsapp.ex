@@ -88,7 +88,8 @@ defmodule Noa.WhatsApp do
         body: m.body,
         buttons: m.buttons,
         status: m.status,
-        inserted_at: m.inserted_at
+        # Schemaless reads come back without a zone; mark them UTC for the browser.
+        inserted_at: type(m.inserted_at, :utc_datetime_usec)
       }
     )
     |> Repo.all()

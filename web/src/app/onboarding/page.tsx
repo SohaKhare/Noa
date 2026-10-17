@@ -30,8 +30,9 @@ export default function Onboarding() {
   return (
     <div className="min-h-screen mist-wash px-4 py-10">
       <div className="mx-auto max-w-4xl">
-        <div className="flex items-center gap-2 text-[16px] font-semibold">
-          <BrandMark /> Noa
+        <div className="flex items-center gap-2">
+          <BrandMark />
+          <span className="font-wordmark text-[24px] leading-none">NOA</span>
         </div>
         <h1 className="mt-8 text-[28px] font-semibold tracking-[-0.03em]">Set up your organization</h1>
         <ol className="mt-5 flex flex-wrap gap-2">

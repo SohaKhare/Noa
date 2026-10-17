@@ -6,7 +6,7 @@ defmodule Noa.Mailer.Resend do
   runtime configuration. The three application senders remain provider-neutral.
   """
 
-  @behaviour Swoosh.Adapter
+  use Swoosh.Adapter, required_config: [:api_key]
 
   @endpoint "https://api.resend.com/emails"
 

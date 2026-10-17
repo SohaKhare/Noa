@@ -10,7 +10,7 @@ if config_env() != :test do
       update: System.get_env("KAPSO_TEMPLATE_UPDATE"),
       task: System.get_env("KAPSO_TEMPLATE_TASK"),
       approval: System.get_env("KAPSO_TEMPLATE_APPROVAL"),
-      language: System.get_env("KAPSO_TEMPLATE_LANG", "en")
+      language: System.get_env("KAPSO_TEMPLATE_LANG", "en_US")
     },
     notifier: System.get_env("NOA_WHATSAPP_NOTIFIER", "true") == "true"
 end
@@ -36,8 +36,7 @@ if config_env() == :prod do
     token: System.get_env("DISCORD_BOT_TOKEN"),
     gateway_intents: [:guilds, :guild_messages, :guild_members, :message_content]
 
-  config :noa, Noa.Mailer,
-    adapter: Noa.Mailer.Resend
+  config :noa, Noa.Mailer, adapter: Noa.Mailer.Resend
 
   config :noa, Noa.Mailer.Resend,
     api_key: System.fetch_env!("RESEND_API_KEY"),

@@ -31,7 +31,8 @@ export default function AdminConsole() {
     <div className="min-h-screen bg-bg">
       <header className="flex h-14 items-center gap-3 border-b border-line bg-surface px-5 sm:px-8">
         <BrandMark size={26} />
-        <span className="text-[14px] font-semibold">Noa platform</span>
+        <span className="font-wordmark text-[22px] leading-none">NOA</span>
+        <span className="text-[14px] font-semibold">platform</span>
         <Badge tone="signal">Superadmin</Badge>
         <span className="ml-auto text-[13px] text-muted">{user.email}</span>
         {user.memberships.length > 0 && (

@@ -15,7 +15,9 @@ defmodule Noa.MixProject do
   end
 
   def application do
-    [mod: {Noa.Application, []}, extra_applications: [:logger, :runtime_tools]]
+    # Nostrum is started by Noa.Application only when a Discord token is set; its
+    # runtime dependencies still ship and start.
+    [mod: {Noa.Application, []}, extra_applications: [:logger, :runtime_tools, :inets, :gun, :certifi]]
   end
 
   defp elixirc_paths(:test), do: ["lib", "test/support"]
@@ -39,7 +41,7 @@ defmodule Noa.MixProject do
       {:ecto, "~> 3.12"},
       {:instructor_lite, "~> 1.0"},
       {:req, "~> 0.5"},
-      {:nostrum, "~> 0.10"},
+      {:nostrum, "~> 0.10", runtime: false},
       {:falkordb, "~> 0.8.2"},
       {:oban, "~> 2.24"},
       {:jason, "~> 1.4"}

@@ -43,7 +43,7 @@ defmodule Noa.WhatsApp.Kapso do
   end
 
   defp template_message(name, phone, text, buttons) do
-    lang = (Application.get_env(:noa, Noa.WhatsApp, [])[:templates] || %{})[:language] || "en"
+    lang = (Application.get_env(:noa, Noa.WhatsApp, [])[:templates] || %{})[:language] || "en_US"
 
     %{
       messaging_product: "whatsapp",

@@ -26,7 +26,7 @@ Noa finds the person by their number and acts as them, with their permissions.
 
 1. **Account and number.** Create a Kapso project and connect a WhatsApp number (Kapso's sandbox number works for testing). Note the phone number ID and create a project API key.
 2. **Webhook.** Point it at `POST https://<your-noa-api>/webhooks/kapso`, subscribe to `whatsapp.message.received`, and set a long random secret. Noa checks `X-Webhook-Signature` (HMAC-SHA256 of the raw body, hex), ignores a message id it has already seen, queues the rest, and answers 200 at once (Kapso wants a reply within 10 seconds). Batched deliveries are unpacked.
-3. **Templates.** Free-form messages only reach someone who wrote in the last 24 hours. After that Noa sends the same text through an approved template, and templates have fixed buttons, so there is one per button set. Submit them early: Meta approval takes hours. The sandbox cannot send templates; it covers text and buttons after you message the sandbox number. Templates need your own connected number. Category Utility, English:
+3. **Templates.** Free-form messages only reach someone who wrote in the last 24 hours. After that Noa sends the same text through an approved template, and templates have fixed buttons, so there is one per button set. Submit them early: Meta approval takes hours. The sandbox cannot send templates; it covers text and buttons after you message the sandbox number. Templates need your own connected number. Category Utility, English (US):
 
    | Name | Body | Quick-reply buttons |
    | --- | --- | --- |
@@ -43,7 +43,7 @@ Noa finds the person by their number and acts as them, with their permissions.
    KAPSO_TEMPLATE_UPDATE=noa_update
    KAPSO_TEMPLATE_TASK=noa_task
    KAPSO_TEMPLATE_APPROVAL=noa_approval
-   KAPSO_TEMPLATE_LANG=en
+   KAPSO_TEMPLATE_LANG=en_US
    ```
 
 To try replies locally, set `KAPSO_WEBHOOK_SECRET` and post a signed body to `/webhooks/kapso`.

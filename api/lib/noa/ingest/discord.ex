@@ -8,6 +8,8 @@ defmodule Noa.Ingest.Discord do
   privacy gate, identity resolution, idempotency and event-log write.
   """
 
+  require Ash.Query
+
   alias Noa.Work
   alias Noa.Work.Channel
 
@@ -33,14 +35,30 @@ defmodule Noa.Ingest.Discord do
     content = payload["content"] |> to_string() |> String.trim()
 
     cond do
-      is_nil(guild_id) or guild_id == "" -> {:ignore, :direct_message}
-      author["bot"] == true or author["system"] == true -> {:ignore, :bot}
-      payload["webhook_id"] -> {:ignore, :bot}
-      payload["type"] in ["CHANNEL_PINNED_MESSAGE", 6] -> {:ignore, :system_message}
-      content == "" -> {:ignore, :empty}
-      not present?(payload["id"]) or not present?(payload["channel_id"]) -> {:ignore, :invalid}
-      not present?(author["id"]) -> {:ignore, :invalid}
-      not allowed_guild?(guild_id) -> {:ignore, :wrong_guild}
+      is_nil(guild_id) or guild_id == "" ->
+        {:ignore, :direct_message}
+
+      author["bot"] == true or author["system"] == true ->
+        {:ignore, :bot}
+
+      payload["webhook_id"] ->
+        {:ignore, :bot}
+
+      payload["type"] in ["CHANNEL_PINNED_MESSAGE", 6] ->
+        {:ignore, :system_message}
+
+      content == "" ->
+        {:ignore, :empty}
+
+      not present?(payload["id"]) or not present?(payload["channel_id"]) ->
+        {:ignore, :invalid}
+
+      not present?(author["id"]) ->
+        {:ignore, :invalid}
+
+      not allowed_guild?(guild_id) ->
+        {:ignore, :wrong_guild}
+
       true ->
         {:ok,
          %{
@@ -70,9 +88,41 @@ defmodule Noa.Ingest.Discord do
   @doc "Resolves a Discord gateway message to the workspace mapped to its channel."
   @spec ingest(map()) :: term()
   def ingest(payload) do
-    payload = normalize_payload(payload)
+    payload = payload |> normalize_payload() |> with_channel_name()
 
     with {:ok, org_id} <- org_id_for(payload), do: ingest(org_id, payload)
+  end
+
+  # Gateway messages carry only the channel id, and channels are mapped by name, so
+  # ask Discord once per channel and remember the answer.
+  defp with_channel_name(%{"channel_name" => name} = payload) when is_binary(name), do: payload
+
+  defp with_channel_name(%{"channel_id" => id} = payload) when is_binary(id) do
+    case channel_name(id) do
+      nil -> payload
+      name -> Map.put(payload, "channel_name", name)
+    end
+  end
+
+  defp with_channel_name(payload), do: payload
+
+  defp channel_name(id) do
+    case :persistent_term.get({__MODULE__, :channel, id}, :unknown) do
+      :unknown ->
+        name =
+          case Nostrum.Api.Channel.get(String.to_integer(id)) do
+            {:ok, %{name: name}} when is_binary(name) -> name
+            _ -> nil
+          end
+
+        if name, do: :persistent_term.put({__MODULE__, :channel, id}, name)
+        name
+
+      name ->
+        name
+    end
+  rescue
+    _ -> nil
   end
 
   @doc "Links a Discord guild member to a Noa identity without ingesting a message."
@@ -97,9 +147,21 @@ defmodule Noa.Ingest.Discord do
 
   @doc false
   def normalize_payload(%{__struct__: _} = payload), do: payload |> Map.from_struct() |> normalize_payload()
-  def normalize_payload(payload) when is_map(payload), do: Map.new(payload, fn {key, value} -> {to_string(key), normalize_value(value)} end)
+
+  def normalize_payload(payload) when is_map(payload) do
+    Map.new(payload, fn {key, value} -> {to_string(key), normalize_value(to_string(key), value)} end)
+  end
+
   def normalize_payload(payload), do: payload
 
+  # Nostrum gives snowflakes as integers and timestamps as DateTime structs.
+  defp normalize_value(key, value)
+       when is_integer(value) and (key == "id" or binary_part(key, byte_size(key), -3) == "_id"),
+       do: Integer.to_string(value)
+
+  defp normalize_value(_key, value), do: normalize_value(value)
+
+  defp normalize_value(%DateTime{} = value), do: value
   defp normalize_value(%{__struct__: _} = value), do: value |> Map.from_struct() |> normalize_payload()
   defp normalize_value(value) when is_map(value), do: normalize_payload(value)
   defp normalize_value(value) when is_list(value), do: Enum.map(value, &normalize_value/1)
@@ -130,7 +192,7 @@ defmodule Noa.Ingest.Discord do
 
   @doc "Backfills mapped Discord channel messages, oldest first, with Discord's REST API."
   @spec backfill(String.t(), String.t(), keyword()) :: {:ok, non_neg_integer()} | {:error, term()}
-  def backfill(org_id, channel_id, opts \ []) do
+  def backfill(org_id, channel_id, opts \\ []) do
     token = opts[:token] || token()
     limit = opts |> Keyword.get(:limit, @default_limit) |> min(@max_limit) |> max(1)
     max_pages = Keyword.get(opts, :max_pages, :infinity)
@@ -161,12 +223,22 @@ defmodule Noa.Ingest.Discord do
         if length(messages) < limit or is_nil(next_before) do
           {:ok, count + Enum.count(results, &accepted_result?/1)}
         else
-          do_backfill(org_id, channel_id, token, limit, pages, next_before,
-            count + Enum.count(results, &accepted_result?/1))
+          do_backfill(
+            org_id,
+            channel_id,
+            token,
+            limit,
+            pages,
+            next_before,
+            count + Enum.count(results, &accepted_result?/1)
+          )
         end
 
-      {:ok, %{status: status, body: body}} -> {:error, {:discord_api, status, body}}
-      {:error, reason} -> {:error, {:discord_api, reason}}
+      {:ok, %{status: status, body: body}} ->
+        {:error, {:discord_api, status, body}}
+
+      {:error, reason} ->
+        {:error, {:discord_api, reason}}
     end
   end
 
@@ -190,6 +262,7 @@ defmodule Noa.Ingest.Discord do
   defp present?(value), do: is_binary(value) and String.trim(value) != ""
 
   defp timestamp(nil), do: DateTime.utc_now()
+  defp timestamp(%DateTime{} = at), do: at
 
   defp timestamp(value) when is_binary(value) do
     case DateTime.from_iso8601(value) do

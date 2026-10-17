@@ -87,6 +87,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen bg-bg">
       <aside className="sticky top-0 hidden h-screen w-[248px] shrink-0 flex-col border-r border-line bg-surface md:flex">
+        <Link href="/" className="mx-5 mt-4 flex items-center gap-2">
+          <BrandMark size={26} />
+          <span className="font-wordmark text-[22px] leading-none">NOA</span>
+        </Link>
         <button className="mx-3 mt-3 flex items-center gap-2.5 rounded-xl px-2 py-2 text-left hover:bg-bg">
           <BrandMark size={28} />
           <span className="min-w-0 flex-1 leading-tight">
@@ -221,6 +225,10 @@ function TopBar({ path }: { path: string }) {
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-bg/85 px-5 backdrop-blur-md sm:px-8">
+      <Link href="/" className="flex items-center gap-1.5 md:hidden">
+        <BrandMark size={22} />
+        <span className="font-wordmark text-[18px] leading-none">NOA</span>
+      </Link>
       <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-2 text-[13.5px]">
         {crumbs.map((c, i) => (
           <span key={c.label} className="flex items-center gap-2">
@@ -355,6 +363,10 @@ function ApiDown({ message }: { message: string }) {
   return (
     <div className="grid min-h-screen place-items-center bg-bg p-6 text-center">
       <div className="max-w-sm">
+        <div className="mb-4 flex items-center justify-center gap-2">
+          <BrandMark size={28} />
+          <span className="font-wordmark text-[26px] leading-none">NOA</span>
+        </div>
         <p className="text-[18px] font-semibold">Noa can&rsquo;t reach its server</p>
         <p className="mt-1.5 text-[13.5px] text-muted">{message}</p>
         <button onClick={() => location.reload()} className="mt-4 rounded-full bg-accent px-4 py-2 text-[13.5px] font-medium text-white hover:bg-accent-soft">

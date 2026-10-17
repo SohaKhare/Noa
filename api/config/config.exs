@@ -37,6 +37,10 @@ config :noa, NoaWeb.Endpoint,
 config :noa, Noa.Mailer, adapter: Swoosh.Adapters.Local
 config :swoosh, :api_client, false
 
+config :nostrum,
+  token: System.get_env("DISCORD_BOT_TOKEN"),
+  gateway_intents: [:guilds, :guild_messages, :guild_members, :message_content]
+
 # The emailed magic link signs in on GET so it can redirect straight into the web app.
 config :ash_authentication, :bypass_require_interaction_for_magic_link?, true
 

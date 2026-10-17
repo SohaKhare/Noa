@@ -15,8 +15,10 @@ defmodule Noa.Application do
         Noa.Graph,
         projector(),
         if(Application.get_env(:noa, Noa.WhatsApp, [])[:notifier], do: Noa.WhatsApp.Notifier),
+        discord_children(),
         NoaWeb.Endpoint
       ]
+      |> List.flatten()
       |> Enum.reject(&is_nil/1)
 
     Supervisor.start_link(children, strategy: :one_for_one, name: Noa.Supervisor)
@@ -25,6 +27,10 @@ defmodule Noa.Application do
   defp projector do
     config = Application.get_env(:noa, Noa.Graph, [])
     if config[:url] && config[:projector], do: Noa.Graph.Projector
+  end
+
+  defp discord_children do
+    if Noa.Ingest.Discord.enabled?(), do: [Nostrum.Application, Noa.Ingest.Discord.Consumer], else: []
   end
 
   @impl true

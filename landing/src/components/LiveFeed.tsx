@@ -5,8 +5,8 @@ import {
   DiscordLogoIcon,
   GavelIcon,
   VideoCameraIcon,
-  type Icon,
 } from "@phosphor-icons/react/ssr";
+import type { Icon } from "@phosphor-icons/react";
 
 /* Three updates, held still. */
 type Item = { Icon: Icon; source: Icon; title: string; meta: string; tone?: "accent" | "signal" };

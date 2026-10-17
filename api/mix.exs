@@ -39,6 +39,7 @@ defmodule Noa.MixProject do
       {:ecto, "~> 3.12"},
       {:instructor_lite, "~> 1.0"},
       {:req, "~> 0.5"},
+      {:nostrum, "~> 0.10"},
       {:falkordb, "~> 0.8.2"},
       {:oban, "~> 2.24"},
       {:jason, "~> 1.4"}

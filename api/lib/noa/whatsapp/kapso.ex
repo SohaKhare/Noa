@@ -1,9 +1,9 @@
 defmodule Noa.WhatsApp.Kapso do
   @moduledoc """
   Kapso's WhatsApp API (Meta Cloud API format): `POST {base}/{phone_number_id}/messages`
-  with `X-API-Key`. Text, interactive reply buttons, or, outside the 24-hour window, a
-  template (`template` config: name and language; one body parameter and quick-reply
-  buttons whose payloads are the button ids).
+  with `X-API-Key`. Text or interactive reply buttons; outside the 24-hour window, the
+  approved template for that button set, with the text as its one body parameter and the
+  button ids as quick-reply payloads.
   """
   @base "https://api.kapso.ai/meta/whatsapp/v24.0"
   # Meta: "Re-engagement message" — more than 24 hours since the person last wrote.
@@ -12,7 +12,10 @@ defmodule Noa.WhatsApp.Kapso do
   def send(phone, text, buttons) do
     case post(message(phone, text, buttons)) do
       {:error, {:meta, code, _}} = error when code in @outside_window ->
-        if template(), do: post(template_message(phone, text, buttons)), else: error
+        case template(buttons) do
+          nil -> error
+          name -> post(template_message(name, phone, text, buttons))
+        end
 
       other ->
         other
@@ -39,8 +42,8 @@ defmodule Noa.WhatsApp.Kapso do
     }
   end
 
-  defp template_message(phone, text, buttons) do
-    %{name: name, language: lang} = template()
+  defp template_message(name, phone, text, buttons) do
+    lang = (Application.get_env(:noa, Noa.WhatsApp, [])[:templates] || %{})[:language] || "en"
 
     %{
       messaging_product: "whatsapp",
@@ -69,7 +72,9 @@ defmodule Noa.WhatsApp.Kapso do
     config = Application.get_env(:noa, Noa.WhatsApp, [])
     url = "#{config[:base_url] || @base}/#{config[:phone_number_id]}/messages"
 
-    case Req.post(url, json: body, headers: [{"x-api-key", config[:api_key]}], receive_timeout: 15_000, retry: false) do
+    opts = [json: body, headers: [{"x-api-key", config[:api_key]}], receive_timeout: 15_000, retry: false]
+
+    case Req.post(url, opts ++ (config[:req_options] || [])) do
       {:ok, %{status: status, body: %{"messages" => [%{"id" => id} | _]}}} when status in 200..299 ->
         {:ok, id}
 
@@ -84,5 +89,15 @@ defmodule Noa.WhatsApp.Kapso do
     end
   end
 
-  defp template, do: Application.get_env(:noa, Noa.WhatsApp, [])[:template]
+  # Templates have fixed buttons, so each button set has its own (docs/whatsapp.md):
+  # update (none), task (Start now / Done / Need help), approval (Approve / Reject).
+  defp template(buttons) do
+    templates = Application.get_env(:noa, Noa.WhatsApp, [])[:templates] || %{}
+
+    case buttons do
+      [] -> templates[:update]
+      [{"approve_change:" <> _, _} | _] -> templates[:approval]
+      _ -> templates[:task]
+    end
+  end
 end

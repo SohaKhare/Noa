@@ -6,9 +6,12 @@ if config_env() != :test do
     api_key: System.get_env("KAPSO_API_KEY"),
     phone_number_id: System.get_env("KAPSO_PHONE_NUMBER_ID"),
     webhook_secret: System.get_env("KAPSO_WEBHOOK_SECRET"),
-    template:
-      System.get_env("KAPSO_TEMPLATE") &&
-        %{name: System.get_env("KAPSO_TEMPLATE"), language: System.get_env("KAPSO_TEMPLATE_LANG", "en")},
+    templates: %{
+      update: System.get_env("KAPSO_TEMPLATE_UPDATE"),
+      task: System.get_env("KAPSO_TEMPLATE_TASK"),
+      approval: System.get_env("KAPSO_TEMPLATE_APPROVAL"),
+      language: System.get_env("KAPSO_TEMPLATE_LANG", "en")
+    },
     notifier: System.get_env("NOA_WHATSAPP_NOTIFIER", "true") == "true"
 end
 

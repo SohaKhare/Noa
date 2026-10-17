@@ -6,8 +6,8 @@ defmodule Noa.WhatsApp do
 
   Messages are plain text with up to three reply buttons. A button's id carries what it
   does (`done:<task id>`, `approve_change:<change id>`…), so a tap needs no lookup. Outside
-  WhatsApp's 24-hour window free-form messages are refused; when a template is configured
-  Noa sends the same text through it instead (docs/whatsapp.md).
+  WhatsApp's 24-hour window free-form messages are refused; Noa then sends the same text
+  through the approved template for that button set (docs/whatsapp.md).
 
   Configure with `KAPSO_API_KEY`, `KAPSO_PHONE_NUMBER_ID` and `KAPSO_WEBHOOK_SECRET`.
   Without them messages go to the local outbox only (status `simulated`), so the whole

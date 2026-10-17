@@ -35,7 +35,12 @@ export type InviteInfo = {
   org: { name: string };
   has_account: boolean;
 };
-export type PlatformOrg = Org & { admins: string[]; member_count: number; pending_invites: number };
+export type PlatformOrg = Org & {
+  admins: string[];
+  member_count: number;
+  pending_invites: number;
+  llm_24h?: { calls: number; errors: number; avg_ms: number | null; approx_tokens: number };
+};
 
 export class ApiError extends Error {
   constructor(
@@ -216,7 +221,8 @@ export const getDecisions = (orgId: string, filters: { project_id?: string; sinc
 };
 export type Citation = {
   id: string;
-  kind: "task" | "decision" | "message" | "shift";
+  kind: "task" | "decision" | "message" | "shift" | "expert" | "path";
+  via?: string | null;
   title: string;
   text: string;
   href: string | null;
@@ -225,7 +231,7 @@ export type Citation = {
   source: MessageSource | null;
 };
 export const ask = (orgId: string, question: string) =>
-  api<{ answer: string; citations: Citation[] }>(`/api/orgs/${orgId}/ask`, { method: "POST", body: JSON.stringify({ question }) });
+  api<{ answer: string; citations: Citation[]; retrieval?: { store: "falkordb" | "postgres"; routes: string[] } }>(`/api/orgs/${orgId}/ask`, { method: "POST", body: JSON.stringify({ question }) });
 export type ShiftPlanTask = { task_id: string; title: string; status: TaskStatus; due_on: string | null; to_owner_id: string | null };
 export type WorkShift = {
   id: string;
@@ -263,6 +269,39 @@ export async function downloadBrief(orgId: string, projectId: string, personId?:
   a.click();
   URL.revokeObjectURL(url);
 }
+export type Pack = {
+  project: { id: string; key: string; name: string };
+  person: { id: string; name: string } | null;
+  store: "falkordb" | "postgres";
+  files: { path: string; content: string }[];
+  steps: { label: string; kind: string }[];
+};
+export const getPack = (orgId: string, projectId: string, personId?: string | null) =>
+  api<Pack>(`/api/orgs/${orgId}/projects/${projectId}/pack${personId ? `?person_id=${personId}` : ""}`);
+export type FeedItem = { id: string; kind: "approval" | "change" | "decision" | "shift"; text: string; at: string; href: string | null };
+export const getFeed = (orgId: string) => api<{ items: FeedItem[] }>(`/api/orgs/${orgId}/feed`).then((r) => r.items);
+export type McpToken = { id: string; name: string; inserted_at: string; last_used_at: string | null };
+export const getMcpTokens = (orgId: string) => api<{ tokens: McpToken[]; url: string }>(`/api/orgs/${orgId}/mcp_tokens`);
+export const createMcpToken = (orgId: string, name: string) =>
+  api<{ token: string; info: McpToken; url: string }>(`/api/orgs/${orgId}/mcp_tokens`, { method: "POST", body: JSON.stringify({ name }) });
+export const revokeMcpToken = (orgId: string, id: string) => api<unknown>(`/api/orgs/${orgId}/mcp_tokens/${id}`, { method: "DELETE" });
+export type WhatsAppMessage = {
+  id: string;
+  person_id: string | null;
+  direction: "in" | "out";
+  kind: string;
+  body: string | null;
+  buttons: Record<string, string> | null;
+  status: "sent" | "simulated" | "failed" | "received";
+  inserted_at: string;
+};
+export const getWhatsApp = (orgId: string) =>
+  api<{ configured: boolean; scope: "workspace" | "you"; messages: WhatsAppMessage[] }>(`/api/orgs/${orgId}/whatsapp`);
+export type GraphNode = { id: string; label: string; name: string };
+export type GraphView = { nodes: GraphNode[]; edges: { from: string; to: string; type: string }[]; graph: boolean };
+export const getGraph = (orgId: string, projectId: string) => api<GraphView>(`/api/orgs/${orgId}/graph?project_id=${projectId}`);
+export const getGraphPath = (orgId: string, from: string, to: string) =>
+  api<{ path: string[] }>(`/api/orgs/${orgId}/graph/path?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`).then((r) => r.path);
 export type NotifyVia = "whatsapp" | "discord" | "email" | "in_app";
 export type NotificationPrefs = {
   notify_via: NotifyVia;
@@ -282,6 +321,8 @@ export type Experts = {
   experts: { person_id: string; name: string; weight: number; share: number }[];
   key_people: { person_id: string; name: string; score: number }[];
   bus_factor: { project_id: string; project: string; person_id: string; name: string; share: number }[];
+  groups?: { people: string[]; projects: string[] }[];
+  bridges?: { person_id: string; name: string; score: number }[];
   graph: boolean;
 };
 export const getExperts = (orgId: string, projectId?: string) =>

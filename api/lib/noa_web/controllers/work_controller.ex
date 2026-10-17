@@ -211,10 +211,12 @@ defmodule NoaWeb.WorkController do
       graph =
         with {:ok, experts} <- if(project_id, do: Noa.Graph.Experts.experts(org_id, project_id), else: {:ok, []}),
              {:ok, key} <- Noa.Graph.Experts.key_people(org_id),
-             {:ok, risks} <- Noa.Graph.Experts.bus_factor(org_id) do
-          %{experts: experts, key_people: key, bus_factor: risks, graph: true}
+             {:ok, risks} <- Noa.Graph.Experts.bus_factor(org_id),
+             {:ok, groups} <- Noa.Graph.Experts.groups(org_id),
+             {:ok, bridges} <- Noa.Graph.Experts.bridges(org_id) do
+          %{experts: experts, key_people: key, bus_factor: risks, groups: groups, bridges: bridges, graph: true}
         else
-          _ -> %{experts: [], key_people: [], bus_factor: [], graph: false}
+          _ -> %{experts: [], key_people: [], bus_factor: [], groups: [], bridges: [], graph: false}
         end
 
       json(conn, graph)
@@ -250,6 +252,71 @@ defmodule NoaWeb.WorkController do
   end
 
   defp time(v), do: v
+
+  @doc "The graph panel (3.13): a project's neighbourhood in FalkorDB. Empty with `graph: false` when it is down."
+  def graph(conn, %{"org_id" => org_id, "project_id" => project_id}) do
+    with :ok <- in_org(Project, project_id, org_id, conn.assigns.current_user) do
+      Noa.Graph.Experts.refresh(org_id)
+
+      case Noa.Graph.View.project(org_id, project_id) do
+        {:ok, view} -> json(conn, Map.put(view, :graph, true))
+        _ -> json(conn, %{nodes: [], edges: [], graph: false})
+      end
+    end
+  end
+
+  @doc "How two nodes are connected: the node ids on the shortest path, or []."
+  def graph_path(conn, %{"org_id" => org_id, "from" => from, "to" => to}) do
+    actor = conn.assigns.current_user
+
+    with :ok <- work_item_in_org(from, org_id, actor),
+         :ok <- work_item_in_org(to, org_id, actor) do
+      case Noa.Graph.View.path(org_id, from, to) do
+        {:ok, ids} -> json(conn, %{path: ids})
+        _ -> json(conn, %{path: []})
+      end
+    end
+  end
+
+  # A graph node id from the web is one of the workspace's people, projects, tasks, decisions or channels.
+  defp work_item_in_org(id, org_id, actor) do
+    if Enum.any?([Person, Project, Task, Noa.Work.Decision, Noa.Work.Channel], &(in_org(&1, id, org_id, actor) == :ok)),
+      do: :ok,
+      else: {:error, :not_found}
+  end
+
+  @doc "Agent pack (3.18) for someone joining a project: CLAUDE.md, AGENTS.md, tasks.md, brief.md and a checklist."
+  def pack(conn, %{"org_id" => org_id, "project_id" => project_id} = params) do
+    actor = conn.assigns.current_user
+    person_id = blank(params["person_id"])
+
+    with :ok <- in_org(Project, project_id, org_id, actor),
+         :ok <- refs_in_org(%{owner_id: person_id}, org_id, actor),
+         {:ok, pack} <- Noa.Packs.build(org_id, project_id, actor, person_id) do
+      json(conn, pack)
+    end
+  end
+
+  @doc "In-app notifications, newest first: what waits on you and what changed around you."
+  def feed(conn, %{"org_id" => org_id}) do
+    with {:ok, items} <- Noa.Work.Feed.build(org_id, conn.assigns.current_user) do
+      json(conn, %{items: items})
+    end
+  end
+
+  @doc "WhatsApp status and recent messages (1.15): all of them for admins, your own otherwise."
+  def whatsapp(conn, %{"org_id" => org_id}) do
+    user = conn.assigns.current_user
+    me = Work.person_for(user, org_id)
+    admin = user.is_superadmin or Noa.Orgs.role(user.id, org_id) == :org_admin
+    scope = if admin, do: :all, else: (me && me.id) || Ecto.UUID.generate()
+
+    json(conn, %{
+      configured: Noa.WhatsApp.configured?(),
+      scope: if(admin, do: "workspace", else: "you"),
+      messages: Noa.WhatsApp.recent(org_id, scope)
+    })
+  end
 
   def proposals(conn, %{"org_id" => org_id} = params) do
     status = if params["status"] in ~w(approved rejected), do: String.to_existing_atom(params["status"]), else: :pending

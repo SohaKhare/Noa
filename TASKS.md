@@ -28,12 +28,12 @@ Exit test: Skeleton deploys to Fly with login; API reaches FalkorDB; graph and e
 | 0.3 | Freeze graph schema, extraction schemas, API contracts | New | Saish | Not started |  |
 | 0.4 | Wireframes for every page (UI and flows tab) | New | Saish | Not started |  |
 | 0.5 | Spike: falkordb Elixir client (vector, full-text, PageRank, paths) | New | Saish | In review | #2 |
-| 0.6 | Spike: Kapso send, receive, buttons, signed webhooks | New | Soha | Not started |  |
+| 0.6 | Spike: Kapso send, receive, buttons, signed webhooks | New | Saish | In review |  |
 | 0.7 | Spike: Google Meet transcript API on one NYI meeting | New | Soha | Not started |  |
 | 0.8 | Spike: ash_ai tools + MCP, ash_typescript, React Gantt library | New | Saish | Not started |  |
 | 0.9 | Spike: extraction prompt on 40 real NYI messages | Port | Saish | In progress |  |
 | 0.10 | Register Discord, Slack and Google apps (Internal + External testing) | New | Soha | In progress |  |
-| 0.11 | Kapso account, 3 WhatsApp templates, start Meta verification | New | Soha | Not started |  |
+| 0.11 | Kapso account, 3 WhatsApp templates, start Meta verification | New | Saish | In progress |  |
 | 0.12 | FalkorDB Cloud, Fly.io, Postgres, Logfire, Sentry, domain | Copy | Soha | Not started |  |
 | 0.13 | Privacy policy and terms text | New | Soha | Not started |  |
 | 0.14 | NYI org map: projects, people, roles, reporting lines, allocations, channel-to-project | New | Saish | In review | #1 |
@@ -53,7 +53,7 @@ Exit test: A real Discord message becomes a proposed task in the right project a
 | --- | --- | --- | --- | --- | --- |
 | 1.1 | New repo | Copy | Soha | Done |  |
 | 1.2 | Fly deploy: Dockerfiles, `fly.toml`, release migrations | Copy | Soha | Not started |  |
-| 1.3 | Observability: Logfire/OpenTelemetry, LLM audit and usage | Copy | Saish | Not started |  |
+| 1.3 | Observability: Logfire/OpenTelemetry, LLM audit and usage | Copy | Saish | In review |  |
 | 1.4 | Auth: password, magic link, Google, reset (AshAuthentication) | Copy | Saish | In review | #1 |
 | 1.5 | Orgs, invites, access requests | Copy | Saish | In review | #1 |
 | 1.6 | Roles and Ash policies: superadmin, org admin, PM/lead, member, guest | New | Saish | In review | #1 |
@@ -65,7 +65,7 @@ Exit test: A real Discord message becomes a proposed task in the right project a
 | 1.12 | Import Tulpa v1 history, decisions, projects, aliases, people | Import | Soha | Not started |  |
 | 1.13 | Discord ingest: privacy gate, consumer, membership, backfill | Port | Soha | In progress |  |
 | 1.14 | Slack Events webhook ingest | New | Soha | Not started |  |
-| 1.15 | Kapso WhatsApp send and receive | New | Soha | Not started |  |
+| 1.15 | Kapso WhatsApp send and receive | New | Saish | In review |  |
 | 1.16 | Project routing: channel map, aliases, thread, author's projects | New | Saish | In review | #1 |
 | 1.17 | Task extraction v1 to proposals (from v1 distiller prompt) | Port | Saish | In review | #1 |
 | 1.18 | Onboarding: connect sources, map channels, add people and allocations | New | Soha | Not started |  |
@@ -92,7 +92,7 @@ Exit test: NYI uses no other tracker; a developer and a non-tech teammate both r
 | 2.4 | Decisions and supersession | Port | Saish | In review |  |
 | 2.5 | `@noa` agent with citations (ash_ai tools, audience-first rules) | Port | Saish | In review |  |
 | 2.6 | Approval buttons in Discord, Slack, WhatsApp | New | Soha | Not started |  |
-| 2.7 | WhatsApp "done" replies move cards | New | Soha | Not started |  |
+| 2.7 | WhatsApp "done" replies move cards | New | Saish | In review |  |
 | 2.8 | Google Calendar + Meet transcripts to action items | New | Unassigned | Not started |  |
 | 2.9 | Daily digest per person (from v1 recap) | Port | Soha | Not started |  |
 | 2.10 | Message edit and delete handling | New | Unassigned | Not started |  |
@@ -106,7 +106,7 @@ Exit test: NYI uses no other tracker; a developer and a non-tech teammate both r
 | 2.18 | Decided today panel (per project and per person) | New | Saish | In review |  |
 | 2.19 | Change records for shared-item edits: scope, deadline, owner, status, decision | New | Saish | In review |  |
 | 2.20 | Lead approval rules: deadline and scope changes wait, minor edits apply with revert | New | Saish | In review |  |
-| 2.21 | Change notifications to lead and owner in app, Discord, Slack, WhatsApp | New | Soha | Not started |  |
+| 2.21 | Change notifications to lead and owner. WhatsApp sends from the event log; Discord and Slack still to do | New | Soha | In progress |  |
 
 ## Phase 3: Shifts, KT and agent packs (Oct 17, 20:00 to Oct 18, 08:00)
 
@@ -121,24 +121,24 @@ Exit test: A real NYI teammate moves projects using only Noa, gets a KT brief an
 | 3.3 | Experts via `KNOWS_ABOUT` + PageRank; bus factor | New | Saish | In review |  |
 | 3.4 | Slip propagation and drift detection | New | Unassigned | Not started |  |
 | 3.5 | KT delivery and Q&A on WhatsApp and Discord | New | Soha | Not started |  |
-| 3.6 | MCP server through ash_ai | New | Soha | Not started |  |
+| 3.6 | MCP server: graph tools for coding agents (context, tasks, ask, experts, paths), Streamable HTTP | New | Saish | In review |  |
 | 3.7 | GitHub PR merged closes card (beta) | New | Unassigned | Not started |  |
 | 3.8 | WhatsApp voice notes, transcribed (beta) | New | Unassigned | Not started |  |
 | 3.9 | Portfolio: project health, workload heatmap, risks | New | Saish | In review |  |
 | 3.10 | Project page: board, timeline, decisions, people, KT tabs | New | Saish | In review |  |
 | 3.11 | Shift wizard | New | Saish | In review |  |
 | 3.12 | KT brief page and checklist | New | Saish | In review |  |
-| 3.13 | Graph panel with path highlighting | New | Unassigned | Not started |  |
+| 3.13 | Graph panel with path highlighting | New | Saish | In review |  |
 | 3.14 | Superadmin console: orgs, connectors, ops, LLM usage | Copy | Saish | In progress |  |
 | 3.15 | Run one real NYI shift end to end | New | Soha | Not started |  |
 | 3.16 | Backfill and rebuild-the-graph drill | New | Saish | In review |  |
 | 3.17 | Staffing board: drag-and-drop people with confirm popover | New | Saish | In review |  |
-| 3.18 | Agent pack generator: `CLAUDE.md`/`AGENTS.md`, `tasks.md`, `.mcp.json` from the project subgraph; regenerate on change | New | Soha | Not started |  |
+| 3.18 | Agent pack generator: `CLAUDE.md`/`AGENTS.md`, `tasks.md`, `.mcp.json` from the project subgraph; regenerate on change | New | Saish | In review |  |
 | 3.19 | Role pack templates: `brief.md`, `client.md`, `runbook.md`, `project-state.md` | New | Saish | In review |  |
 | 3.20 | Access bundles per project: GitHub team, Discord role, Drive share; checklist for the rest | New | Soha | Not started |  |
 | 3.21 | Secrets vault: encrypted per project, one-time 24-hour links, fetch audit, revoke on shift | New | Unassigned | Not started |  |
-| 3.22 | Per-person, per-project MCP tokens | New | Unassigned | Not started |  |
-| 3.23 | Pack delivery in app, Discord, WhatsApp; "add to repo" PR | New | Unassigned | Not started |  |
+| 3.22 | Per-person MCP tokens: created on the pack page, shown once, hashed, revocable | New | Saish | In review |  |
+| 3.23 | Pack delivery: shift sends a WhatsApp/Discord link to the pack and brief (after 1.15); "add to repo" PR later | New | Soha | Not started |  |
 
 ## Phase 4: Harden and ship (Oct 18)
 

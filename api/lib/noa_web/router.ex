@@ -30,12 +30,36 @@ defmodule NoaWeb.Router do
     plug(NoaWeb.Plugs.RateLimit, name: :ask, limit: 20, per: 60, by: :user)
   end
 
+  # Coding agents (3.6): a personal bearer token instead of a session.
+  pipeline :mcp do
+    plug(:accepts, ["json"])
+    plug(NoaWeb.Plugs.MCPAuth)
+    plug(NoaWeb.Plugs.RateLimit, name: :mcp, limit: 120, per: 60, by: :user)
+  end
+
   pipeline :superadmin do
     plug(NoaWeb.Plugs.EnsureSuperadmin)
   end
 
   scope "/", NoaWeb do
     get("/healthz", HealthController, :show)
+  end
+
+  # Provider webhooks: signed, no session.
+  pipeline :webhook do
+    plug(:accepts, ["json"])
+    plug(NoaWeb.Plugs.RateLimit, name: :webhooks, limit: 600, per: 60, by: :ip)
+  end
+
+  scope "/webhooks", NoaWeb do
+    pipe_through(:webhook)
+    post("/kapso", KapsoWebhookController, :receive)
+  end
+
+  scope "/mcp", NoaWeb do
+    pipe_through(:mcp)
+    post("/", MCPController, :post)
+    get("/", MCPController, :get)
   end
 
   # Invite pages work before sign-in: the emailed token is the permission.
@@ -79,11 +103,19 @@ defmodule NoaWeb.Router do
     patch("/orgs/:org_id/channels/:id", WorkController, :update_channel)
     get("/orgs/:org_id/decisions", WorkController, :decisions)
     get("/orgs/:org_id/changes", WorkController, :changes)
+    get("/orgs/:org_id/feed", WorkController, :feed)
+    get("/orgs/:org_id/whatsapp", WorkController, :whatsapp)
+    get("/orgs/:org_id/mcp_tokens", MCPTokenController, :index)
+    post("/orgs/:org_id/mcp_tokens", MCPTokenController, :create)
+    delete("/orgs/:org_id/mcp_tokens/:id", MCPTokenController, :delete)
     get("/orgs/:org_id/me/notifications", WorkController, :notifications)
     patch("/orgs/:org_id/me/notifications", WorkController, :update_notifications)
     get("/orgs/:org_id/shifts", WorkController, :shifts)
     get("/orgs/:org_id/projects/:project_id/brief", WorkController, :brief)
+    get("/orgs/:org_id/projects/:project_id/pack", WorkController, :pack)
     get("/orgs/:org_id/experts", WorkController, :experts)
+    get("/orgs/:org_id/graph", WorkController, :graph)
+    get("/orgs/:org_id/graph/path", WorkController, :graph_path)
     get("/orgs/:org_id/shifts/plan", WorkController, :plan_shift)
     post("/orgs/:org_id/shifts", WorkController, :create_shift)
     post("/orgs/:org_id/changes/:id/approve", WorkController, :approve_change)

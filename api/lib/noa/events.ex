@@ -55,9 +55,8 @@ defmodule Noa.Events do
   end
 
   @doc """
-  Tells readers (the projector) to look at the log. Appends inside an outer transaction
-  (every Ash write) are not visible until it commits, so they are not announced; the
-  projector's timer finds them within a couple of seconds.
+  Tells readers (the projector) to look at the log. Ash writes announce themselves after
+  they commit (`Noa.Events.Record`); the projector's 2-second timer catches anything else.
   """
   def notify(%Event{} = event) do
     notify(event.org_id)

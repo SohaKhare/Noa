@@ -3,9 +3,10 @@ defmodule Noa.Agent.Source do
   One thing an answer can cite: a task, a decision or a chat message. `text` is what
   the model reads; `title`, `href` and `source` are what the reader sees.
   """
-  @derive {Jason.Encoder, only: [:id, :kind, :title, :text, :href, :project_id, :status, :source]}
+  @derive {Jason.Encoder, only: [:id, :kind, :title, :text, :href, :project_id, :status, :source, :via]}
   defstruct [
     :id,
+    :via,
     :kind,
     :title,
     :text,
@@ -114,6 +115,134 @@ defmodule Noa.Agent.Source do
       people: Enum.reject([sh.person_id], &is_nil/1),
       sort: -unix(sh.inserted_at)
     }
+  end
+
+  ## From graph rows (Noa.Agent.Graph)
+
+  def graph_task(r) do
+    late = r["status"] != "done" and is_binary(r["due"]) and r["due"] < Date.to_iso8601(Date.utc_today())
+
+    detail =
+      [
+        "status #{r["status"]}",
+        r["blocked_reason"] && "blocked because #{r["blocked_reason"]}",
+        r["owner"] && "owner #{r["owner"]}",
+        r["due"] && "due #{r["due"]}#{if late, do: " (late)"}"
+      ]
+      |> Enum.reject(&(&1 in [nil, false]))
+      |> Enum.join(", ")
+
+    %__MODULE__{
+      id: "task:#{r["id"]}",
+      kind: :task,
+      title: r["title"],
+      text: "Task \"#{r["title"]}\" in #{r["project"]}: #{detail}.",
+      href: r["project_key"] && "/projects/#{r["project_key"]}",
+      project_id: r["project_id"],
+      status: r["status"],
+      due: r["due"],
+      note: r["blocked_reason"],
+      late: late,
+      people: Enum.reject([r["owner_id"]], &is_nil/1),
+      source: graph_source(r),
+      sort: 0
+    }
+  end
+
+  def graph_decision(r) do
+    %__MODULE__{
+      id: "decision:#{r["id"]}",
+      kind: :decision,
+      title: r["statement"],
+      text:
+        "Decision in #{r["project"]}#{r["by"] && " by #{r["by"]}"} on #{String.slice(r["at"] || "", 0, 10)}: #{r["statement"]}.",
+      href: r["project_key"] && "/projects/#{r["project_key"]}",
+      project_id: r["project_id"],
+      status: "active",
+      people: Enum.reject([r["by_id"]], &is_nil/1),
+      source: graph_source(r),
+      sort: -seconds(r["at"])
+    }
+  end
+
+  def graph_episode(r) do
+    %__MODULE__{
+      id: "message:#{r["id"]}",
+      kind: :message,
+      title: "#{r["author"]} in #{r["channel"]}",
+      text: "#{r["author"]} wrote in #{r["channel"]} at #{r["at"]}: #{r["text"]}",
+      project_id: r["project_id"],
+      people: Enum.reject([r["author_id"]], &is_nil/1),
+      source: %{
+        "channel" => r["channel"],
+        "author" => r["author"],
+        "at" => r["at"],
+        "quote" => r["text"],
+        "episode_id" => r["id"]
+      },
+      sort: -seconds(r["at"])
+    }
+  end
+
+  def expert(r) do
+    %__MODULE__{
+      id: "expert:#{r["person_id"]}:#{r["project_id"]}",
+      kind: :expert,
+      title: "#{r["name"]} knows #{r["project"]}",
+      text: "#{r["name"]} knows #{r["project"]} well (weight #{r["weight"]} from tasks, decisions and messages).",
+      project_id: r["project_id"],
+      people: [r["person_id"]],
+      sort: -(r["weight"] || 0)
+    }
+  end
+
+  def key_person(r) do
+    %__MODULE__{
+      id: "pagerank:#{r["person_id"]}",
+      kind: :expert,
+      title: "#{r["name"]} (PageRank)",
+      text: "The work runs through #{r["name"]} (PageRank #{Float.round(r["score"] * 1.0, 3)} over the work graph).",
+      people: [r["person_id"]],
+      sort: -r["score"]
+    }
+  end
+
+  def bridge(r) do
+    %__MODULE__{
+      id: "bridge:#{r["person_id"]}",
+      kind: :expert,
+      title: "#{r["name"]} connects projects",
+      text: "#{r["name"]} connects people and projects (betweenness #{Float.round(r["score"] * 1.0, 1)}).",
+      people: [r["person_id"]],
+      sort: -r["score"]
+    }
+  end
+
+  def path(%{"names" => names, "a" => a, "b" => b}) when is_list(names) do
+    %__MODULE__{
+      id: "path:#{a}:#{b}",
+      kind: :path,
+      title: Enum.join(names, " → "),
+      text: "In the graph: #{Enum.join(names, " → ")}.",
+      people: [a, b],
+      sort: 0
+    }
+  end
+
+  def path(_), do: nil
+
+  defp graph_source(%{"src_quote" => quote} = r) when is_binary(quote),
+    do: %{"channel" => r["src_channel"], "author" => r["src_author"], "at" => r["src_at"], "quote" => quote}
+
+  defp graph_source(_), do: nil
+
+  defp seconds(nil), do: 0
+
+  defp seconds(iso) do
+    case DateTime.from_iso8601(iso) do
+      {:ok, at, _} -> DateTime.to_unix(at)
+      _ -> 0
+    end
   end
 
   defp unix(nil), do: 0

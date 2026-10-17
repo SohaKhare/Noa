@@ -39,9 +39,9 @@ Slack · Discord · Google Meet · WhatsApp (Kapso) · GitHub
         Web app · chat surfaces · coding agents
 ```
 
-- The Postgres event log is the source of truth. FalkorDB is a projection of it, so the graph can always be rebuilt.
+- FalkorDB is the knowledge store: every `@noa` answer, expert lookup, KT brief, path and portfolio insight is a graph query. Postgres keeps accounts, permissions and the append-only event log the graph is built from, so the graph can always be rebuilt.
 - Every extracted item is a typed schema validated before it reaches the graph, and every item cites its source message.
-- Graph algorithms do the product work: weighted `KNOWS_ABOUT` edges and PageRank over the work graph find experts, the people work runs through, and bus-factor risks. Full-text indexes cover messages and task titles.
+- Graph algorithms do the product work: weighted `KNOWS_ABOUT` edges, PageRank, betweenness and connected components find experts, the people work runs through, the bridges between projects, working groups and bus-factor risks. `@noa` walks the graph from what you ask about, searches full-text indexes over messages, tasks and decisions, and shows the graph route behind every source. How each FalkorDB feature is used, and how Noa meets the hackathon rules: [docs/hackathon.md](docs/hackathon.md).
 
 ## Stack
 
@@ -66,7 +66,7 @@ Slack · Discord · Google Meet · WhatsApp (Kapso) · GitHub
 
 ## What works today
 
-Everything below runs locally against real Postgres and FalkorDB, with tests (`cd api && mix test`, 88 tests including permission-leak tests on every route).
+Everything below runs locally against real Postgres and FalkorDB, with tests (`cd api && mix test`, 106 tests including permission-leak tests on every route).
 
 | Area | Working | Notes |
 | --- | --- | --- |
@@ -80,11 +80,15 @@ Everything below runs locally against real Postgres and FalkorDB, with tests (`c
 | My day | Yes | Your open tasks by project or date, what waits on you, blocked work, decided today |
 | Decisions | Yes | Approved decisions with sources; a newer decision supersedes an older one |
 | Change records and lead approval | Yes | Every edit to a shared field is recorded; members' deadline and scope changes wait for a lead; other edits can be reverted |
-| `@noa` | Yes | Cited answers from what the asker can see; model-written with a key, a plain cited list without |
+| `@noa` | Yes | Answers from the FalkorDB graph (walks, full-text, PageRank, betweenness, paths) with numbered citations and the route that found each; model-written with a key, a plain cited list without |
 | Shifts | Yes | Drag someone on the staffing board; Noa moves the allocation, hands over tasks and routes questions to them for two weeks |
-| KT brief and experts | Yes | Per-project brief with people to meet from the graph; PageRank and bus factor in Portfolio |
-| Discord and WhatsApp | In progress | Ingest calls `Noa.Work.record_message/2`; Kapso notifications |
-| Agent pack and MCP | In progress | `CLAUDE.md` / `tasks.md` from the project subgraph; MCP server |
+| KT brief and experts | Yes | Per-project brief with people to meet from the graph (download as `brief.md`); PageRank and bus factor in Portfolio |
+| Graph view | Yes | Each project's FalkorDB neighbourhood; click two nodes to see the shortest path between them |
+| Discord | In progress | Ingest calls `Noa.Work.record_message/2` |
+| WhatsApp | Yes, sends once Kapso is configured | Signed webhooks, reply buttons, "done" moves a card, shift links to the brief and pack. Without credentials, messages stay in a local outbox. [docs/whatsapp.md](docs/whatsapp.md) |
+| Agent pack | Yes | `CLAUDE.md`, `AGENTS.md`, `tasks.md` and `brief.md` generated from the project graph, with a day-one checklist |
+| MCP server | Yes | Coding agents connect with a personal token and get live context from the graph: project context, my tasks, cited answers, who knows what, paths, task status. [docs/mcp.md](docs/mcp.md) |
+| Notifications | In app, and on WhatsApp | The bell shows what waits on you and what changed around you. WhatsApp sends the same items when someone chose it; Discord delivery is still to do |
 | Live updates | Planned | Boards update over Phoenix Channels |
 
 ## Getting started
@@ -122,7 +126,7 @@ Set `OPENAI_API_KEY` for extraction and model-written `@noa` answers. Without it
 | `web/` | Next.js app: My day, Inbox, project board / timeline / decisions / people / KT, Projects, Portfolio, People (staffing board), Ask Noa, Settings |
 | `landing/` | Next.js marketing site with animated feature scenes |
 | `packages/theme/` | Shared design tokens (Tailwind v4) |
-| `docs/` | [schema](docs/schema.md), [extraction](docs/extraction.md), [auth](docs/auth.md), [security](docs/security.md), [load test](docs/load.md), [org map](docs/org-map.md), [design](docs/design.md), [demo script](docs/demo.md) |
+| `docs/` | [schema](docs/schema.md), [extraction](docs/extraction.md), [auth](docs/auth.md), [security](docs/security.md), [load test](docs/load.md), [org map](docs/org-map.md), [design](docs/design.md), [demo script](docs/demo.md), [hackathon compliance](docs/hackathon.md), [MCP](docs/mcp.md), [WhatsApp](docs/whatsapp.md) |
 
 ## Build plan
 

@@ -12,6 +12,7 @@ Done on Oct 17. What Noa does to keep each company's work private, what was fixe
 | Workspaces | Every `/api/orgs/:org_id` route answers 404 to anyone outside that workspace (`EnsureInOrg`), then Ash policies check each row: guests read, members write their own work, leads approve, org admins manage people and channels. Ids from another workspace answer 404. |
 | Permission tests | Every workspace route is called signed out, by another workspace's admin, by a guest and by a member. A new route fails CI until it is added. |
 | `@noa` | Reads only through Ash with the asker as the actor, so answers can't cite what they can't see. The model may only cite the sources it was given (validated, with retries). |
+| MCP | Personal tokens, shown once and stored hashed, revocable, dead when the person leaves the workspace. Tools run through the same policies as the web app; the only write is a task status change, recorded and revertible. See [mcp.md](mcp.md). |
 | Chat | Only mapped, read channels are recorded; DMs have no channel row and never reach the log. A message delivered twice is stored once. |
 
 ## Fixed in this pass
@@ -32,7 +33,7 @@ Done on Oct 17. What Noa does to keep each company's work private, what was fixe
 
 ## Still open
 
-- **Webhooks (Kapso, Discord).** Verify the provider's signature on every webhook before reading the body, and reject replays older than 5 minutes. Owner: Soha with 1.13 and 1.15.
+- **Discord webhooks.** Verify the provider's signature before reading the body. Kapso already checks `X-Webhook-Signature` and ignores a message id it has seen. Owner: Soha with 1.13.
 - **Rate limits are per machine.** Fine on one Fly machine; a second machine needs a shared store.
 - **Error reporting.** Sentry and Logfire are not wired yet (1.3).
-- **Secrets as one-time links (3.21)** and MCP tokens (3.22) are proposed cuts; agent packs must never contain secrets.
+- **Secrets as one-time links (3.21)** are still a cut. MCP tokens (3.22) are built and stored hashed; agent packs must never contain a token.

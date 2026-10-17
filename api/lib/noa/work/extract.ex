@@ -65,7 +65,7 @@ defmodule Noa.Work.Extract do
           window -> window
         end)
         |> Enum.reduce_while({:ok, 0}, fn window, {:ok, count} ->
-          case Extraction.extract(window, vocab) do
+          case extract(org_id, window, vocab) do
             {:ok, proposals} ->
               saved = Noa.Work.save_proposals(org_id, proposals, window.context ++ window.lines)
               Events.put_position(name, List.last(window.lines).seq)
@@ -75,6 +75,16 @@ defmodule Noa.Work.Extract do
               {:halt, {:error, error}}
           end
         end)
+    end
+  end
+
+  # Real model calls are recorded for usage (1.3); the test stub is not.
+  defp extract(org_id, window, vocab) do
+    if Extraction.Model.impl() == Extraction.Model.OpenAI do
+      input = Enum.map_join(window.context ++ window.lines, "\n", & &1.body)
+      Noa.LLM.track(org_id, :extraction, Noa.LLM.model(), input, fn -> Extraction.extract(window, vocab) end)
+    else
+      Extraction.extract(window, vocab)
     end
   end
 

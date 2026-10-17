@@ -613,4 +613,53 @@ defmodule NoaWeb.WorkTest do
                Noa.Work.set_notifications(vedant_person.id, %{notify_via: :email}, saish)
     end
   end
+
+  describe "agent pack (3.18)" do
+    test "Soha's Emmarie pack: CLAUDE.md, AGENTS.md, tasks.md and brief.md, no secrets", %{org: org, vedant: vedant} do
+      dir = signed_in(vedant) |> get("/api/orgs/#{org.id}/directory") |> json_response(200)
+      key = fn list, k -> Enum.find(dir[list], &(&1["key"] == k)) end
+      {soha, emmarie} = {key.("people", "so"), key.("projects", "emmarie")}
+
+      pack =
+        signed_in(vedant)
+        |> get("/api/orgs/#{org.id}/projects/#{emmarie["id"]}/pack?person_id=#{soha["id"]}")
+        |> json_response(200)
+
+      files = Map.new(pack["files"], &{&1["path"], &1["content"]})
+      assert Map.keys(files) |> Enum.sort() == [".mcp.json", "AGENTS.md", "CLAUDE.md", "brief.md", "tasks.md"]
+      assert files[".mcp.json"] =~ "/mcp" and files[".mcp.json"] =~ "${NOA_TOKEN}"
+      assert files["CLAUDE.md"] =~ "# Emmarie" and files["CLAUDE.md"] =~ "Lead: Vedant"
+      assert files["CLAUDE.md"] =~ "Never commit secrets"
+      assert files["tasks.md"] =~ "Yours, Soha" and files["tasks.md"] =~ "Motion-test queue fix"
+      assert pack["person"]["name"] == "Soha"
+      assert Enum.any?(pack["steps"], &(&1["label"] =~ "Meet Vedant"))
+      refute files["CLAUDE.md"] =~ ~r/password|api[_ ]key|secret_key/i
+    end
+  end
+
+  test "the notification feed shows what waits on you and what changed around you", %{
+    org: org,
+    vedant: vedant,
+    saish: saish
+  } do
+    lead = signed_in(vedant) |> get("/api/orgs/#{org.id}/feed") |> json_response(200)
+
+    assert Enum.any?(
+             lead["items"],
+             &(&1["kind"] == "approval" and &1["text"] =~ "Waiting on you: Board report PDF export")
+           )
+
+    # Vedant moves one of Saish's tasks; Saish hears about it.
+    task =
+      Noa.Work.Task
+      |> Ash.read!(authorize?: false)
+      |> Enum.find(&(&1.org_id == org.id and &1.title == "Report share links"))
+
+    {:ok, _} = Noa.Work.update_task(task.id, %{status: :blocked}, vedant)
+
+    member = signed_in(saish) |> get("/api/orgs/#{org.id}/feed") |> json_response(200)
+    assert Enum.any?(member["items"], &(&1["text"] == ~s(Vedant changed the status of "Report share links")))
+    # Saish only sees proposals about himself.
+    refute Enum.any?(member["items"], &(&1["text"] =~ "Prompt plan review"))
+  end
 end

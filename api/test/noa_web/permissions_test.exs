@@ -27,10 +27,18 @@ defmodule NoaWeb.PermissionsTest do
     {:get, "/changes"},
     {:post, "/ask"},
     {:get, "/shifts"},
+    {:get, "/feed"},
+    {:get, "/whatsapp"},
+    {:get, "/mcp_tokens"},
+    {:post, "/mcp_tokens"},
+    {:delete, "/mcp_tokens/:task"},
     {:get, "/me/notifications"},
     {:patch, "/me/notifications"},
     {:get, "/projects/:project/brief"},
+    {:get, "/projects/:project/pack"},
     {:get, "/experts"},
+    {:get, "/graph?project_id=:project"},
+    {:get, "/graph/path?from=:person&to=:project"},
     {:get, "/shifts/plan?person_id=:person"},
     {:post, "/shifts"},
     {:post, "/changes/:change/approve"},
@@ -141,9 +149,10 @@ defmodule NoaWeb.PermissionsTest do
         method == :get or route == "/ask" ->
           assert conn.status == 200, "#{method} #{route} gave #{conn.status}"
 
-        # So are their own notification settings (personal, not the workspace's).
-        route == "/me/notifications" ->
-          assert conn.status == 200, "#{method} #{route} gave #{conn.status}"
+        # So are their own notification settings and agent tokens (personal, not the workspace's).
+        route in ["/me/notifications", "/mcp_tokens", "/mcp_tokens/:task"] ->
+          # Their own settings and tokens; deleting someone else's token id finds nothing.
+          assert conn.status in [200, 201, 204, 404], "#{method} #{route} gave #{conn.status}"
 
         # Never a success; usually 403, or 409 when the row isn't in a state anyone could change.
         true ->

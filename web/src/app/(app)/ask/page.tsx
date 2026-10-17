@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpIcon, ArrowsLeftRightIcon, CheckSquareIcon, ChatTextIcon, GavelIcon } from "@phosphor-icons/react";
+import { ArrowUpIcon, ArrowsLeftRightIcon, CheckSquareIcon, ChatTextIcon, GavelIcon, GraphIcon, UserFocusIcon } from "@phosphor-icons/react";
 import { useMutation } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
@@ -12,9 +12,10 @@ import { toSource, useDirectory } from "@/lib/work";
 
 /* Ask Noa (2.5): answers from the projects you can see, each claim with a numbered source. */
 
-type Msg = { who: "me"; text: string } | { who: "noa"; text: string; citations: Citation[] };
+type Retrieval = { store: "falkordb" | "postgres"; routes: string[] };
+type Msg = { who: "me"; text: string } | { who: "noa"; text: string; citations: Citation[]; retrieval?: Retrieval };
 
-const kindIcon = { task: CheckSquareIcon, decision: GavelIcon, message: ChatTextIcon, shift: ArrowsLeftRightIcon };
+const kindIcon = { task: CheckSquareIcon, decision: GavelIcon, message: ChatTextIcon, shift: ArrowsLeftRightIcon, expert: UserFocusIcon, path: GraphIcon };
 
 export default function Ask() {
   const dir = useDirectory();
@@ -22,7 +23,7 @@ export default function Ask() {
   const [q, setQ] = useState("");
   const send = useMutation({
     mutationFn: (question: string) => ask(dir.orgId!, question),
-    onSuccess: (r) => setMsgs((m) => [...m, { who: "noa", text: r.answer, citations: r.citations }]),
+    onSuccess: (r) => setMsgs((m) => [...m, { who: "noa", text: r.answer, citations: r.citations, retrieval: r.retrieval }]),
   });
 
   const [first, second] = dir.projects;
@@ -82,6 +83,13 @@ export default function Ask() {
                           <CitationRow key={c.id} n={j + 1} c={c} />
                         ))}
                       </ol>
+                    )}
+                    {m.retrieval && (
+                      <p className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
+                        <GraphIcon size={12} />
+                        {m.retrieval.store === "falkordb" ? "From the FalkorDB graph" : "From the database (graph unavailable)"}
+                        {m.retrieval.routes.length > 0 && ` · ${m.retrieval.routes.join(" · ")}`}
+                      </p>
                     )}
                   </div>
                 </>
@@ -154,6 +162,7 @@ function CitationRow({ n, c }: { n: number; c: Citation }) {
       <Icon size={14} className="mt-0.5 shrink-0 text-accent-fg" />
       <span className="min-w-0 flex-1">
         <span className="block text-[12.5px] font-medium">{c.title}</span>
+        {c.via && <span className="block font-mono text-[10px] text-muted">{c.via}</span>}
         {c.source && <SourceChip source={toSource(c.source)} />}
       </span>
     </span>

@@ -8,13 +8,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import { FormError } from "@/components/AuthCard";
+import { GraphPanel } from "@/components/GraphPanel";
 import { Avatar, Badge, Button, Card, SourceChip } from "@/components/ui";
 import { ApiError, downloadBrief, getBrief, type WorkDecision, type WorkProject, type WorkTask } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { statusLabel, type Source, type Status } from "@/lib/mock";
 import { ago, changeText, dueLabel, isLate, nameInitials, projectChannels, projectPeople, startOfToday, toSource, useChanges, useDecideChange, useDecisions, useDirectory, useEditTask, useMoveTask, useProposals, useTasks } from "@/lib/work";
 
-const tabs = ["Overview", "Board", "Timeline", "Decisions", "People", "KT"] as const;
+const tabs = ["Overview", "Board", "Timeline", "Decisions", "People", "KT", "Graph"] as const;
 type Tab = (typeof tabs)[number];
 const columns: Status[] = ["proposed", "todo", "in_progress", "blocked", "done"];
 
@@ -131,6 +132,7 @@ export function ProjectView({ projectKey }: { projectKey: string }) {
       {tab === "Decisions" && <Decisions project={p} />}
       {tab === "People" && <People project={p} tasks={tasks} />}
       {tab === "KT" && <KT project={p} />}
+      {tab === "Graph" && dir.orgId && <GraphPanel orgId={dir.orgId} projectId={p.id} />}
 
       <TaskDrawer card={open} onClose={() => setOpenTask(null)} />
     </div>

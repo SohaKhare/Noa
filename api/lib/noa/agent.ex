@@ -27,12 +27,24 @@ defmodule Noa.Agent do
   """
   def ask(org_id, question, actor, opts \\ []) do
     with :ok <- member(org_id, actor),
-         {:ok, sources} <- sources(org_id, question, actor) do
+         {:ok, sources, retrieval} <- sources(org_id, question, actor) do
       generator = Keyword.get_lazy(opts, :generator, &generator/0)
 
-      case generator.answer(question, sources, opts) do
-        {:ok, %{answer: answer, cited: cited}} -> {:ok, renumber(answer, cited, sources)}
-        {:error, error} -> {:error, error}
+      answer = fn -> generator.answer(question, sources, opts) end
+
+      result =
+        if generator == Answer,
+          do: Noa.LLM.track(org_id, :ask, Noa.LLM.model(), question <> Enum.map_join(sources, "\n", & &1.text), answer),
+          else: answer.()
+
+      case result do
+        {:ok, %{answer: answer, cited: cited}} ->
+          answer = renumber(answer, cited, sources)
+          routes = answer.citations |> Enum.map(& &1.via) |> Enum.reject(&is_nil/1) |> Enum.uniq()
+          {:ok, Map.put(answer, :retrieval, %{retrieval | routes: routes})}
+
+        {:error, error} ->
+          {:error, error}
       end
     end
   end
@@ -66,7 +78,10 @@ defmodule Noa.Agent do
     %{answer: String.trim(text), citations: Enum.map(order, &Enum.at(sources, &1 - 1))}
   end
 
-  @doc "The sources for a question, best first, read as `actor`."
+  @doc """
+  The sources for a question, best first, read as `actor`, and how they were found:
+  `{:ok, sources, %{store: "falkordb" | "postgres", routes: [...]}}`.
+  """
   def sources(org_id, question, actor) do
     with {:ok, projects} <- Work.projects(org_id, actor),
          {:ok, people} <- Work.people(org_id, actor),
@@ -91,19 +106,30 @@ defmodule Noa.Agent do
 
       words = words -- name_words
 
-      candidates =
-        Enum.map(tasks, &Source.task(&1, ctx)) ++
-          Enum.map(decisions, &Source.decision(&1, ctx)) ++
-          Enum.map(messages(org_id), &Source.message(&1, ctx)) ++
-          (shifts |> Enum.filter(&routing?/1) |> Enum.map(&Source.shift(&1, ctx)))
+      shifts = shifts |> Enum.filter(&routing?/1) |> Enum.map(&Source.shift(&1, ctx))
+      parsed = %{words: words, projects: named_projects, people: named_people, intent: intent}
 
-      {:ok,
-       candidates
-       |> Enum.map(&{score(&1, words, named, intent), &1})
-       |> Enum.filter(fn {s, _} -> s > 0 end)
-       |> Enum.sort_by(fn {s, src} -> {-s, src.sort} end)
-       |> Enum.take(@max_sources)
-       |> Enum.map(&elem(&1, 1))}
+      # FalkorDB first (the graph decides what the agent reads); Postgres if the graph is down.
+      {candidates, retrieval} =
+        case Noa.Agent.Graph.candidates(org_id, parsed) do
+          {:ok, found, routes} ->
+            {found ++ shifts, %{store: "falkordb", routes: routes}}
+
+          _ ->
+            {Enum.map(tasks, &Source.task(&1, ctx)) ++
+               Enum.map(decisions, &Source.decision(&1, ctx)) ++
+               Enum.map(messages(org_id), &Source.message(&1, ctx)) ++ shifts, %{store: "postgres", routes: []}}
+        end
+
+      ranked =
+        candidates
+        |> Enum.map(&{score(&1, words, named, intent), &1})
+        |> Enum.filter(fn {s, _} -> s > 0 end)
+        |> Enum.sort_by(fn {s, src} -> {-s, src.sort} end)
+        |> Enum.take(@max_sources)
+        |> Enum.map(&elem(&1, 1))
+
+      {:ok, ranked, retrieval}
     end
   end
 
@@ -123,7 +149,8 @@ defmodule Noa.Agent do
       decided: q =~ ~r/decid|decision|agree|chose|choice|why did/,
       late: q =~ ~r/late|deadline|due|slip|when will|overdue|behind/,
       done: q =~ ~r/done|finish|shipped|complete|merged/,
-      who: q =~ ~r/\bwho\b|owner|working on/
+      who: q =~ ~r/\bwho\b|owner|working on|expert|knows/,
+      connects: q =~ ~r/connect|between|related|link|bridge/
     ]
     |> Enum.filter(&elem(&1, 1))
     |> Enum.map(&elem(&1, 0))
@@ -138,6 +165,8 @@ defmodule Noa.Agent do
     about_person = Enum.any?(src.people, &MapSet.member?(named.people, &1))
 
     cond do
+      # Graph algorithm answers (experts, PageRank, paths) are about the question as a whole.
+      src.kind in [:expert, :path] -> if(boost > 0, do: boost + overlap + if(in_project, do: 3, else: 0), else: 0)
       # A project was named: stay inside it.
       MapSet.size(named.projects) > 0 and not in_project -> 0
       # Done work only counts when the question asks about it.
@@ -157,6 +186,9 @@ defmodule Noa.Agent do
       {:done, src.status == "done", 3},
       {:who, src.kind == :task and src.people != [], 1},
       {:who, src.kind == :shift, 3},
+      {:who, src.kind == :expert, 4},
+      {:connects, src.kind == :path, 6},
+      {:connects, src.kind == :expert, 2},
       {:blocked, src.kind == :shift, 1}
     ]
     |> Enum.filter(fn {i, hit, _} -> hit and MapSet.member?(intent, i) end)

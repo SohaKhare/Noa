@@ -73,6 +73,13 @@ export default function AdminConsole() {
                 <span className="text-[12.5px] text-muted">
                   {o.member_count} {o.member_count === 1 ? "person" : "people"}
                   {o.pending_invites > 0 && ` · ${o.pending_invites} invite${o.pending_invites === 1 ? "" : "s"} pending`}
+                  {o.llm_24h && (
+                    <span className="block text-right">
+                      AI today: {o.llm_24h.calls} {o.llm_24h.calls === 1 ? "call" : "calls"}
+                      {o.llm_24h.calls > 0 && ` · ~${o.llm_24h.approx_tokens.toLocaleString()} tokens`}
+                      {o.llm_24h.errors > 0 && <span className="text-bad"> · {o.llm_24h.errors} failed</span>}
+                    </span>
+                  )}
                 </span>
               </Card>
             ))}

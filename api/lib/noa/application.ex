@@ -14,6 +14,7 @@ defmodule Noa.Application do
         {Oban, Application.fetch_env!(:noa, Oban)},
         Noa.Graph,
         projector(),
+        if(Application.get_env(:noa, Noa.WhatsApp, [])[:notifier], do: Noa.WhatsApp.Notifier),
         NoaWeb.Endpoint
       ]
       |> Enum.reject(&is_nil/1)

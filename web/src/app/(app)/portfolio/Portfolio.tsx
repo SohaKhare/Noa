@@ -92,19 +92,45 @@ export function Portfolio() {
           </ul>
         </Card>
       </div>
-      {graph?.graph && graph.key_people.length > 0 && (
-        <Card className="mt-5">
-          <p className="text-[14px] font-semibold">Who the work runs through</p>
-          <p className="mt-0.5 text-[12px] text-muted">PageRank over the project graph: tasks, decisions and messages.</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {graph.key_people.map((k, i) => (
-              <span key={k.person_id} className="rounded-full bg-bg px-3 py-1.5 text-[12.5px]">
-                <span className="mr-1.5 font-mono text-[11px] text-muted">{i + 1}</span>
-                {k.name}
-              </span>
-            ))}
-          </div>
-        </Card>
+      {graph?.graph && (
+        <div className="mt-5 grid gap-5 lg:grid-cols-3">
+          <Card>
+            <p className="text-[14px] font-semibold">Who the work runs through</p>
+            <p className="mt-0.5 text-[12px] text-muted">PageRank over the work graph: tasks, decisions and messages.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {graph.key_people.map((k, i) => (
+                <span key={k.person_id} className="rounded-full bg-bg px-3 py-1.5 text-[12.5px]">
+                  <span className="mr-1.5 font-mono text-[11px] text-muted">{i + 1}</span>
+                  {k.name}
+                </span>
+              ))}
+            </div>
+          </Card>
+          <Card>
+            <p className="text-[14px] font-semibold">Bridges</p>
+            <p className="mt-0.5 text-[12px] text-muted">Betweenness: who connects people, projects and tasks. Losing them splits the work.</p>
+            <ul className="mt-3 space-y-1.5 text-[13px]">
+              {(graph.bridges ?? []).length === 0 && <li className="text-muted">No one stands out.</li>}
+              {(graph.bridges ?? []).slice(0, 4).map((b) => (
+                <li key={b.person_id} className="flex justify-between">
+                  {b.name} <span className="tabular-nums text-muted">{Math.round(b.score)}</span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+          <Card>
+            <p className="text-[14px] font-semibold">Working groups</p>
+            <p className="mt-0.5 text-[12px] text-muted">Connected components of who works on what.</p>
+            <ul className="mt-3 space-y-2 text-[12.5px]">
+              {(graph.groups ?? []).map((g, i) => (
+                <li key={i} className="rounded-xl bg-bg px-3 py-2">
+                  <span className="font-medium">{g.people.join(", ") || "No one"}</span>
+                  <span className="block text-muted">{g.projects.join(", ")}</span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </div>
       )}
       <Card className="mt-5">
         <p className="text-[14px] font-semibold">Risks</p>

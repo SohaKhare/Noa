@@ -79,7 +79,7 @@ One FalkorDB graph per org, named `noa_<org id without dashes>`. The projector r
 | `KNOWS_ABOUT` | Person → Project, with `weight` | Derived by `Noa.Graph.Experts.refresh/1` from the graph: finished tasks 3, decisions 3, owned open tasks 1, messages in the project's channels 1 |
 | `DECIDED`, `AFFECTS`, `SUPERSEDES`, `EXTRACTED_FROM` | Person → Decision, Decision → Project and Task, newer → older Decision, Decision → Episode | `decision.saved` |
 
-Indexes: range indexes on `id` for every label, full-text on `Episode.text` and `Task.title`. Still to come, with their items: `Topic` (topic-level `KNOWS_ABOUT`), `DEPENDS_ON` (2.11), and the vector index on Episode embeddings (2.5). Proposals stay out of the graph; they are the Inbox.
+Indexes: range indexes on `id` for every label, unique constraints on `id`, full-text on `Episode.text`, `Task.title` and `Decision.statement`. Tasks and decisions also carry their source (`src_channel`, `src_author`, `src_at`, `src_quote`) for citations. Still to come, with their items: `Topic` (topic-level `KNOWS_ABOUT`), `DEPENDS_ON` (2.11), and the vector index on Episode embeddings (2.5). Proposals stay out of the graph; they are the Inbox.
 
 Reading: `Noa.Graph.ro_query(org_id, cypher, params)` returns rows as maps. Return properties, not whole nodes. Dates are ISO strings (FalkorDB 4.10 has no `date()`).
 
@@ -124,13 +124,18 @@ A lead is an org admin or PM, or the person set as the project's lead (`Noa.Work
 | `POST /changes/:id/approve`, `/reject`, `/revert` | Decide a pending change (leads), or undo an applied one |
 | `GET /decisions?project_id=&since=&status=` | Decisions, newest first; `since` is ISO 8601, `status` is active or superseded |
 | `PATCH /channels/:id` | Map a channel: `project_id`, `split`, `read` (org admins) |
-| `POST /ask` | `@noa` (2.5): body `question`; answers `answer` (text with `[n]` markers) and `citations` (task, decision or message, with title, link and source). Reads only what the asker can see |
+| `POST /ask` | `@noa` (2.5): body `question`; answers `answer` (text with `[n]` markers), `citations` (task, decision, message, expert or path, with title, link, source and `via`, the graph route that found it) and `retrieval` (`store`: falkordb, or postgres when the graph is down; `routes`). Retrieval: `Noa.Agent.Graph` |
+| `GET /mcp_tokens`, `POST /mcp_tokens`, `DELETE /mcp_tokens/:id` | The signed-in person's MCP tokens (3.22); `POST` returns the token once. The MCP server itself is `POST /mcp` with `Authorization: Bearer <token>`; see [mcp.md](mcp.md) |
+| `GET /feed` | In-app notifications, newest first (`Noa.Work.Feed`): proposals and changes waiting on you, changes others made to your tasks, your turned-down changes, today's decisions in your projects, moves involving you. Built from existing rows; the WhatsApp and Discord delivery in 2.21 can send the same items |
 | `GET /me/notifications`, `PATCH /me/notifications` | The signed-in person's notification preferences. For delivery (2.9, 2.21): `Noa.Work.notify_target(person)` gives `{:whatsapp, phone}`, `{:discord, handle}`, `{:email, email}` or `:in_app`; `Noa.Work.quiet?(person)` says whether it is their quiet hours |
 | `GET /shifts/plan?person_id=&from_project_id=` | What a move would hand over, with suggested owners |
 | `POST /shifts` | Move someone: `person_id`, `from_project_id`, `to_project_id` (empty is the bench), `percent`, `starts_on`, `handover` (`{task_id: owner_id or ""}`), `note`. Org admins and PMs |
 | `GET /shifts` | Moves, newest first |
 | `GET /projects/:project_id/brief?person_id=` | KT brief (3.2): sections of cited items for someone joining the project |
-| `GET /experts?project_id=` | Who knows the project (3.3), PageRank over the work graph (`key_people`), and bus-factor risks; empty with `graph: false` when FalkorDB is down |
+| `GET /projects/:project_id/pack?person_id=` | Agent pack (3.18): `files` (`CLAUDE.md`, `AGENTS.md`, `tasks.md`, `brief.md`), `steps` (day-one checklist) and `store` (falkordb, or postgres when the graph is down). See `Noa.Packs` |
+| `GET /experts?project_id=` | Who knows the project (3.3), PageRank (`key_people`), betweenness (`bridges`), connected components (`groups`) and bus-factor risks; empty with `graph: false` when FalkorDB is down |
+| `GET /graph?project_id=` | The graph panel (3.13): the project's neighbourhood in FalkorDB as `nodes` (`id`, `label`, `name`) and `edges` (`from`, `to`, `type`) |
+| `GET /graph/path?from=&to=` | Node ids on the shortest path between two of the workspace's people, projects, tasks, decisions or channels (up to 5 hops, either direction) |
 | `GET /proposals` | Pending proposals, newest first |
 | `POST /proposals/:id/approve` | Body can carry `summary`, `project_id`, `owner_id`, `data.title`, `data.due`, `data.new_due` |
 | `POST /proposals/:id/reject` | Dismiss |

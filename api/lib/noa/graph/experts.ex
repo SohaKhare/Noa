@@ -5,7 +5,9 @@ defmodule Noa.Graph.Experts do
   `refresh/1` writes `KNOWS_ABOUT` edges from each person to each project, weighted by
   what the graph shows they did there: tasks they finished (3), decisions they made (3),
   tasks they own (1) and messages they wrote in its channels (1). `experts/2` ranks
-  people on one project; `key_people/1` runs PageRank over the whole work graph; `bus_factor/1` flags projects where one person holds most of the knowledge.
+  people on one project; `key_people/1` runs PageRank over the whole work graph; `bus_factor/1` flags projects where one person holds most of the knowledge,
+  `groups/1` finds working groups (WCC) and `bridges/1` the people who connect them
+  (betweenness).
 
   These are derived edges, rebuilt from projected data, so they stay a projection of
   the event log like everything else in the graph.
@@ -78,6 +80,47 @@ defmodule Noa.Graph.Experts do
            WITH node, score WHERE node:Person
            RETURN node.id AS person_id, node.name AS name, score
            ORDER BY score DESC
+           """) do
+      {:ok, Enum.map(rows, &%{person_id: &1["person_id"], name: &1["name"], score: &1["score"]})}
+    end
+  end
+
+  @doc """
+  Working groups (the track's "teams"): connected components (`algo.WCC`) of people and
+  the projects they work on or lead. Returns `[%{people: [names], projects: [names]}]`,
+  largest first; people on no project are left out.
+  """
+  def groups(org_id) do
+    with {:ok, rows} <-
+           Graph.ro_query(org_id, """
+           CALL algo.WCC({nodeLabels: ['Person', 'Project'], relationshipTypes: ['WORKS_ON', 'LEADS']}) YIELD node, componentId
+           RETURN componentId, collect(CASE WHEN node:Person THEN node.name END) AS people,
+                  collect(CASE WHEN node:Project THEN node.name END) AS projects
+           """) do
+      {:ok,
+       rows
+       |> Enum.map(
+         &%{
+           people: Enum.reject(&1["people"], fn x -> is_nil(x) end),
+           projects: Enum.reject(&1["projects"], fn x -> is_nil(x) end)
+         }
+       )
+       |> Enum.reject(&(&1.projects == []))
+       |> Enum.sort_by(&(-length(&1.people)))}
+    end
+  end
+
+  @doc """
+  People who connect the work (`algo.betweenness` over people, projects and tasks): the
+  ones most shortest paths pass through. `[%{person_id, name, score}]`, highest first.
+  """
+  def bridges(org_id) do
+    with {:ok, rows} <-
+           Graph.ro_query(org_id, """
+           CALL algo.betweenness({nodeLabels: ['Person', 'Project', 'Task'], relationshipTypes: ['ASSIGNED_TO', 'BELONGS_TO', 'WORKS_ON', 'LEADS']})
+           YIELD node, score
+           WITH node, score WHERE node:Person AND score > 0
+           RETURN node.id AS person_id, node.name AS name, score ORDER BY score DESC
            """) do
       {:ok, Enum.map(rows, &%{person_id: &1["person_id"], name: &1["name"], score: &1["score"]})}
     end

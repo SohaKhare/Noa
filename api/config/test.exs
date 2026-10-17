@@ -26,3 +26,4 @@ config :noa, Oban, testing: :manual
 # @noa never calls a model in tests.
 config :noa, Noa.Agent, generator: Noa.Agent.Extractive
 config :noa, NoaWeb.Plugs.RateLimit, enabled: false
+config :noa, Noa.WhatsApp, webhook_secret: "test-kapso-secret", notifier: false

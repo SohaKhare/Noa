@@ -205,8 +205,10 @@ defmodule Noa.Graph.Projector do
       {"""
        MERGE (t:Task {id: $id})
        SET t.title = $title, t.detail = $detail, t.status = $status, t.due = $due_on,
-           t.blocked_reason = $blocked_reason, t.done_at = $done_at, t.created_at = $inserted_at
-       """, params(d, ~w(id title detail status due_on blocked_reason done_at inserted_at))},
+           t.blocked_reason = $blocked_reason, t.done_at = $done_at, t.created_at = $inserted_at,
+           t.src_channel = $src_channel, t.src_author = $src_author, t.src_at = $src_at, t.src_quote = $src_quote
+       """,
+       params(d, ~w(id title detail status due_on blocked_reason done_at inserted_at)) |> Map.merge(source_params(d))},
       {"MATCH (:Task {id: $id})-[r:BELONGS_TO|ASSIGNED_TO]->() DELETE r", %{"id" => d["id"]}}
     ] ++
       edge_to(d["project_id"], "MATCH (t:Task {id: $id}) MERGE (p:Project {id: $to}) MERGE (t)-[:BELONGS_TO]->(p)", d) ++
@@ -218,8 +220,9 @@ defmodule Noa.Graph.Projector do
     [
       {"""
        MERGE (x:Decision {id: $id})
-       SET x.statement = $statement, x.kind = $kind, x.status = $status, x.at = $inserted_at
-       """, params(d, ~w(id statement kind status inserted_at))},
+       SET x.statement = $statement, x.kind = $kind, x.status = $status, x.at = $inserted_at,
+           x.src_channel = $src_channel, x.src_author = $src_author, x.src_at = $src_at, x.src_quote = $src_quote
+       """, params(d, ~w(id statement kind status inserted_at)) |> Map.merge(source_params(d))},
       {"MATCH (:Person)-[r:DECIDED]->(:Decision {id: $id}) DELETE r", %{"id" => d["id"]}},
       {"MATCH (:Decision {id: $id})-[r:AFFECTS]->() DELETE r", %{"id" => d["id"]}}
     ] ++
@@ -279,6 +282,18 @@ defmodule Noa.Graph.Projector do
   end
 
   defp label(thing), do: thing |> Macro.camelize()
+
+  # Where a task or decision was said, kept on the node so answers from the graph can cite it.
+  defp source_params(d) do
+    src = d["source"] || %{}
+
+    %{
+      "src_channel" => src["channel"],
+      "src_author" => src["author"],
+      "src_at" => src["at"],
+      "src_quote" => src["quote"]
+    }
+  end
 
   # Every name the Cypher uses must be sent, so missing fields go as null.
   defp params(d, keys), do: Map.new(keys, &{&1, d[&1]})

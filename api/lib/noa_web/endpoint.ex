@@ -22,7 +22,9 @@ defmodule NoaWeb.Endpoint do
     pass: ["*/*"],
     # Nothing Noa accepts is anywhere near 1 MB (4.3).
     length: 1_000_000,
-    json_decoder: Phoenix.json_library()
+    json_decoder: Phoenix.json_library(),
+    # Webhooks keep their raw bytes for signature checks.
+    body_reader: {NoaWeb.RawBody, :read_body, []}
   )
 
   plug(Plug.MethodOverride)

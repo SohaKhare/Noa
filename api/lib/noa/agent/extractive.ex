@@ -25,8 +25,11 @@ defmodule Noa.Agent.Extractive do
         q =~ ~r/late|deadline|due|slip|overdue|behind/ ->
           Enum.filter(numbered, fn {s, _} -> s.kind == :task and s.due != nil end)
 
-        q =~ ~r/\bwho\b|owner|ask/ ->
-          Enum.filter(numbered, fn {s, _} -> s.kind == :shift or (s.kind == :task and s.people != []) end)
+        q =~ ~r/connect|between|related|link|bridge/ ->
+          Enum.filter(numbered, fn {s, _} -> s.kind in [:path, :expert] end)
+
+        q =~ ~r/\bwho\b|owner|ask|expert|knows/ ->
+          Enum.filter(numbered, fn {s, _} -> s.kind in [:shift, :expert] or (s.kind == :task and s.people != []) end)
 
         true ->
           []
@@ -52,6 +55,7 @@ defmodule Noa.Agent.Extractive do
 
   defp line(%{kind: :decision} = s), do: "Decided: #{s.title}"
   defp line(%{kind: :shift} = s), do: s.text |> String.trim_trailing(".")
+  defp line(%{kind: kind} = s) when kind in [:expert, :path], do: s.text |> String.trim_trailing(".")
   defp line(%{kind: :message} = s), do: "#{s.title}: \"#{s.source["quote"]}\""
 
   defp status("in_progress"), do: "in progress"

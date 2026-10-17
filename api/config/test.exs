@@ -23,3 +23,5 @@ config :ash, :disable_async?, true
 # Tests run the projector by hand (Noa.Graph.Projector.project/1) and skip :graph tests when FalkorDB is down.
 config :noa, Noa.Graph, url: "redis://127.0.0.1:6379", projector: false
 config :noa, Oban, testing: :manual
+# @noa never calls a model in tests.
+config :noa, Noa.Agent, generator: Noa.Agent.Extractive

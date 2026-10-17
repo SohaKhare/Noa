@@ -15,7 +15,7 @@ defmodule Noa.Work do
 
   alias Noa.Extraction
   alias Noa.Repo
-  alias Noa.Work.{Allocation, Channel, Identity, Person, Project, ProjectAlias, Proposal, Task}
+  alias Noa.Work.{Allocation, Change, Channel, Decision, Identity, Person, Project, ProjectAlias, Proposal, Shift, Task}
 
   resources do
     resource(Person)
@@ -26,6 +26,9 @@ defmodule Noa.Work do
     resource(Task)
     resource(Proposal)
     resource(Identity)
+    resource(Decision)
+    resource(Change)
+    resource(Shift)
   end
 
   ## Reads
@@ -83,6 +86,20 @@ defmodule Noa.Work do
     |> Ash.read(actor: actor)
   end
 
+  @doc """
+  Decisions in the org, newest first. Filters: `project_id`, `since` (a DateTime),
+  `status` (`:active` or `:superseded`; both when not given).
+  """
+  def decisions(org_id, actor, filters \\ []) do
+    Decision
+    |> Ash.Query.filter(org_id == ^org_id)
+    |> then(fn q -> if id = filters[:project_id], do: Ash.Query.filter(q, project_id == ^id), else: q end)
+    |> then(fn q -> if at = filters[:since], do: Ash.Query.filter(q, inserted_at >= ^at), else: q end)
+    |> then(fn q -> if st = filters[:status], do: Ash.Query.filter(q, status == ^st), else: q end)
+    |> Ash.Query.sort(inserted_at: :desc)
+    |> Ash.read(actor: actor)
+  end
+
   @doc "The person record linked to the user's membership in the org, or nil."
   def person_for(%{id: user_id}, org_id) do
     Person
@@ -98,9 +115,332 @@ defmodule Noa.Work do
     |> Ash.create()
   end
 
-  def update_task(task_id, attrs, actor) do
+  # Task fields that are shared items (2.19), and the change kind each one records.
+  @watched [due_on: :deadline, detail: :scope, owner_id: :owner, status: :status, title: :title]
+  # Kinds that wait for a lead when anyone else makes them (2.20).
+  @held [:deadline, :scope]
+
+  @doc """
+  Edits a task under the lead rules (2.19, 2.20). Every change to a shared field
+  (deadline, scope, owner, status, title) is recorded in `changes`. A lead's edits apply
+  at once; anyone else's deadline and scope changes wait as pending changes for a lead,
+  and their other edits apply at once. `attrs` may carry a `:reason`.
+
+  Returns `{:ok, task}`; the task does not yet have the held fields.
+  """
+  def update_task(task_id, attrs, actor, source \\ nil) do
     with {:ok, task} <- Ash.get(Task, task_id, actor: actor) do
-      task |> Ash.Changeset.for_update(:update, attrs, actor: actor) |> Ash.update()
+      change_task(task, attrs, actor, source)
+    end
+  end
+
+  defp change_task(task, attrs, actor, source) do
+    {reason, attrs} = Map.pop(attrs, :reason)
+    lead = Map.get(actor, :is_superadmin) || lead?(actor.id, task.org_id, task.project_id)
+
+    {held, applied} =
+      @watched
+      |> Enum.filter(fn {field, _kind} -> Map.has_key?(attrs, field) end)
+      |> Enum.map(fn {field, kind} -> {field, kind, value(Map.get(task, field)), value(Map.get(attrs, field))} end)
+      |> Enum.reject(fn {_field, _kind, old, new} -> old == new end)
+      |> Enum.split_with(fn {_field, kind, _old, _new} -> kind in @held and not lead end)
+
+    rest = Map.drop(attrs, Enum.map(held, &elem(&1, 0)))
+
+    Repo.transaction(fn ->
+      with {:ok, updated} <-
+             if(rest == %{}, do: {:ok, task}, else: Ash.update(task, rest, action: :update, actor: actor)),
+           :ok <- record(task, applied, :applied, reason, source, actor),
+           :ok <- record(task, held, :pending, reason, source, actor) do
+        updated
+      else
+        {:error, error} -> Repo.rollback(error)
+      end
+    end)
+  end
+
+  defp record(task, diffs, status, reason, source, actor) do
+    Enum.reduce_while(diffs, :ok, fn {_field, kind, old, new}, :ok ->
+      Change
+      |> Ash.Changeset.for_create(
+        :create,
+        %{
+          kind: kind,
+          old_value: old,
+          new_value: new,
+          reason: reason,
+          status: status,
+          source: source,
+          org_id: task.org_id,
+          project_id: task.project_id,
+          task_id: task.id,
+          requested_by_id: actor.id
+        },
+        actor: actor
+      )
+      |> Ash.create()
+      |> case do
+        {:ok, _} -> {:cont, :ok}
+        error -> {:halt, error}
+      end
+    end)
+  end
+
+  # Values are compared and stored as strings: ISO dates, ids, status names.
+  defp value(nil), do: nil
+  defp value(""), do: nil
+  defp value(%Date{} = d), do: Date.to_iso8601(d)
+  defp value(v) when is_atom(v), do: Atom.to_string(v)
+  defp value(v), do: to_string(v)
+
+  @doc "An org admin or PM in the org, or the person set as the project's lead."
+  def lead?(user_id, org_id, project_id) do
+    Noa.Orgs.role(user_id, org_id) in [:org_admin, :pm] or
+      (project_id != nil and
+         Project
+         |> Ash.Query.filter(id == ^project_id and lead.membership.user_id == ^user_id)
+         |> Ash.exists?(authorize?: false))
+  end
+
+  @doc "Change records, newest first. Filters: `task_id`, `project_id`, `status`."
+  def changes(org_id, actor, filters \\ []) do
+    Change
+    |> Ash.Query.filter(org_id == ^org_id)
+    |> then(fn q -> if id = filters[:task_id], do: Ash.Query.filter(q, task_id == ^id), else: q end)
+    |> then(fn q -> if id = filters[:project_id], do: Ash.Query.filter(q, project_id == ^id), else: q end)
+    |> then(fn q -> if st = filters[:status], do: Ash.Query.filter(q, status == ^st), else: q end)
+    |> Ash.Query.sort(inserted_at: :desc)
+    |> Ash.read(actor: actor)
+  end
+
+  @doc "A lead approves a pending change: it is applied to the task."
+  def approve_change(change_id, actor), do: decide_change(change_id, :applied, actor)
+
+  @doc "A lead rejects a pending change: the task stays as it was."
+  def reject_change(change_id, actor), do: decide_change(change_id, :rejected, actor)
+
+  defp decide_change(change_id, status, actor) do
+    with {:ok, change} <- Ash.get(Change, change_id, actor: actor),
+         :ok <- if(change.status == :pending, do: :ok, else: {:error, :already_decided}) do
+      Repo.transaction(fn ->
+        with {:ok, decided} <-
+               change
+               |> Ash.Changeset.for_update(:decide, %{status: status, decided_by_id: actor.id}, actor: actor)
+               |> Ash.update(),
+             {:ok, _task} <- if(status == :applied, do: set_field(change, change.new_value), else: {:ok, nil}) do
+          decided
+        else
+          {:error, error} -> Repo.rollback(error)
+        end
+      end)
+    end
+  end
+
+  @doc """
+  Undoes an applied change, if the task still has the value it set. A lead or whoever
+  made the change can revert it.
+  """
+  def revert_change(change_id, actor) do
+    with {:ok, change} <- Ash.get(Change, change_id, actor: actor),
+         :ok <- if(change.status == :applied, do: :ok, else: {:error, :already_decided}),
+         task = Ash.get!(Task, change.task_id, authorize?: false),
+         :ok <-
+           if(value(Map.get(task, field(change.kind))) == change.new_value, do: :ok, else: {:error, :changed_since}) do
+      Repo.transaction(fn ->
+        with {:ok, reverted} <-
+               change |> Ash.Changeset.for_update(:revert, %{decided_by_id: actor.id}, actor: actor) |> Ash.update(),
+             {:ok, _task} <- set_field(change, change.old_value) do
+          reverted
+        else
+          {:error, error} -> Repo.rollback(error)
+        end
+      end)
+    end
+  end
+
+  defp field(kind), do: @watched |> Enum.find(fn {_f, k} -> k == kind end) |> elem(0)
+
+  # The change was authorized above, so writing the field runs as Noa.
+  defp set_field(change, value) do
+    Task
+    |> Ash.get!(change.task_id, authorize?: false)
+    |> Ash.Changeset.for_update(:update, %{field(change.kind) => value})
+    |> Ash.update(authorize?: false)
+  end
+
+  ## Shifts (3.1)
+
+  # Questions about the old project go to the person who left it for this long.
+  @route_days 14
+
+  @doc """
+  What a shift would do, without doing it: the person's open tasks in the project they
+  leave, each with a suggested new owner. Suggested owners are the others on that
+  project, least loaded first (allocation, then open tasks); the project lead if nobody
+  else is on it.
+  """
+  def plan_shift(org_id, %{person_id: person_id, from_project_id: from}, actor) do
+    with {:ok, people} <- people(org_id, actor),
+         {:ok, open} <- tasks(org_id, actor, open: true) do
+      project = from && Ash.get!(Project, from, actor: actor)
+
+      tasks =
+        if from, do: Enum.filter(open, &(&1.project_id == from and &1.owner_id == person_id)), else: []
+
+      suggested = suggest_owner(people, open, project, person_id)
+
+      {:ok,
+       Enum.map(tasks, fn t ->
+         %{task_id: t.id, title: t.title, status: t.status, due_on: t.due_on, to_owner_id: suggested && suggested.id}
+       end)}
+    end
+  end
+
+  defp suggest_owner(_people, _open, nil, _mover), do: nil
+
+  defp suggest_owner(people, open, project, mover) do
+    load = fn p -> Enum.sum(Enum.map(p.allocations, & &1.percent)) end
+    open_count = fn p -> Enum.count(open, &(&1.owner_id == p.id)) end
+
+    people
+    |> Enum.filter(&(&1.id != mover and Enum.any?(&1.allocations, fn a -> a.project_id == project.id end)))
+    |> Enum.sort_by(&{load.(&1), open_count.(&1)})
+    |> List.first()
+    |> Kernel.||(Enum.find(people, &(&1.id == project.lead_id and &1.id != mover)))
+  end
+
+  @doc """
+  Moves a person (3.1). `attrs`: `person_id`, `from_project_id` and `to_project_id`
+  (nil is the bench), optional `percent` (default: what they had on the old project, or
+  100), `starts_on` (default today), `handover` (`%{task_id => new owner id or nil}`;
+  tasks not listed get the suggested owner) and `note`.
+
+  In one transaction: ends the old allocation the day before `starts_on`, starts the
+  new one, reassigns the tasks (each recorded as an owner change) and saves the shift.
+  Org admins and PMs only.
+  """
+  def shift(org_id, attrs, actor) do
+    from = attrs[:from_project_id]
+    to = attrs[:to_project_id]
+    starts_on = attrs[:starts_on] || Date.utc_today()
+
+    lead = Map.get(actor, :is_superadmin) || Noa.Orgs.role(actor.id, org_id) in [:org_admin, :pm]
+
+    with :ok <- if(lead, do: :ok, else: {:error, :not_a_lead}),
+         :ok <- if(from == to, do: {:error, :same_project}, else: :ok),
+         {:ok, person} <- Ash.get(Person, attrs.person_id, actor: actor, load: [:allocations]),
+         {:ok, plan} <- plan_shift(org_id, %{person_id: person.id, from_project_id: from}, actor) do
+      old = Enum.find(person.allocations, &(&1.project_id == from and current?(&1)))
+      percent = attrs[:percent] || (old && old.percent) || 100
+      chosen = attrs[:handover] || %{}
+
+      handover =
+        Enum.map(plan, fn t ->
+          owner = if Map.has_key?(chosen, t.task_id), do: chosen[t.task_id], else: t.to_owner_id
+          %{"task_id" => t.task_id, "title" => t.title, "to_owner_id" => owner}
+        end)
+
+      Repo.transaction(fn ->
+        with {:ok, shift} <-
+               Shift
+               |> Ash.Changeset.for_create(
+                 :create,
+                 %{
+                   org_id: org_id,
+                   person_id: person.id,
+                   from_project_id: from,
+                   to_project_id: to,
+                   percent: percent,
+                   starts_on: starts_on,
+                   routes_until: from && Date.add(starts_on, @route_days),
+                   handover: handover,
+                   note: attrs[:note],
+                   created_by_id: actor.id
+                 },
+                 actor: actor
+               )
+               |> Ash.create(),
+             :ok <- end_allocation(old, starts_on, actor),
+             :ok <- start_allocation(org_id, person, to, percent, starts_on, actor),
+             :ok <- hand_over(handover, actor) do
+          shift
+        else
+          {:error, error} -> Repo.rollback(error)
+        end
+      end)
+    end
+  end
+
+  defp current?(a), do: is_nil(a.ends_on) or Date.compare(a.ends_on, Date.utc_today()) != :lt
+
+  defp end_allocation(nil, _starts_on, _actor), do: :ok
+
+  defp end_allocation(allocation, starts_on, actor) do
+    allocation
+    |> Ash.Changeset.for_update(:update, %{ends_on: Date.add(starts_on, -1)}, actor: actor)
+    |> Ash.update()
+    |> ok()
+  end
+
+  defp start_allocation(_org_id, _person, nil, _percent, _starts_on, _actor), do: :ok
+
+  defp start_allocation(org_id, person, project_id, percent, starts_on, actor) do
+    Allocation
+    |> Ash.Changeset.for_create(
+      :create,
+      %{org_id: org_id, person_id: person.id, project_id: project_id, percent: percent, starts_on: starts_on},
+      actor: actor
+    )
+    |> Ash.create()
+    |> ok()
+  end
+
+  defp hand_over(handover, actor) do
+    Enum.reduce_while(handover, :ok, fn h, :ok ->
+      case update_task(h["task_id"], %{owner_id: h["to_owner_id"], reason: "Handed over in a shift"}, actor) do
+        {:ok, _} -> {:cont, :ok}
+        error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp ok({:ok, _}), do: :ok
+  defp ok(error), do: error
+
+  @doc "Shifts in the org, newest first. `person_id` or `project_id` (either side) narrow it."
+  def shifts(org_id, actor, filters \\ []) do
+    Shift
+    |> Ash.Query.filter(org_id == ^org_id)
+    |> then(fn q -> if id = filters[:person_id], do: Ash.Query.filter(q, person_id == ^id), else: q end)
+    |> then(fn q ->
+      if id = filters[:project_id], do: Ash.Query.filter(q, from_project_id == ^id or to_project_id == ^id), else: q
+    end)
+    |> Ash.Query.sort(inserted_at: :desc)
+    |> Ash.read(actor: actor)
+  end
+
+  @doc "People who left the project recently and still take questions about it (until `routes_until`)."
+  def previous_owners(org_id, project_id, actor) do
+    today = Date.utc_today()
+
+    with {:ok, shifts} <- shifts(org_id, actor, project_id: project_id) do
+      {:ok,
+       Enum.filter(
+         shifts,
+         &((&1.from_project_id == project_id and &1.routes_until) && Date.compare(&1.routes_until, today) != :lt)
+       )}
+    end
+  end
+
+  @doc "The KT brief for a project (3.2), optionally for the person joining it. See `Noa.Work.Brief`."
+  defdelegate brief(org_id, project_id, actor, person_id \\ nil), to: Noa.Work.Brief, as: :build
+
+  ## Channels
+
+  @doc "Maps a channel to a project, to split routing, or turns reading off. Org admins only (policy)."
+  def update_channel(channel_id, attrs, actor) do
+    with {:ok, channel} <- Ash.get(Channel, channel_id, actor: actor) do
+      channel |> Ash.Changeset.for_update(:update, attrs, actor: actor) |> Ash.update()
     end
   end
 
@@ -174,21 +514,71 @@ defmodule Noa.Work do
     |> Ash.create(authorize?: false)
   end
 
-  defp apply_proposal(%{kind: kind, task_id: task_id} = p, _actor)
+  # Status and deadline changes follow the lead rules: a member approving their own
+  # deadline change turns it into a pending change for their lead (2.20).
+  defp apply_proposal(%{kind: kind, task_id: task_id} = p, actor)
        when kind in [:status_change, :deadline_change] and not is_nil(task_id) do
     changes =
       case kind do
         :status_change -> %{status: p.data["status"], blocked_reason: p.data["blocker"]}
-        :deadline_change -> %{due_on: p.data["new_due"]}
+        :deadline_change -> %{due_on: p.data["new_due"], reason: p.data["reason"]}
       end
 
-    Task
-    |> Ash.get!(task_id, authorize?: false)
-    |> Ash.Changeset.for_update(:update, changes)
-    |> Ash.update(authorize?: false)
+    Task |> Ash.get!(task_id, authorize?: false) |> change_task(changes, actor, p.source)
+  end
+
+  defp apply_proposal(%{kind: :decision} = p, actor) do
+    with {:ok, decision} <-
+           Decision
+           |> Ash.Changeset.for_create(:create, %{
+             statement: p.summary,
+             kind: p.data["kind"] || :decision,
+             affects: Enum.flat_map(p.data["affects"] || [], &uuid/1),
+             source: p.source,
+             org_id: p.org_id,
+             project_id: p.project_id,
+             made_by_id: p.owner_id,
+             approved_by_id: actor.id
+           })
+           |> Ash.create(authorize?: false),
+         :ok <- supersede(p, decision) do
+      {:ok, nil}
+    end
   end
 
   defp apply_proposal(_proposal, _actor), do: {:ok, nil}
+
+  # The model names the decision it replaces by id, or by its statement.
+  defp supersede(%{data: %{"supersedes_ref" => ref}} = p, decision) when is_binary(ref) and ref != "" do
+    old =
+      Decision
+      |> Ash.Query.filter(org_id == ^p.org_id and status == :active and id != ^decision.id)
+      |> Ash.read!(authorize?: false)
+      |> Enum.find(&(&1.id == ref or String.downcase(&1.statement) == String.downcase(ref)))
+
+    case old do
+      nil ->
+        :ok
+
+      old ->
+        old
+        |> Ash.Changeset.for_update(:supersede, %{superseded_by_id: decision.id})
+        |> Ash.update(authorize?: false)
+        |> case do
+          {:ok, _} -> :ok
+          error -> error
+        end
+    end
+  end
+
+  defp supersede(_p, _decision), do: :ok
+
+  defp uuid(ref) do
+    case Ecto.UUID.cast(ref) do
+      {:ok, id} -> [id]
+      :error -> []
+    end
+  end
 
   ## From chat
 
@@ -430,7 +820,13 @@ defmodule Noa.Work do
 
     # Parents before children, so the replay builds nodes before edges point at them.
     [{Person, "person"}, {Project, "project"}, {ProjectAlias, "alias"}, {Channel, "channel"}, {Identity, "identity"}]
-    |> Kernel.++([{Allocation, "allocation"}, {Task, "task"}, {Proposal, "proposal"}])
+    |> Kernel.++([
+      {Allocation, "allocation"},
+      {Task, "task"},
+      {Change, "change"},
+      {Decision, "decision"},
+      {Proposal, "proposal"}
+    ])
     |> Enum.flat_map(fn {resource, name} ->
       resource
       |> Ash.Query.filter(org_id == ^org_id)

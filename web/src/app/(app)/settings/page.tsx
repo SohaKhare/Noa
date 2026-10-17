@@ -10,13 +10,16 @@ import {
   WhatsappLogoIcon,
   type Icon,
 } from "@phosphor-icons/react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { FormError } from "@/components/AuthCard";
 import { Badge, Button, Card, PageHeader } from "@/components/ui";
 import { PeopleSettings } from "@/components/PeopleSettings";
-import { roleLabel } from "@/lib/api";
+import { ApiError, roleLabel, updateChannel, type Channel } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { currentMembership, useMe } from "@/lib/session";
-import { accessBundles, channelMap, connectors, projects } from "@/lib/mock";
+import { accessBundles, connectors } from "@/lib/mock";
+import { useDirectory } from "@/lib/work";
 
 /* Settings: org admin surfaces (1.5, 1.6, 1.18, 1.22, 2.15, 3.20). */
 
@@ -94,14 +97,39 @@ function Connectors() {
   );
 }
 
+const platformName = { discord: "Discord", slack: "Slack", whatsapp: "WhatsApp" } as const;
+
+/* Channel to project map (1.18), saved to the API. Only org admins can change it. */
 function Channels() {
-  const [rows, setRows] = useState(channelMap);
+  const dir = useDirectory();
+  const client = useQueryClient();
+  const admin = currentMembership(useMe().user)?.role === "org_admin";
+  const save = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<Pick<Channel, "project_id" | "split" | "read">> }) => updateChannel(dir.orgId!, id, data),
+    onSuccess: () => client.invalidateQueries({ queryKey: ["directory", dir.orgId] }),
+  });
+
+  const route = (c: Channel) => (!c.read ? "off" : c.split ? "split" : (c.project_id ?? "off"));
+  const setRoute = (c: Channel, value: string) =>
+    save.mutate({
+      id: c.id,
+      data: value === "off" ? { read: false } : value === "split" ? { read: true, split: true } : { read: true, split: false, project_id: value },
+    });
+
   return (
     <Card className="p-0">
       <div className="border-b border-line px-5 py-4">
         <p className="text-[14px] font-semibold">Channel to project</p>
-        <p className="text-[12.5px] text-muted">Noa only reads mapped channels. Direct messages are never read. &ldquo;Split by message&rdquo; routes each message on its own.</p>
+        <p className="text-[12.5px] text-muted">
+          Noa only reads mapped channels. Direct messages are never read. &ldquo;Split by message&rdquo; routes each message on its own.
+          {!admin && " Only workspace admins can change this."}
+        </p>
       </div>
+      {save.error && (
+        <div className="px-5 pt-3">
+          <FormError>{(save.error as ApiError).message}</FormError>
+        </div>
+      )}
       <table className="w-full text-[13px]">
         <thead>
           <tr className="border-b border-line text-left text-[11.5px] text-muted">
@@ -112,17 +140,26 @@ function Channels() {
           </tr>
         </thead>
         <tbody className="divide-y divide-line">
-          {rows.map((r, i) => (
-            <tr key={r.channel}>
-              <td className="px-5 py-3 font-medium">{r.channel}</td>
-              <td className="text-muted">{r.source}</td>
+          {dir.channels.length === 0 && (
+            <tr>
+              <td colSpan={4} className="px-5 py-4 text-muted">
+                No channels yet. They appear here once a connector is set up.
+              </td>
+            </tr>
+          )}
+          {dir.channels.map((c) => (
+            <tr key={c.id}>
+              <td className="px-5 py-3 font-medium">{c.name}</td>
+              <td className="text-muted">{platformName[c.platform]}</td>
               <td>
                 <select
-                  value={r.project}
-                  onChange={(e) => setRows((xs) => xs.map((x, j) => (j === i ? { ...x, project: e.target.value, ingest: e.target.value !== "off" } : x)))}
-                  className="rounded-lg bg-bg px-2 py-1.5 text-[12.5px] focus:outline-none"
+                  value={route(c)}
+                  disabled={!admin || save.isPending}
+                  onChange={(e) => setRoute(c, e.target.value)}
+                  aria-label={`Project for ${c.name}`}
+                  className="rounded-lg bg-bg px-2 py-1.5 text-[12.5px] focus:outline-none disabled:opacity-70"
                 >
-                  {projects.map((p) => (
+                  {dir.projects.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name}
                     </option>
@@ -134,12 +171,13 @@ function Channels() {
               <td className="px-5 text-right">
                 <button
                   role="switch"
-                  aria-checked={r.ingest}
-                  aria-label={`Read ${r.channel}`}
-                  onClick={() => setRows((xs) => xs.map((x, j) => (j === i ? { ...x, ingest: !x.ingest } : x)))}
-                  className={cn("relative inline-block h-5 w-9 rounded-full transition-colors", r.ingest ? "bg-accent" : "bg-line")}
+                  aria-checked={c.read}
+                  aria-label={`Read ${c.name}`}
+                  disabled={!admin || save.isPending}
+                  onClick={() => save.mutate({ id: c.id, data: { read: !c.read } })}
+                  className={cn("relative inline-block h-5 w-9 rounded-full transition-colors disabled:opacity-70", c.read ? "bg-accent" : "bg-line")}
                 >
-                  <span className={cn("absolute top-0.5 size-4 rounded-full bg-white shadow transition-all", r.ingest ? "left-[18px]" : "left-0.5")} />
+                  <span className={cn("absolute top-0.5 size-4 rounded-full bg-white shadow transition-all", c.read ? "left-[18px]" : "left-0.5")} />
                 </button>
               </td>
             </tr>

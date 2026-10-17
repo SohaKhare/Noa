@@ -46,6 +46,7 @@ defmodule NoaWeb.Payload do
       handles: p.handles,
       joined: not is_nil(p.membership_id),
       role: loaded(p.membership) && p.membership.role,
+      user_id: loaded(p.membership) && p.membership.user_id,
       allocations: Enum.map(loaded(p.allocations) || [], &allocation/1)
     }
   end
@@ -97,6 +98,54 @@ defmodule NoaWeb.Payload do
       owner_id: p.owner_id,
       task_id: p.task_id,
       inserted_at: p.inserted_at
+    }
+  end
+
+  def change(c) do
+    %{
+      id: c.id,
+      kind: c.kind,
+      old_value: c.old_value,
+      new_value: c.new_value,
+      reason: c.reason,
+      status: c.status,
+      source: c.source,
+      task_id: c.task_id,
+      project_id: c.project_id,
+      requested_by_id: c.requested_by_id,
+      decided_by_id: c.decided_by_id,
+      decided_at: c.decided_at,
+      inserted_at: c.inserted_at
+    }
+  end
+
+  def shift(s) do
+    %{
+      id: s.id,
+      person_id: s.person_id,
+      from_project_id: s.from_project_id,
+      to_project_id: s.to_project_id,
+      percent: s.percent,
+      starts_on: s.starts_on,
+      routes_until: s.routes_until,
+      handover: s.handover,
+      note: s.note,
+      inserted_at: s.inserted_at
+    }
+  end
+
+  def decision(d) do
+    %{
+      id: d.id,
+      statement: d.statement,
+      kind: d.kind,
+      status: d.status,
+      affects: d.affects,
+      source: d.source,
+      project_id: d.project_id,
+      made_by_id: d.made_by_id,
+      superseded_by_id: d.superseded_by_id,
+      inserted_at: d.inserted_at
     }
   end
 

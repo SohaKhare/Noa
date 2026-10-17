@@ -17,7 +17,7 @@ import { FormError } from "@/components/AuthCard";
 import { Avatar, Badge, Button, SourceChip } from "@/components/ui";
 import { ApiError, approveProposal, rejectProposal, type ApproveEdits, type WorkProposal, type WorkTask } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import { dueLabel, nameInitials, toSource, useDirectory, useProposals } from "@/lib/work";
+import { ago, changeText, dueLabel, nameInitials, toSource, useChanges, useDecideChange, useDirectory, useProposals, useTasks } from "@/lib/work";
 
 /* Inbox (1.19): two panes. Left: proposals with filters. Right: the source and the fields Noa extracted, editable before approval. */
 
@@ -51,6 +51,7 @@ export default function Inbox() {
       setSelected(rest[0]?.id);
       client.invalidateQueries({ queryKey: ["proposals", orgId] });
       client.invalidateQueries({ queryKey: ["tasks", orgId] });
+      client.invalidateQueries({ queryKey: ["decisions", orgId] });
     },
   });
 
@@ -92,6 +93,8 @@ export default function Inbox() {
           <FormError>{((decide.error ?? error) as ApiError).message}</FormError>
         </div>
       )}
+
+      <ChangeRequests />
 
       <div className="grid min-h-[560px] overflow-hidden rounded-[22px] bg-surface card-shadow lg:grid-cols-[380px_1fr]">
         <div className="flex flex-col border-b border-line lg:border-r lg:border-b-0">
@@ -257,10 +260,12 @@ function Detail({
 
       <p className="mt-4 text-[12px] text-muted">
         {p.confidence != null && `Noa is ${Math.round(p.confidence * 100)}% sure. `}
-        {proj
-          ? `Approving ${isTask ? "adds it to" : "updates"} ${project(proj)?.name}${owner ? ` and tells ${person(owner)?.name}` : ""}${due ? `, due ${dueLabel(due)}` : ""}.`
-          : "Pick a project to approve it."}{" "}
-        The task keeps a link to this message.
+        {!proj
+          ? "Pick a project to approve it."
+          : p.kind === "decision"
+            ? `Approving records this decision in ${project(proj)?.name}${owner ? `, made by ${person(owner)?.name}` : ""}.`
+            : `Approving ${isTask ? "adds it to" : "updates"} ${project(proj)?.name}${owner ? ` and tells ${person(owner)?.name}` : ""}${due ? `, due ${dueLabel(due)}` : ""}.`}{" "}
+        {p.kind === "decision" ? "It keeps a link to this message." : "The task keeps a link to this message."}
       </p>
 
       <div className="mt-6 flex flex-wrap gap-2">
@@ -286,5 +291,51 @@ function Field({ label, Icon, children }: { label: string; Icon: typeof UserIcon
       </span>
       <span className="mt-1 block">{children}</span>
     </label>
+  );
+}
+
+/* Changes waiting for a lead (2.20): deadline and scope edits made by someone else. */
+function ChangeRequests() {
+  const dir = useDirectory();
+  const me = dir.person(dir.me);
+  const pending = useChanges({ status: "pending" }).data ?? [];
+  const tasks = useTasks({}).data ?? [];
+  const decide = useDecideChange();
+  const orgLead = me?.role === "org_admin" || me?.role === "pm";
+  const mine = pending.filter((c) => orgLead || dir.project(c.project_id)?.lead_id === me?.id);
+  if (mine.length === 0) return null;
+
+  return (
+    <section className="mb-5 rounded-[22px] bg-surface p-5 card-shadow">
+      <p className="text-[14px] font-semibold">Changes waiting for you ({mine.length})</p>
+      <p className="mt-0.5 text-[12.5px] text-muted">Deadline and scope changes need a lead. Nothing moves until you approve.</p>
+      {decide.error && (
+        <div className="mt-2">
+          <FormError>{(decide.error as ApiError).message}</FormError>
+        </div>
+      )}
+      <ul className="mt-3 space-y-2">
+        {mine.map((c) => (
+          <li key={c.id} className="flex flex-wrap items-center gap-3 rounded-xl bg-bg px-3.5 py-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[13.5px]">
+                <span className="font-medium">{tasks.find((t) => t.id === c.task_id)?.title ?? "A task"}</span> ·{" "}
+                {changeText(c, (id) => dir.person(id)?.name)}
+              </p>
+              <p className="text-[12px] text-muted">
+                {dir.byUser(c.requested_by_id)?.name ?? "Someone"} · {dir.project(c.project_id)?.name} · {ago(c.inserted_at)}
+                {c.reason && <> · &ldquo;{c.reason}&rdquo;</>}
+              </p>
+            </div>
+            <Button size="sm" disabled={decide.isPending} onClick={() => decide.mutate({ id: c.id, action: "approve" })}>
+              <CheckIcon size={13} weight="bold" /> Approve
+            </Button>
+            <Button size="sm" variant="ghost" disabled={decide.isPending} onClick={() => decide.mutate({ id: c.id, action: "reject" })}>
+              Reject
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

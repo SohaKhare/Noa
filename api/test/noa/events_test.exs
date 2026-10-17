@@ -156,7 +156,7 @@ defmodule Noa.EventsTest do
 
   test "statements cover every work event type" do
     for type <- ~w(person.saved project.saved alias.saved alias.deleted allocation.saved channel.saved
-                   identity.saved task.saved message.received task.deleted) do
+                   identity.saved task.saved decision.saved change.saved message.received task.deleted) do
       assert [_ | _] = Projector.statements(%{type: type, data: %{"id" => "x", "episode_id" => "e"}}), type
     end
 

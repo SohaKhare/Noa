@@ -1,13 +1,13 @@
 "use client";
 
-import { ArrowRightIcon, CalendarBlankIcon, ChatCircleDotsIcon, CheckIcon, CheckCircleIcon, TrayIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowRightIcon, CalendarBlankIcon, ChatCircleDotsIcon, CheckIcon, CheckCircleIcon, GavelIcon, TrayIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useState } from "react";
 import { Hello } from "@/components/Hello";
 import { Badge, SourceChip } from "@/components/ui";
 import type { WorkProject, WorkTask } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import { dueLabel, isLate, toSource, useDirectory, useMoveTask, useProposals, useTasks } from "@/lib/work";
+import { ago, dueLabel, isLate, startOfToday, toSource, useChanges, useDecisions, useDirectory, useMoveTask, useProposals, useTasks } from "@/lib/work";
 
 /*
   My day (2.12): my open tasks across every project, by project or by date, what is
@@ -24,6 +24,9 @@ export function MyDay() {
   const tasks = useTasks({});
   const proposals = useProposals();
   const [view, setView] = useState<View>("project");
+  const [today] = useState(startOfToday);
+  const decisions = useDecisions({ since: today });
+  const pendingChanges = useChanges({ status: "pending" }).data ?? [];
 
   const me = dir.person(dir.me);
   const all = tasks.data ?? [];
@@ -37,6 +40,9 @@ export function MyDay() {
   const doneToday = all.filter((t) => t.owner_id === me?.id && t.status === "done" && isToday(t.done_at));
   const blocked = all.filter((t) => t.status === "blocked" && myProjects.has(t.project_id));
   const waiting = (proposals.data ?? []).filter((p) => lead || p.owner_id === me?.id);
+  const changesForMe = pendingChanges.filter((c) => lead || dir.project(c.project_id)?.lead_id === me?.id);
+  const waitingText = [plural(waiting.length, "proposal"), changesForMe.length ? plural(changesForMe.length, "change") : null].filter(Boolean).join(" · ");
+  const decidedToday = (decisions.data ?? []).filter((d) => d.status === "active" && (!d.project_id || myProjects.has(d.project_id)));
   const groups = dir.projects.map((p) => ({ p, items: mine.filter((t) => t.project_id === p.id) })).filter((g) => g.items.length);
   const loading = dir.isLoading || tasks.isLoading;
 
@@ -53,7 +59,7 @@ export function MyDay() {
             : `${plural(mine.length, "open task")} across ${plural(groups.length, "project")} · ${plural(waiting.length, "proposal")} waiting · ${blocked.length} blocked`}
         </p>
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          <Stat Icon={TrayIcon} label="Waiting on you" value={plural(waiting.length, "proposal")} href="/inbox" />
+          <Stat Icon={TrayIcon} label="Waiting on you" value={waitingText} href="/inbox" />
           <Stat Icon={CheckCircleIcon} label="Done today" value={doneToday.length ? doneToday.map((t) => t.title).join(", ") : "Nothing yet"} href="#done" />
           <Stat
             Icon={WarningCircleIcon}
@@ -134,6 +140,29 @@ export function MyDay() {
                       <p className="text-[13px] font-medium">{pr.summary}</p>
                       <SourceChip source={toSource(pr.source)} />
                     </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className="rounded-[22px] bg-surface p-5 card-shadow">
+            <p className="text-[14px] font-semibold">Decided today</p>
+            {decidedToday.length === 0 ? (
+              <p className="mt-3 text-[13px] text-muted">Nothing decided yet today in your projects.</p>
+            ) : (
+              <ul className="mt-3 space-y-3">
+                {decidedToday.slice(0, 5).map((d) => (
+                  <li key={d.id} className="flex gap-3">
+                    <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-mist text-accent">
+                      <GavelIcon size={12} />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[13px] font-medium">{d.statement}</span>
+                      <span className="block text-[11.5px] text-muted">
+                        {[dir.project(d.project_id)?.name, dir.person(d.made_by_id)?.name, ago(d.inserted_at)].filter(Boolean).join(" · ")}
+                      </span>
+                    </span>
                   </li>
                 ))}
               </ul>

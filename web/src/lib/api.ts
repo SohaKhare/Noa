@@ -107,6 +107,7 @@ export type WorkPerson = {
   handles: string[];
   joined: boolean;
   role: Role | null;
+  user_id: string | null;
   allocations: Allocation[];
 };
 export type WorkProject = {
@@ -159,8 +160,97 @@ export const getTasks = (orgId: string, filters: { project_id?: string; owner_id
 };
 export const createTask = (orgId: string, data: Partial<WorkTask> & { title: string; project_id: string }) =>
   post<{ task: WorkTask }>(`/api/orgs/${orgId}/tasks`, data).then((r) => r.task);
-export const updateTask = (orgId: string, id: string, data: Partial<Pick<WorkTask, "title" | "detail" | "status" | "due_on" | "blocked_reason" | "owner_id" | "project_id">>) =>
-  api<{ task: WorkTask }>(`/api/orgs/${orgId}/tasks/${id}`, { method: "PATCH", body: JSON.stringify(data) }).then((r) => r.task);
+export const updateTask = (
+  orgId: string,
+  id: string,
+  data: Partial<Pick<WorkTask, "title" | "detail" | "status" | "due_on" | "blocked_reason" | "owner_id" | "project_id">> & { reason?: string },
+) => api<{ task: WorkTask; pending_changes: WorkChange[] }>(`/api/orgs/${orgId}/tasks/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+export type ChangeKind = "deadline" | "scope" | "owner" | "status" | "title";
+export type WorkChange = {
+  id: string;
+  kind: ChangeKind;
+  old_value: string | null;
+  new_value: string | null;
+  reason: string | null;
+  status: "applied" | "pending" | "rejected" | "reverted";
+  source: MessageSource | null;
+  task_id: string;
+  project_id: string;
+  requested_by_id: string | null;
+  decided_by_id: string | null;
+  decided_at: string | null;
+  inserted_at: string;
+};
+export const getChanges = (orgId: string, filters: { task_id?: string; project_id?: string; status?: WorkChange["status"] } = {}) => {
+  const q = new URLSearchParams(Object.entries(filters).filter(([, v]) => v) as [string, string][]).toString();
+  return api<{ changes: WorkChange[] }>(`/api/orgs/${orgId}/changes${q ? `?${q}` : ""}`).then((r) => r.changes);
+};
+export const decideChange = (orgId: string, id: string, action: "approve" | "reject" | "revert") =>
+  api<{ change: WorkChange }>(`/api/orgs/${orgId}/changes/${id}/${action}`, { method: "POST" }).then((r) => r.change);
+export const updateChannel = (orgId: string, id: string, data: Partial<Pick<Channel, "project_id" | "split" | "read">>) =>
+  api<{ channel: Channel }>(`/api/orgs/${orgId}/channels/${id}`, { method: "PATCH", body: JSON.stringify(data) }).then((r) => r.channel);
+export type WorkDecision = {
+  id: string;
+  statement: string;
+  kind: "decision" | "conclusion";
+  status: "active" | "superseded";
+  affects: string[];
+  source: MessageSource | null;
+  project_id: string | null;
+  made_by_id: string | null;
+  superseded_by_id: string | null;
+  inserted_at: string;
+};
+export const getDecisions = (orgId: string, filters: { project_id?: string; since?: string; status?: "active" | "superseded" } = {}) => {
+  const q = new URLSearchParams(Object.entries(filters).filter(([, v]) => v) as [string, string][]).toString();
+  return api<{ decisions: WorkDecision[] }>(`/api/orgs/${orgId}/decisions${q ? `?${q}` : ""}`).then((r) => r.decisions);
+};
+export type Citation = {
+  id: string;
+  kind: "task" | "decision" | "message" | "shift";
+  title: string;
+  text: string;
+  href: string | null;
+  project_id: string | null;
+  status: string | null;
+  source: MessageSource | null;
+};
+export const ask = (orgId: string, question: string) =>
+  api<{ answer: string; citations: Citation[] }>(`/api/orgs/${orgId}/ask`, { method: "POST", body: JSON.stringify({ question }) });
+export type ShiftPlanTask = { task_id: string; title: string; status: TaskStatus; due_on: string | null; to_owner_id: string | null };
+export type WorkShift = {
+  id: string;
+  person_id: string;
+  from_project_id: string | null;
+  to_project_id: string | null;
+  percent: number;
+  starts_on: string;
+  routes_until: string | null;
+  handover: { task_id: string; title: string; to_owner_id: string | null }[];
+  note: string | null;
+  inserted_at: string;
+};
+export const planShift = (orgId: string, personId: string, fromProjectId: string | null) =>
+  api<{ tasks: ShiftPlanTask[] }>(
+    `/api/orgs/${orgId}/shifts/plan?person_id=${personId}&from_project_id=${fromProjectId ?? ""}`,
+  ).then((r) => r.tasks);
+export const createShift = (
+  orgId: string,
+  body: { person_id: string; from_project_id: string | null; to_project_id: string | null; percent?: number; starts_on?: string; handover: Record<string, string>; note?: string },
+) => api<{ shift: WorkShift }>(`/api/orgs/${orgId}/shifts`, { method: "POST", body: JSON.stringify(body) }).then((r) => r.shift);
+export const getShifts = (orgId: string) => api<{ shifts: WorkShift[] }>(`/api/orgs/${orgId}/shifts`).then((r) => r.shifts);
+export type BriefItem = { text: string; href: string | null; source: MessageSource | null };
+export type Brief = { project_id: string; person_id: string | null; sections: { title: string; items: BriefItem[] }[] };
+export const getBrief = (orgId: string, projectId: string, personId?: string | null) =>
+  api<Brief>(`/api/orgs/${orgId}/projects/${projectId}/brief${personId ? `?person_id=${personId}` : ""}`);
+export type Experts = {
+  experts: { person_id: string; name: string; weight: number; share: number }[];
+  key_people: { person_id: string; name: string; score: number }[];
+  bus_factor: { project_id: string; project: string; person_id: string; name: string; share: number }[];
+  graph: boolean;
+};
+export const getExperts = (orgId: string, projectId?: string) =>
+  api<Experts>(`/api/orgs/${orgId}/experts${projectId ? `?project_id=${projectId}` : ""}`);
 export const getProposals = (orgId: string) => api<{ proposals: WorkProposal[] }>(`/api/orgs/${orgId}/proposals`).then((r) => r.proposals);
 export const approveProposal = (orgId: string, id: string, edits: ApproveEdits = {}) =>
   post<{ proposal: WorkProposal; task: WorkTask | null }>(`/api/orgs/${orgId}/proposals/${id}/approve`, edits);

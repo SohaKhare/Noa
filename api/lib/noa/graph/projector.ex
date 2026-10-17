@@ -214,6 +214,44 @@ defmodule Noa.Graph.Projector do
       edge_to(episode, "MATCH (t:Task {id: $id}) MERGE (e:Episode {id: $to}) MERGE (t)-[:EXTRACTED_FROM]->(e)", d)
   end
 
+  defp statements("decision.saved", d) do
+    [
+      {"""
+       MERGE (x:Decision {id: $id})
+       SET x.statement = $statement, x.kind = $kind, x.status = $status, x.at = $inserted_at
+       """, params(d, ~w(id statement kind status inserted_at))},
+      {"MATCH (:Person)-[r:DECIDED]->(:Decision {id: $id}) DELETE r", %{"id" => d["id"]}},
+      {"MATCH (:Decision {id: $id})-[r:AFFECTS]->() DELETE r", %{"id" => d["id"]}}
+    ] ++
+      edge_to(d["made_by_id"], "MATCH (x:Decision {id: $id}) MERGE (p:Person {id: $to}) MERGE (p)-[:DECIDED]->(x)", d) ++
+      edge_to(d["project_id"], "MATCH (x:Decision {id: $id}) MERGE (p:Project {id: $to}) MERGE (x)-[:AFFECTS]->(p)", d) ++
+      Enum.flat_map(
+        d["affects"] || [],
+        &edge_to(&1, "MATCH (x:Decision {id: $id}) MERGE (t:Task {id: $to}) MERGE (x)-[:AFFECTS]->(t)", d)
+      ) ++
+      edge_to(
+        d["superseded_by_id"],
+        "MATCH (x:Decision {id: $id}) MERGE (n:Decision {id: $to}) MERGE (n)-[:SUPERSEDES]->(x)",
+        d
+      ) ++
+      edge_to(
+        get_in(d, ["source", "episode_id"]),
+        "MATCH (x:Decision {id: $id}) MERGE (e:Episode {id: $to}) MERGE (x)-[:EXTRACTED_FROM]->(e)",
+        d
+      )
+  end
+
+  defp statements("change.saved", d) do
+    [
+      {"""
+       MERGE (c:ChangeRecord {id: $id})
+       SET c.kind = $kind, c.old = $old_value, c.new = $new_value, c.status = $status, c.reason = $reason, c.at = $inserted_at
+       MERGE (t:Task {id: $task_id})
+       MERGE (c)-[:CHANGED]->(t)
+       """, params(d, ~w(id kind old_value new_value status reason inserted_at task_id))}
+    ]
+  end
+
   defp statements("message.received", d) do
     [
       {"""
@@ -232,7 +270,7 @@ defmodule Noa.Graph.Projector do
 
   defp statements(type, d) do
     case String.split(type, ".") do
-      [thing, "deleted"] when thing in ~w(person project channel identity task) ->
+      [thing, "deleted"] when thing in ~w(person project channel identity task decision) ->
         [{"MATCH (n:#{label(thing)} {id: $id}) DETACH DELETE n", %{"id" => d["id"]}}]
 
       _ ->

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getDirectory, getProposals, getTasks, updateTask, type MessageSource, type TaskStatus, type WorkPerson, type WorkProject, type WorkTask } from "./api";
+import { decideChange, getChanges, getDecisions, getDirectory, getProposals, getTasks, updateTask, type WorkChange, type MessageSource, type TaskStatus, type WorkPerson, type WorkProject, type WorkTask } from "./api";
 import type { Source } from "./mock";
 import { currentMembership, useMe } from "./session";
 
@@ -24,6 +24,8 @@ export function useDirectory() {
     projects: data?.projects ?? [],
     channels: data?.channels ?? [],
     person: (id?: string | null) => data?.people.find((p) => p.id === id),
+    /* The person behind a user account (change records name users). */
+    byUser: (userId?: string | null) => data?.people.find((p) => p.user_id === userId),
     project: (id?: string | null) => data?.projects.find((p) => p.id === id || p.key === id),
   };
 }
@@ -36,6 +38,18 @@ export function useTasks(filters: { project_id?: string; owner_id?: string; open
     enabled: !!orgId && Object.values(filters).every((v) => v !== ""),
   });
 }
+
+export function useDecisions(filters: { project_id?: string; since?: string } = {}) {
+  const orgId = useOrgId();
+  return useQuery({ queryKey: ["decisions", orgId, filters], queryFn: () => getDecisions(orgId!, filters), enabled: !!orgId });
+}
+
+/* Midnight today, local time, as ISO: "decided today" means since then. */
+export const startOfToday = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
+};
 
 export function useProposals() {
   const orgId = useOrgId();
@@ -55,8 +69,61 @@ export function useMoveTask() {
       return { before };
     },
     onError: (_e, _v, ctx) => ctx?.before.forEach(([key, data]) => client.setQueryData(key, data)),
-    onSettled: () => client.invalidateQueries({ queryKey: ["tasks", orgId] }),
+    onSettled: () => {
+      client.invalidateQueries({ queryKey: ["tasks", orgId] });
+      client.invalidateQueries({ queryKey: ["changes", orgId] });
+    },
   });
+}
+
+/* Edits a task's shared fields. A member's deadline change comes back as a pending change for their lead (2.20). */
+export function useEditTask() {
+  const orgId = useOrgId();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string; due_on?: string | null; title?: string; owner_id?: string | null; reason?: string }) => updateTask(orgId!, id, data),
+    onSettled: () => {
+      client.invalidateQueries({ queryKey: ["tasks", orgId] });
+      client.invalidateQueries({ queryKey: ["changes", orgId] });
+    },
+  });
+}
+
+export function useChanges(filters: { task_id?: string; project_id?: string; status?: WorkChange["status"] } = {}, enabled = true) {
+  const orgId = useOrgId();
+  return useQuery({ queryKey: ["changes", orgId, filters], queryFn: () => getChanges(orgId!, filters), enabled: !!orgId && enabled });
+}
+
+/* Approve, reject or revert a change record. */
+export function useDecideChange() {
+  const orgId = useOrgId();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, action }: { id: string; action: "approve" | "reject" | "revert" }) => decideChange(orgId!, id, action),
+    onSettled: () => {
+      client.invalidateQueries({ queryKey: ["tasks", orgId] });
+      client.invalidateQueries({ queryKey: ["changes", orgId] });
+    },
+  });
+}
+
+const statusName: Record<string, string> = { todo: "To do", in_progress: "In progress", blocked: "Blocked", done: "Done" };
+const shortDate = (iso: string | null) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en", { month: "short", day: "numeric" }) : "no date");
+
+/* "deadline Oct 17 → Oct 20", "status To do → Blocked", "owner Saish → Soha". */
+export function changeText(c: WorkChange, personName: (id: string | null) => string | undefined) {
+  switch (c.kind) {
+    case "deadline":
+      return `deadline ${shortDate(c.old_value)} → ${shortDate(c.new_value)}`;
+    case "status":
+      return `status ${statusName[c.old_value ?? ""] ?? c.old_value} → ${statusName[c.new_value ?? ""] ?? c.new_value}`;
+    case "owner":
+      return `owner ${personName(c.old_value) ?? "nobody"} → ${personName(c.new_value) ?? "nobody"}`;
+    case "title":
+      return `title → “${c.new_value}”`;
+    case "scope":
+      return "scope changed";
+  }
 }
 
 /* "VE" for Vedant, like the chat avatars on the landing page. */

@@ -89,23 +89,23 @@ Exit test: NYI uses no other tracker; a developer and a non-tech teammate both r
 | 2.1 | Status, blocker and deadline extraction | New | Saish | Not started |  |
 | 2.2 | Auto-apply with undo above a confidence threshold | New | Saish | Not started |  |
 | 2.3 | Duplicate task matching before proposing | New | Saish | Not started |  |
-| 2.4 | Decisions and supersession | Port | Saish | Not started |  |
-| 2.5 | `@noa` agent with citations (ash_ai tools, audience-first rules) | Port | Saish | Not started |  |
+| 2.4 | Decisions and supersession | Port | Saish | In review |  |
+| 2.5 | `@noa` agent with citations (ash_ai tools, audience-first rules) | Port | Saish | In review |  |
 | 2.6 | Approval buttons in Discord, Slack, WhatsApp | New | Soha | Not started |  |
 | 2.7 | WhatsApp "done" replies move cards | New | Soha | Not started |  |
 | 2.8 | Google Calendar + Meet transcripts to action items | New | Unassigned | Not started |  |
 | 2.9 | Daily digest per person (from v1 recap) | Port | Soha | Not started |  |
 | 2.10 | Message edit and delete handling | New | Unassigned | Not started |  |
-| 2.11 | Gantt timeline: milestones, dependencies, drag dates | New | Saish | Not started |  |
+| 2.11 | Gantt timeline: milestones, dependencies, drag dates | New | Saish | In review |  |
 | 2.12 | My day and my work (simple and detailed views) | New | Saish | In review | #2 |
 | 2.13 | Task detail: sources, history, undo | New | Soha | Not started |  |
 | 2.14 | Live updates over Phoenix Channels | New | Soha | Not started |  |
 | 2.15 | Notification preferences: channel, digest time, quiet hours | New | Saish | Not started |  |
-| 2.16 | Permission leakage tests in CI | New | Saish | Not started |  |
+| 2.16 | Permission leakage tests in CI | New | Saish | In review |  |
 | 2.17 | Eval harness on the golden set | Port | Unassigned | Not started |  |
-| 2.18 | Decided today panel (per project and per person) | New | Saish | Not started |  |
-| 2.19 | Change records for shared-item edits: scope, deadline, owner, status, decision | New | Saish | Not started |  |
-| 2.20 | Lead approval rules: deadline and scope changes wait, minor edits apply with revert | New | Saish | Not started |  |
+| 2.18 | Decided today panel (per project and per person) | New | Saish | In review |  |
+| 2.19 | Change records for shared-item edits: scope, deadline, owner, status, decision | New | Saish | In review |  |
+| 2.20 | Lead approval rules: deadline and scope changes wait, minor edits apply with revert | New | Saish | In review |  |
 | 2.21 | Change notifications to lead and owner in app, Discord, Slack, WhatsApp | New | Soha | Not started |  |
 
 ## Phase 3: Shifts, KT and agent packs (Oct 17, 20:00 to Oct 18, 08:00)
@@ -116,23 +116,23 @@ Exit test: A real NYI teammate moves projects using only Noa, gets a KT brief an
 
 | # | Item | Source | Owner | Status | PR |
 | --- | --- | --- | --- | --- | --- |
-| 3.1 | Shift backend: handover draft, reassignment suggestions, previous-owner routing | New | Saish | Not started |  |
-| 3.2 | KT brief generator and follow-up Q&A | New | Saish | Not started |  |
-| 3.3 | Experts via `KNOWS_ABOUT` + PageRank; bus factor | New | Saish | Not started |  |
+| 3.1 | Shift backend: handover draft, reassignment suggestions, previous-owner routing | New | Saish | In review |  |
+| 3.2 | KT brief generator and follow-up Q&A | New | Saish | In review |  |
+| 3.3 | Experts via `KNOWS_ABOUT` + PageRank; bus factor | New | Saish | In review |  |
 | 3.4 | Slip propagation and drift detection | New | Unassigned | Not started |  |
 | 3.5 | KT delivery and Q&A on WhatsApp and Discord | New | Soha | Not started |  |
 | 3.6 | MCP server through ash_ai | New | Soha | Not started |  |
 | 3.7 | GitHub PR merged closes card (beta) | New | Unassigned | Not started |  |
 | 3.8 | WhatsApp voice notes, transcribed (beta) | New | Unassigned | Not started |  |
-| 3.9 | Portfolio: project health, workload heatmap, risks | New | Saish | Not started |  |
+| 3.9 | Portfolio: project health, workload heatmap, risks | New | Saish | In review |  |
 | 3.10 | Project page: board, timeline, decisions, people, KT tabs | New | Soha | Not started |  |
-| 3.11 | Shift wizard | New | Saish | Not started |  |
+| 3.11 | Shift wizard | New | Saish | In review |  |
 | 3.12 | KT brief page and checklist | New | Unassigned | Not started |  |
 | 3.13 | Graph panel with path highlighting | New | Unassigned | Not started |  |
 | 3.14 | Superadmin console: orgs, connectors, ops, LLM usage | Copy | Unassigned | Not started |  |
 | 3.15 | Run one real NYI shift end to end | New | Soha | Not started |  |
 | 3.16 | Backfill and rebuild-the-graph drill | New | Unassigned | Not started |  |
-| 3.17 | Staffing board: drag-and-drop people with confirm popover | New | Saish | Not started |  |
+| 3.17 | Staffing board: drag-and-drop people with confirm popover | New | Saish | In review |  |
 | 3.18 | Agent pack generator: `CLAUDE.md`/`AGENTS.md`, `tasks.md`, `.mcp.json` from the project subgraph; regenerate on change | New | Soha | Not started |  |
 | 3.19 | Role pack templates: `brief.md`, `client.md`, `runbook.md`, `project-state.md` | New | Saish | Not started |  |
 | 3.20 | Access bundles per project: GitHub team, Discord role, Drive share; checklist for the rest | New | Soha | Not started |  |

@@ -11,7 +11,17 @@ if config_env() == :prod do
   config :noa,
     web_origin: System.fetch_env!("WEB_ORIGIN"),
     api_base_url: System.fetch_env!("API_BASE_URL"),
-    token_signing_secret: System.fetch_env!("TOKEN_SIGNING_SECRET")
+    token_signing_secret: System.fetch_env!("TOKEN_SIGNING_SECRET"),
+    mail_from: {System.get_env("MAIL_FROM_NAME", "Noa"), System.fetch_env!("MAIL_FROM_EMAIL")},
+    discord_bot_token: System.get_env("DISCORD_BOT_TOKEN"),
+    discord_guild_id: System.get_env("DISCORD_GUILD_ID")
+
+  config :noa, Noa.Mailer,
+    adapter: Noa.Mailer.Resend
+
+  config :noa, Noa.Mailer.Resend,
+    api_key: System.fetch_env!("RESEND_API_KEY"),
+    endpoint: System.get_env("RESEND_API_URL", "https://api.resend.com/emails")
 
   config :noa, NoaWeb.Endpoint,
     url: [host: URI.parse(System.fetch_env!("API_BASE_URL")).host, port: 443, scheme: "https"],

@@ -75,7 +75,7 @@ Exit test: A real Discord message becomes a proposed task in the right project a
 | 1.22 | Reporting lines (reports-to) in org map and people settings | New | Saish | In review | #1 |
 | 1.23 | Seed loader: `mix noa.seed` loads `docs/seeds/nyi.json` (projects, channels, aliases, allocations, git handles) | New | Saish | In review | #2 |
 | 1.24 | Work API: projects, tasks and proposals as Ash resources with policies; endpoints the web app uses instead of `mock.ts` | New | Saish | In review | #2 |
-| 1.25 | Real email delivery for invites, magic links and resets (Swoosh adapter in prod) | New | Soha | Not started |  |
+| 1.25 | Real email delivery for invites, magic links and resets (Swoosh adapter in prod) | New | Soha | In progress |  |
 | 1.26 | Guard against removing or demoting a workspace's last admin | New | Saish | In review | #2 |
 
 ## Phase 2: Work loop (Oct 17, 11:00 to 20:00)

@@ -1,8 +1,9 @@
 export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
+/* Same order as the page, so each link is further down than the one before it. */
 export const navLinks = [
-  { href: "#product", label: "Product" },
   { href: "#how", label: "How it works" },
+  { href: "#product", label: "Product" },
   { href: "#features", label: "Features" },
   { href: "#privacy", label: "Privacy" },
   { href: "#faq", label: "FAQ" },

@@ -3,7 +3,7 @@
 import { CheckIcon, HashIcon, LightningIcon, WhatsappLogoIcon } from "@phosphor-icons/react";
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
 import { useLoop, useTyping } from "@/lib/useLoop";
-import { Avatar, LiveDot, NoaAvatar, SourceChip, Window } from "../ui";
+import { LiveDot, SourceChip, Window } from "../ui";
 
 /*
   The whole loop, with NYI's real team: Vedant (the lead) asks in #veriq, Saish replies,
@@ -34,48 +34,51 @@ export function ChatToTask() {
   return (
     <div ref={ref} className="relative grid w-full gap-3 md:grid-cols-[1fr_1.15fr]">
       <LayoutGroup>
-        <Window title="Discord · NotYourIdea" bar={<span className="text-[11px] text-muted">#veriq</span>}>
+        <div className="flex overflow-hidden rounded-[22px] bg-[#313338] text-[#dbdee1] shadow-[0_18px_50px_-24px_rgba(8,16,32,0.7)]">
+          <div className="flex w-[52px] shrink-0 flex-col items-center gap-2 bg-[#1e1f22] py-3">
+            <span className="grid size-9 place-items-center rounded-2xl bg-[#5865f2] text-[12px] font-semibold text-white">N</span>
+            <span className="h-px w-6 bg-white/10" />
+          </div>
+          <div className="min-w-0 flex-1">
+          <div className="flex h-11 items-center gap-2 border-b border-black/30 px-4">
+            <HashIcon size={16} className="text-[#949ba4]" />
+            <span className="text-[14px] font-semibold text-white">veriq</span>
+            <span className="ml-auto flex items-center gap-1.5 text-[11px] text-[#949ba4]">
+              <LiveDot /> Noa is listening
+            </span>
+          </div>
           <div className="flex h-[360px] flex-col">
-            <div className="flex items-center gap-1.5 border-b border-line/70 px-4 py-2.5 text-[13px] font-medium">
-              <HashIcon size={14} className="text-muted" /> veriq
-              <span className="ml-auto flex items-center gap-1.5 text-[11px] font-normal text-muted">
-                <LiveDot /> Noa is listening
-              </span>
-            </div>
-            <div className="flex flex-1 flex-col justify-end gap-3 p-4">
-              <Message who="OJ" name="Ojas" time="10:31" text="AI Overview lane is green again 🎉" />
-              <Message who="VE" name="Vedant" time="10:40" tone="accent" text="who can take the Board report PDF export? client wants it this week" />
+            <div className="flex flex-1 flex-col justify-end gap-3.5 px-4 py-3">
+              <DiscordMessage who="OJ" name="Ojas" time="10:31" text="AI Overview lane is green again 🎉" />
+              <DiscordMessage who="VE" name="Vedant" time="10:40" text="who can take the Board report PDF export? client wants it this week" />
               <AnimatePresence>
                 {sent && (
                   <motion.div key="reply" {...enter}>
-                    <Message who="SA" name="Saish" time="10:42" text={REPLY} highlight={step >= HEARD && step < LANDED} />
+                    <DiscordMessage who="SA" name="Saish" time="10:42" text={REPLY} highlight={step >= HEARD && step < LANDED} />
                   </motion.div>
                 )}
                 {landed && (
-                  <motion.div key="noa" {...enter} className="flex items-start gap-2.5">
-                    <NoaAvatar />
-                    <div className="rounded-2xl rounded-tl-md bg-bg px-3 py-2 text-[12.5px]">
-                      <span className="font-medium">Added to Veriq</span> · Saish · due Fri.{" "}
-                      <span className="text-accent underline decoration-accent/30">Undo</span>
-                    </div>
+                  <motion.div key="noa" {...enter}>
+                    <DiscordMessage who="NOA" name="Noa" time="10:42" bot text="Added to Veriq · Saish · due Fri." />
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
-            <div className="border-t border-line/70 p-3">
-              <div className="flex h-9 items-center rounded-full px-3.5 text-[13px] ring-1 ring-line">
+            <div className="px-4 pb-4">
+              <div className="flex h-11 items-center rounded-lg bg-[#383a40] px-4 text-[14px]">
                 {draft ? (
-                  <span>
+                  <span className="text-[#dbdee1]">
                     {draft}
-                    <span className="ml-px inline-block h-4 w-px animate-pulse bg-accent align-middle" />
+                    <span className="ml-px inline-block h-4 w-px animate-pulse bg-white align-middle" />
                   </span>
                 ) : (
-                  <span className="text-ink/40">Message #veriq</span>
+                  <span className="text-[#949ba4]">Message #veriq</span>
                 )}
               </div>
             </div>
           </div>
-        </Window>
+          </div>
+        </div>
 
         <Window title="Noa · Veriq" bar={<span className="text-[11px] text-muted">Inbox · Board</span>}>
           <div className="grid h-[360px] grid-rows-[auto_1fr]">
@@ -169,34 +172,48 @@ export function ChatToTask() {
   );
 }
 
-function Message({
+const roles = {
+  OJ: { initials: "OJ", color: "#5865f2" },
+  VE: { initials: "VE", color: "#f0b232" },
+  SA: { initials: "SA", color: "#23a559" },
+  NOA: { initials: "N", color: "#5865f2" },
+} as const;
+
+function DiscordMessage({
   who,
   name,
   time,
   text,
-  tone = "mist",
   highlight = false,
+  bot = false,
 }: {
-  who: string;
+  who: keyof typeof roles;
   name: string;
   time: string;
   text: string;
-  tone?: "mist" | "accent";
   highlight?: boolean;
+  bot?: boolean;
 }) {
+  const role = roles[who];
   return (
-    <div className="flex items-start gap-2.5">
-      <Avatar initials={who} tone={tone} />
-      <div>
-        <p className="text-[12px] font-semibold">
-          {name} <span className="font-normal text-muted">{time}</span>
+    <div className={`-mx-2 flex items-start gap-3 rounded px-2 py-0.5 ${highlight ? "bg-[#5865f2]/20" : ""}`}>
+      <span
+        className="grid size-9 shrink-0 place-items-center rounded-full text-[11px] font-semibold text-white"
+        style={{ backgroundColor: role.color }}
+      >
+        {role.initials}
+      </span>
+      <div className="min-w-0">
+        <p className="text-[14px] leading-none">
+          <span className="font-medium" style={{ color: role.color }}>
+            {name}
+          </span>
+          {bot && <span className="ml-1.5 rounded bg-[#5865f2] px-1 py-px align-middle text-[9px] font-bold tracking-wide text-white">BOT</span>}
+          <span className="ml-2 text-[11px] font-normal text-[#949ba4]">{time}</span>
         </p>
-        <p
-          className={`mt-0.5 rounded-md text-[13px] transition-colors duration-500 ${
-            highlight ? "bg-mist shadow-[0_0_0_4px_var(--color-mist)]" : ""
-          }`}
-        >
+        <p className="mt-1 text-[14px] leading-snug text-[#dbdee1]">
           {text}
+          {bot && <span className="text-[#00a8fc]"> Undo</span>}
         </p>
       </div>
     </div>

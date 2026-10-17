@@ -25,7 +25,7 @@ function StepCard({
   return (
     <Reveal delay={delay} className={className}>
       <article>
-        <div className="relative isolate aspect-[4/5] overflow-hidden rounded-card">
+        <div className="relative isolate aspect-square overflow-hidden rounded-card">
           <Image src={image} alt="" fill sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" className="object-cover" />
           <div className="absolute inset-x-5 bottom-5">{chip}</div>
         </div>

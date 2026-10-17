@@ -2,7 +2,7 @@
 
 import { useLenis } from "lenis/react";
 import { AnimatePresence, motion, useMotionValueEvent, useReducedMotion, useScroll } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { APP_URL, navLinks as links } from "@/lib/links";
 
 export function GlassNav() {
@@ -25,6 +25,16 @@ export function GlassNav() {
   const solid = floating || open;
   const spring = reduce ? { duration: 0 } : { type: "spring" as const, stiffness: 240, damping: 30, mass: 0.9 };
 
+  const go = (href: string) => (event: MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    setOpen(false);
+    if (reduce || !lenis) {
+      document.querySelector(href)?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+      return;
+    }
+    lenis.scrollTo(href, { offset: -88 });
+  };
+
   return (
     <>
       <header className="fixed inset-x-0 top-0 z-50 flex justify-center">
@@ -43,6 +53,7 @@ export function GlassNav() {
             layout="position"
             transition={spring}
             href="#top"
+            onClick={go("#top")}
             className="flex items-center gap-2 rounded-full text-[16px] font-semibold tracking-tight"
           >
             Noa
@@ -53,6 +64,7 @@ export function GlassNav() {
               <li key={link.href}>
                 <a
                   href={link.href}
+                  onClick={go(link.href)}
                   className={`rounded-full px-3.5 py-2 text-[14px] transition-colors duration-300 ${
                     solid ? "text-ink/70 hover:bg-black/5 hover:text-ink" : "text-white/85 hover:bg-white/10 hover:text-white"
                   }`}
@@ -117,7 +129,7 @@ export function GlassNav() {
                 >
                   <a
                     href={link.href}
-                    onClick={() => setOpen(false)}
+                    onClick={go(link.href)}
                     className="block py-2 text-[34px] leading-tight font-semibold tracking-[-0.03em] text-ink"
                   >
                     {link.label}

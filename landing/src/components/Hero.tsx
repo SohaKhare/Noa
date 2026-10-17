@@ -14,6 +14,11 @@ export function Hero() {
           aria-hidden
           className="absolute inset-0 -z-10 bg-[radial-gradient(68%_38%_at_50%_28%,rgba(8,16,32,0.35),rgba(8,16,32,0.05)_70%),linear-gradient(180deg,rgba(8,16,32,0.28),rgba(8,16,32,0)_28%)]"
         />
+        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+          <span className="shooting-star shooting-star-1" />
+          <span className="shooting-star shooting-star-2" />
+          <span className="shooting-star shooting-star-3" />
+        </div>
         <h1
           id="hero-title"
           className="text-[clamp(2.6rem,6.6vw,5.75rem)] leading-[0.94] font-semibold tracking-[-0.05em] text-white [text-shadow:0_2px_24px_rgba(8,16,32,0.45)]"

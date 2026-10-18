@@ -110,9 +110,56 @@ defmodule Noa.Work do
   ## Tasks
 
   def create_task(org_id, attrs, actor) do
-    Task
-    |> Ash.Changeset.for_create(:create, Map.merge(attrs, %{org_id: org_id, created_by_id: actor.id}), actor: actor)
-    |> Ash.create()
+    Repo.transaction(fn ->
+      with {:ok, task} <-
+             Task
+             |> Ash.Changeset.for_create(:create, Map.merge(attrs, %{org_id: org_id, created_by_id: actor.id}),
+               actor: actor
+             )
+             |> Ash.create(),
+           :ok <- ensure_on_project(task) do
+        task
+      else
+        {:error, error} -> Repo.rollback(error)
+      end
+    end)
+  end
+
+  @doc """
+  Puts a task's owner on its project if they aren't on it yet: a 10% "contributor"
+  allocation from today. Who works where, the graph, triage and the owner's agent pack
+  then all include the project, and the notifier tells them their pack changed.
+  """
+  def ensure_on_project(%{owner_id: nil}), do: :ok
+  def ensure_on_project(%{project_id: nil}), do: :ok
+
+  def ensure_on_project(%{org_id: org_id, owner_id: person_id, project_id: project_id}) do
+    today = Date.utc_today()
+
+    on? =
+      Allocation
+      |> Ash.Query.filter(
+        person_id == ^person_id and project_id == ^project_id and (is_nil(ends_on) or ends_on >= ^today)
+      )
+      |> Ash.exists?(authorize?: false)
+
+    if on? do
+      :ok
+    else
+      Allocation
+      |> Ash.Changeset.for_create(:create, %{
+        percent: 10,
+        role: "contributor",
+        org_id: org_id,
+        person_id: person_id,
+        project_id: project_id
+      })
+      |> Ash.create(authorize?: false)
+      |> case do
+        {:ok, _} -> :ok
+        error -> error
+      end
+    end
   end
 
   # Task fields that are shared items (2.19), and the change kind each one records.
@@ -151,7 +198,8 @@ defmodule Noa.Work do
       with {:ok, updated} <-
              if(rest == %{}, do: {:ok, task}, else: Ash.update(task, rest, action: :update, actor: actor)),
            :ok <- record(task, applied, :applied, reason, source, actor),
-           :ok <- record(task, held, :pending, reason, source, actor) do
+           :ok <- record(task, held, :pending, reason, source, actor),
+           :ok <- if(Enum.any?(applied, &(elem(&1, 0) == :owner_id)), do: ensure_on_project(updated), else: :ok) do
         updated
       else
         {:error, error} -> Repo.rollback(error)
@@ -285,8 +333,18 @@ defmodule Noa.Work do
     case p.notify_via do
       :whatsapp when is_binary(p.phone) -> {:whatsapp, p.phone}
       :discord when p.handles != [] -> {:discord, hd(p.handles)}
-      :email when not is_nil(p.email) -> {:email, to_string(p.email)}
+      :email -> if email = p.email || account_email(p), do: {:email, to_string(email)}, else: :in_app
       _ -> :in_app
+    end
+  end
+
+  # Members picked email in Settings; their org-map entry may not carry one, their account does.
+  defp account_email(%Person{membership_id: nil}), do: nil
+
+  defp account_email(%Person{membership_id: id}) do
+    case Ash.get(Noa.Orgs.Membership, id, load: [:user], authorize?: false) do
+      {:ok, m} -> m.user.email
+      _ -> nil
     end
   end
 
@@ -551,6 +609,10 @@ defmodule Noa.Work do
       created_by_id: actor.id
     })
     |> Ash.create(authorize?: false)
+    |> then(fn
+      {:ok, task} -> with(:ok <- ensure_on_project(task), do: {:ok, task})
+      error -> error
+    end)
   end
 
   # Status and deadline changes follow the lead rules: a member approving their own
@@ -564,6 +626,13 @@ defmodule Noa.Work do
       end
 
     Task |> Ash.get!(task_id, authorize?: false) |> change_task(changes, actor, p.source)
+  end
+
+  # From the triage agent (3.24): the owner change is recorded like any other edit.
+  defp apply_proposal(%{kind: :assignment, task_id: task_id} = p, actor) when not is_nil(task_id) do
+    Task
+    |> Ash.get!(task_id, authorize?: false)
+    |> change_task(%{owner_id: p.owner_id, reason: p.data["reason"]}, actor, p.source)
   end
 
   defp apply_proposal(%{kind: :decision} = p, actor) do
@@ -729,6 +798,89 @@ defmodule Noa.Work do
     else
       {:error, :not_read}
     end
+  end
+
+  @doc """
+  A chat message was edited (2.10). The message's text in the log becomes the new text
+  (so `@noa`, briefs and extraction read what was last said) and `message.edited` is
+  appended for the graph and the record. Returns `{:ok, event}` or `{:ignore, reason}`.
+  """
+  def edit_message(org_id, %{platform: platform, message_id: id, text: text} = message) do
+    key = "#{platform}:#{id}"
+
+    case message_event(org_id, key) do
+      nil ->
+        {:ignore, :unknown_message}
+
+      %{data: %{"deleted" => true}} ->
+        {:ignore, :deleted}
+
+      %{data: %{"text" => ^text}} ->
+        {:ignore, :unchanged}
+
+      original ->
+        at = message[:at] || DateTime.utc_now()
+
+        Repo.transaction(fn ->
+          original
+          |> Ecto.Changeset.change(
+            data: Map.merge(original.data, %{"text" => text, "edited_at" => Noa.Events.json(at)})
+          )
+          |> Repo.update!()
+
+          case Noa.Events.append(org_id, "message.edited", %{episode_id: key, text: text, at: at}) do
+            {:ok, event} -> event
+            {:error, error} -> Repo.rollback(error)
+          end
+        end)
+        |> tap(fn
+          {:ok, _} -> Noa.Events.notify(org_id)
+          _ -> :ok
+        end)
+    end
+  end
+
+  @doc """
+  A chat message was deleted (2.10). Its text is erased from the log (the one place the
+  log is rewritten, so a deleted message is really gone), the graph's episode loses its
+  text, and readers skip it from then on. Tasks and decisions taken from it keep their
+  own quote. Returns `{:ok, event}` or `{:ignore, reason}`.
+  """
+  def delete_message(org_id, platform, id) do
+    key = "#{platform}:#{id}"
+
+    case message_event(org_id, key) do
+      nil ->
+        {:ignore, :unknown_message}
+
+      %{data: %{"deleted" => true}} ->
+        {:ignore, :deleted}
+
+      _original ->
+        import Ecto.Query
+
+        Repo.transaction(fn ->
+          from(e in Noa.Events.Event,
+            where: e.org_id == ^org_id and e.type in ["message.received", "message.edited"],
+            where: fragment("?->>'episode_id' = ?", e.data, ^key),
+            update: [set: [data: fragment(~s|jsonb_set(?, '{text}', 'null') \|\| '{"deleted": true}'::jsonb|, e.data)]]
+          )
+          |> Repo.update_all([])
+
+          case Noa.Events.append(org_id, "message.deleted", %{episode_id: key}) do
+            {:ok, event} -> event
+            {:error, error} -> Repo.rollback(error)
+          end
+        end)
+        |> tap(fn
+          {:ok, _} -> Noa.Events.notify(org_id)
+          _ -> :ok
+        end)
+    end
+  end
+
+  defp message_event(org_id, key) do
+    Repo.get_by(Noa.Events.Event, org_id: org_id, key: key, type: "message.received")
   end
 
   ## From extraction

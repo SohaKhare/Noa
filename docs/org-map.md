@@ -11,12 +11,13 @@ Status marks: **Confirmed** came from Saish. **From git** was read from commit h
 | Ojas | Co-founder, tech | Org admin | none | Confirmed (title); role to confirm |
 | Abhishek | Co-founder, content | Org admin | none | Confirmed (title); role to confirm |
 | Vedant | SWE, PM / lead for the hackathon | Org admin | Ojas | Confirmed (lead); reports-to to confirm |
-| Saish | Intern | Member | Vedant | Confirmed (title); reports-to to confirm |
+| Prathamesh | Head of AI, PM / lead | Org admin | Ojas | Confirmed (Oct 18); email assumed prathamesh@notyouridea.com |
+| Saish | Intern, PM / lead | PM / lead | Vedant | Confirmed (title, role Oct 18); reports-to to confirm |
 | Soha | Intern | Member | Vedant | Confirmed (title); reports-to to confirm |
 
 Reports-to decides who approves deadline and scope changes (2.20), so it must be right before 2.19 ships.
 
-Prathamesh (Head of AI) is not on the hackathon team, so he is left out of the org for now and Vedant is the PM / lead. Add him back when he joins.
+Prathamesh (Head of AI) joined as an org admin and PM / lead on Oct 18, alongside Vedant; Saish is a PM / lead too.
 
 ## Projects
 

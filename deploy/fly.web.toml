@@ -1,0 +1,21 @@
+# Noa web on Fly.io. Deploy from the repo root: `fly deploy -c deploy/fly.web.toml .`
+app = "noa-web"
+primary_region = "sin"
+
+[build]
+  dockerfile = "../web/Dockerfile"
+
+# Baked into the bundle at build time; change them and redeploy.
+[build.args]
+  NEXT_PUBLIC_API_URL = "https://api.notyouridea.com"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

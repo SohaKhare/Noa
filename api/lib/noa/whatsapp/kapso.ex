@@ -53,7 +53,7 @@ defmodule Noa.WhatsApp.Kapso do
         name: name,
         language: %{code: lang},
         components:
-          [%{type: "body", parameters: [%{type: "text", text: String.slice(text, 0, 1000)}]}] ++
+          [%{type: "body", parameters: [%{type: "text", text: template_text(text)}]}] ++
             (buttons
              |> Enum.with_index()
              |> Enum.map(fn {{id, _title}, i} ->
@@ -66,6 +66,18 @@ defmodule Noa.WhatsApp.Kapso do
              end))
       }
     }
+  end
+
+  # Meta refuses template parameters with newlines, tabs or more than four spaces in a row.
+  @doc false
+  def template_text(text) do
+    text
+    |> String.split(~r/\R+/u, trim: true)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.join(" · ")
+    |> String.replace(~r/\t|\s{2,}/u, " ")
+    |> String.slice(0, 1000)
   end
 
   defp post(body) do

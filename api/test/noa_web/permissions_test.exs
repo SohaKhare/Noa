@@ -29,6 +29,13 @@ defmodule NoaWeb.PermissionsTest do
     {:get, "/shifts"},
     {:get, "/feed"},
     {:get, "/whatsapp"},
+    {:get, "/connectors"},
+    {:put, "/connectors/discord"},
+    {:post, "/connectors/github/secret"},
+    {:put, "/connectors/github/token"},
+    {:post, "/connectors/github/backfill"},
+    {:get, "/connectors/github/repos"},
+    {:delete, "/connectors/:task"},
     {:get, "/mcp_tokens"},
     {:post, "/mcp_tokens"},
     {:delete, "/mcp_tokens/:task"},
@@ -47,7 +54,21 @@ defmodule NoaWeb.PermissionsTest do
     {:get, "/proposals"},
     {:post, "/proposals/:proposal/approve"},
     {:post, "/proposals/:proposal/reject"},
-    {:post, "/proposals/:proposal/undo"}
+    {:post, "/proposals/:proposal/undo"},
+    {:post, "/triage"},
+    {:get, "/tasks/:task/owners"},
+    {:post, "/projects"},
+    {:patch, "/projects/:project"},
+    {:post, "/people"},
+    {:patch, "/people/:person"},
+    {:post, "/people/from_members"},
+    {:put, "/allocations"},
+    {:post, "/channels"},
+    {:get, "/discord/channels"},
+    {:post, "/import"},
+    {:get, "/join_requests"},
+    {:post, "/join_requests/:task/approve"},
+    {:post, "/join_requests/:task/reject"}
   ]
 
   @body %{
@@ -170,7 +191,20 @@ defmodule NoaWeb.PermissionsTest do
       {:patch, "/channels/:channel"},
       {:post, "/changes/:change/approve"},
       {:post, "/changes/:change/reject"},
-      {:post, "/shifts"}
+      {:post, "/shifts"},
+      {:post, "/triage"},
+      {:post, "/projects"},
+      {:patch, "/projects/:project"},
+      {:post, "/people"},
+      {:patch, "/people/:person"},
+      {:post, "/people/from_members"},
+      {:put, "/allocations"},
+      {:post, "/channels"},
+      {:post, "/import"},
+      {:put, "/connectors/discord"},
+      {:post, "/connectors/github/secret"},
+      {:put, "/connectors/github/token"},
+      {:post, "/connectors/github/backfill"}
     ]
 
     for {method, route} <- lead_only do

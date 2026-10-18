@@ -1,11 +1,12 @@
 "use client";
 
-import { ArrowRightIcon, CalendarBlankIcon, ChatCircleDotsIcon, CheckIcon, CheckCircleIcon, GavelIcon, TrayIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowRightIcon, CalendarBlankIcon, ChatCircleDotsIcon, CheckIcon, CheckCircleIcon, GavelIcon, RobotIcon, TrayIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
 import { Hello } from "@/components/Hello";
 import { Badge, SourceChip } from "@/components/ui";
-import type { WorkProject, WorkTask } from "@/lib/api";
+import { getMcpTokens, type WorkPerson, type WorkProject, type WorkTask } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { ago, dueLabel, isLate, startOfToday, toSource, useChanges, useDecisions, useDirectory, useMoveTask, useProposals, useTasks } from "@/lib/work";
 
@@ -45,9 +46,19 @@ export function MyDay() {
   const decidedToday = (decisions.data ?? []).filter((d) => d.status === "active" && (!d.project_id || myProjects.has(d.project_id)));
   const groups = dir.projects.map((p) => ({ p, items: mine.filter((t) => t.project_id === p.id) })).filter((g) => g.items.length);
   const loading = dir.isLoading || tasks.isLoading;
+  const empty = !dir.isLoading && !!dir.data && dir.projects.length === 0;
 
   return (
     <div className="mx-auto max-w-6xl">
+      {empty && (
+        <Link href="/onboarding" className="mb-5 flex items-center gap-3 rounded-[22px] bg-accent px-6 py-4 text-white card-shadow">
+          <span className="min-w-0 flex-1">
+            <span className="block text-[15px] font-semibold">Set up your workspace</span>
+            <span className="block text-[13px] text-white/80">Add your projects, who works where, and the channels Noa should read.</span>
+          </span>
+          <ArrowRightIcon size={18} />
+        </Link>
+      )}
       <section className="rounded-[26px] wash p-7 card-shadow">
         <p className="eyebrow text-muted">{new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</p>
         <h1 className="mt-2 text-[28px] leading-tight font-semibold tracking-[-0.03em]">
@@ -123,6 +134,7 @@ export function MyDay() {
         </div>
 
         <aside className="space-y-4">
+          {me && me.allocations.length > 0 && <AgentPack me={me} />}
           <section className="rounded-[22px] bg-surface p-5 card-shadow">
             <p className="flex items-center justify-between text-[14px] font-semibold">
               Waiting on you
@@ -319,5 +331,65 @@ function Stat({
         <span className="block truncate text-[13.5px] font-medium">{value}</span>
       </span>
     </Link>
+  );
+}
+
+/* Your agent pack (3.18, 3.23): the projects it covers, new ones marked, and how to connect a coding agent. */
+function AgentPack({ me }: { me: WorkPerson }) {
+  const dir = useDirectory();
+  const tokens = useQuery({ queryKey: ["mcp-tokens", dir.orgId], queryFn: () => getMcpTokens(dir.orgId!), enabled: !!dir.orgId });
+  const connected = (tokens.data?.tokens.length ?? 0) > 0;
+  const [weekAgo] = useState(() => Date.now() - 7 * 86_400_000);
+  const projects = me.allocations.map((a) => ({ a, p: dir.project(a.project_id) })).filter((x) => x.p);
+  const fresh = projects.filter((x) => new Date(x.a.starts_on).getTime() >= weekAgo);
+
+  return (
+    <section className="rounded-[22px] bg-surface p-5 card-shadow">
+      <p className="flex items-center justify-between text-[14px] font-semibold">
+        <span className="flex items-center gap-1.5">
+          <RobotIcon size={16} className="text-accent" /> Your agent pack
+        </span>
+        <Link href="/pack" className="text-[12px] font-normal text-muted hover:text-ink">
+          Open pack
+        </Link>
+      </p>
+      <p className="mt-1 text-[12.5px] text-muted">
+        Context for your coding agent, built from the graph for every project you&rsquo;re on. It updates itself when work moves.
+      </p>
+      {fresh.length > 0 && (
+        <p className="mt-3 rounded-xl bg-mist/60 px-3 py-2 text-[12.5px]">
+          New: you&rsquo;re on {fresh.map((x) => x.p!.name).join(", ")}. {connected ? "Your agent already sees it." : "Connect your agent to give it the context."}
+        </p>
+      )}
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {projects.map(({ a, p }) => (
+          <span key={a.project_id} className="rounded-full bg-bg px-2.5 py-1 text-[12px]">
+            {p!.name} · {a.percent}%
+          </span>
+        ))}
+      </div>
+      <ol className="mt-4 space-y-1.5 text-[12.5px]">
+        <li className="flex gap-2">
+          <Step done n={1} /> Open your pack: CLAUDE.md, AGENTS.md and tasks.md per project
+        </li>
+        <li className="flex gap-2">
+          <Step done={connected} n={2} /> {connected ? "Agent connected" : "Create an agent token on the pack page and add Noa to your agent"}
+        </li>
+        <li className="flex gap-2">
+          <Step done={false} n={3} /> Ask your agent: &ldquo;What should I work on in {projects[0]?.p?.name ?? "my project"}?&rdquo;
+        </li>
+      </ol>
+      <Link href="/pack" className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 text-[12.5px] font-medium text-white">
+        {connected ? "View pack" : "Connect your agent"} <ArrowRightIcon size={12} />
+      </Link>
+    </section>
+  );
+}
+
+function Step({ n, done }: { n: number; done: boolean }) {
+  return (
+    <span className={cn("grid size-5 shrink-0 place-items-center rounded-full font-mono text-[10.5px]", done ? "bg-good/15 text-good" : "bg-bg text-muted")}>
+      {done ? <CheckIcon size={10} weight="bold" /> : n}
+    </span>
   );
 }

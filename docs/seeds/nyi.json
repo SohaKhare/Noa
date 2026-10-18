@@ -1,5 +1,5 @@
 {
-  "_about": "NYI org seed (item 0.14). Mirrors docs/org-map.md; change both together. Fields marked confirm=true are guesses to check before loading. Prathamesh (Head of AI) is not on the hackathon team, so he is left out for now; Vedant is PM / lead.",
+  "_about": "NYI org seed (item 0.14). Mirrors docs/org-map.md; change both together. Fields marked confirm=true are guesses to check before loading. Prathamesh (Head of AI) is an org admin and PM / lead with Vedant; Saish is a PM / lead too.",
   "org": {
     "name": "NotYourIdea",
     "slug": "nyi"
@@ -40,10 +40,18 @@
       ]
     },
     {
+      "id": "pr",
+      "name": "Prathamesh",
+      "title": "Head of AI, PM / lead",
+      "role": "org_admin",
+      "reports_to": "oj",
+      "email": "prathamesh@notyouridea.com"
+    },
+    {
       "id": "sa",
       "name": "Saish",
-      "title": "Intern",
-      "role": "member",
+      "title": "Intern, PM / lead",
+      "role": "pm",
       "reports_to": "ve",
       "git": [
         "Saish Korgaonkar",

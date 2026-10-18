@@ -1,8 +1,8 @@
 "use client";
 
 import { DndContext, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import { CheckCircleIcon, GavelIcon, XIcon } from "@phosphor-icons/react";
-import { useQuery } from "@tanstack/react-query";
+import { CheckCircleIcon, GavelIcon, SparkleIcon, XIcon } from "@phosphor-icons/react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,7 +10,7 @@ import { useId, useState } from "react";
 import { FormError } from "@/components/AuthCard";
 import { GraphPanel } from "@/components/GraphPanel";
 import { Avatar, Badge, Button, Card, SourceChip } from "@/components/ui";
-import { ApiError, downloadBrief, getBrief, type WorkDecision, type WorkProject, type WorkTask } from "@/lib/api";
+import { ApiError, downloadBrief, getBrief, getOwnerSuggestions, type WorkDecision, type WorkProject, type WorkTask } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { statusLabel, type Source, type Status } from "@/lib/mock";
 import { ago, changeText, dueLabel, isLate, nameInitials, projectChannels, projectPeople, startOfToday, toSource, useChanges, useDecideChange, useDecisions, useDirectory, useEditTask, useMoveTask, useProposals, useTasks } from "@/lib/work";
@@ -342,6 +342,7 @@ function TaskDrawer({ card: task, onClose }: { card: BoardCard | null; onClose: 
                 </div>
                 <DueEditor key={task.id} card={task} />
               </dl>
+              {task.task && task.status !== "done" && <OwnerSuggest key={`owner-${task.id}`} card={task} />}
               <section>
                 <p className="text-[12px] font-semibold text-muted">Source</p>
                 <div className="mt-2 rounded-xl bg-bg p-3">
@@ -401,6 +402,63 @@ function TaskDrawer({ card: task, onClose }: { card: BoardCard | null; onClose: 
         </>
       )}
     </AnimatePresence>
+  );
+}
+
+/* Who should own this, ranked from the company graph (3.24); one click hands it over. */
+function OwnerSuggest({ card }: { card: BoardCard }) {
+  const dir = useDirectory();
+  const edit = useEditTask();
+  const ask = useMutation({ mutationFn: () => getOwnerSuggestions(dir.orgId!, card.id) });
+  const [given, setGiven] = useState<string | null>(null);
+  const best = (ask.data ?? []).slice(0, 3);
+
+  if (!ask.data)
+    return (
+      <div>
+        <Button size="sm" variant="ghost" disabled={ask.isPending} onClick={() => ask.mutate()}>
+          <SparkleIcon size={13} weight="fill" /> {ask.isPending ? "Asking the graph…" : "Who should own this?"}
+        </Button>
+        {ask.error && <FormError>{(ask.error as ApiError).message}</FormError>}
+      </div>
+    );
+
+  return (
+    <section>
+      <p className="text-[12px] font-semibold text-muted">Who should own this</p>
+      {best.length === 0 && <p className="mt-2 text-[12.5px] text-muted">Nobody is on this project right now.</p>}
+      <ul className="mt-2 space-y-2">
+        {best.map((c, i) => (
+          <li key={c.person_id} className="rounded-xl bg-bg p-3">
+            <div className="flex items-center gap-2">
+              <Avatar initials={nameInitials(c.name)} size={20} />
+              <span className="text-[13px] font-medium">{c.name}</span>
+              {i === 0 && <Badge tone="accent">Best fit</Badge>}
+              {given === c.person_id ? (
+                <span className="ml-auto text-[12px] text-good">Given</span>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="ml-auto"
+                  disabled={edit.isPending || card.ownerId === c.person_id}
+                  onClick={() => edit.mutate({ id: card.id, owner_id: c.person_id, reason: c.why[0] }, { onSuccess: () => setGiven(c.person_id) })}
+                >
+                  Give to {c.name.split(" ")[0]}
+                </Button>
+              )}
+            </div>
+            <ul className="mt-1.5 space-y-0.5 text-[12px] text-muted">
+              {c.why.map((w) => (
+                <li key={w}>· {w}</li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ul>
+      {best[0] && <p className="mt-2 font-mono text-[10.5px] text-muted">{best[0].graph ? "Ranked from the FalkorDB graph" : "From allocations (graph not built yet)"}</p>}
+      {edit.error && <FormError>{(edit.error as ApiError).message}</FormError>}
+    </section>
   );
 }
 

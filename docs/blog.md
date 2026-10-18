@@ -27,11 +27,16 @@ Everything Noa knows is a graph: people, projects, channels, messages, tasks, de
 - **Where is one person a single point of failure?** Projects where one person holds most of the knowledge. Ours flagged Video Break, where Soha held all of it, which is exactly the project we planned to move her off.
 - **Where did this come from?** Every task and decision is linked to the message it was extracted from.
 
+## An agent that acts on the graph
+
+Noa doesn't only answer questions. Its triage agent looks for work nobody is really carrying: tasks with no owner, tasks whose owner moved to another project, overdue tasks on someone with too much on their plate. For each one it walks the graph to rank who should take it: who is on the project now (`WORKS_ON`), how much they know it (`KNOWS_ABOUT`), who finished similar work (full-text search over finished tasks), who made a decision the task depends on, and how much each person already carries. The suggestion lands in the Inbox with those reasons and the graph route behind them, and a lead approves it. Coding agents get the same ranking over MCP.
+
 ## How it's built
 
 - **Append-only event log in Postgres is the truth.** Every write (from the API, the seed, or Noa itself) appends an event in the same transaction. FalkorDB is a projection: a projector applies new events within about two seconds, and `mix noa.graph` rebuilds a company's graph from its log in seconds.
 - **Typed extraction.** Each kind of item (task, status change, deadline change, decision, scope change) is a strict JSON schema; the model can only answer in those shapes, and every item must cite the messages it came from. Low-confidence items are dropped, not guessed.
 - **Permissions everywhere.** Elixir, Phoenix and Ash policies check every read and write, including what `@noa` can cite. A test calls every API route as an outsider, a guest and a member, and CI fails if anything leaks.
+- **Concurrent writers.** People, chat ingest and agents write at once. A concurrency test caught a real bug here: two people editing different fields of one task could leave the log's last snapshot missing one edit, so the graph drifted from Postgres. Snapshots now re-read the committed row.
 - **Web app** in Next.js, talking only to the Phoenix API.
 
 On an NYI-sized history (3,400 events) the board loads in a few milliseconds, `@noa` retrieves in about 15 ms before the model call, and the full graph rebuilds in 2.5 seconds.

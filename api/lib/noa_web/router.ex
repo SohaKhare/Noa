@@ -51,9 +51,16 @@ defmodule NoaWeb.Router do
     plug(NoaWeb.Plugs.RateLimit, name: :webhooks, limit: 600, per: 60, by: :ip)
   end
 
+  # GitHub App setup URL (3.7): the install link's signed state is the permission.
+  scope "/github", NoaWeb do
+    pipe_through(:api)
+    get("/setup", GitHubSetupController, :show)
+  end
+
   scope "/webhooks", NoaWeb do
     pipe_through(:webhook)
     post("/kapso", KapsoWebhookController, :receive)
+    post("/github", GitHubWebhookController, :receive)
   end
 
   scope "/mcp", NoaWeb do
@@ -68,6 +75,10 @@ defmodule NoaWeb.Router do
 
     get("/invites/:token", InviteController, :show)
     post("/invites/:token/accept", InviteController, :accept)
+
+    # The workspace's shared join link (1.5): ask to join with a work email.
+    get("/join/:slug", JoinController, :show)
+    post("/join/:slug", JoinController, :create)
   end
 
   scope "/api", NoaWeb do
@@ -105,6 +116,13 @@ defmodule NoaWeb.Router do
     get("/orgs/:org_id/changes", WorkController, :changes)
     get("/orgs/:org_id/feed", WorkController, :feed)
     get("/orgs/:org_id/whatsapp", WorkController, :whatsapp)
+    get("/orgs/:org_id/connectors", WorkController, :connectors)
+    put("/orgs/:org_id/connectors/discord", ConnectorController, :connect_discord)
+    post("/orgs/:org_id/connectors/github/secret", ConnectorController, :github_secret)
+    put("/orgs/:org_id/connectors/github/token", ConnectorController, :github_token)
+    post("/orgs/:org_id/connectors/github/backfill", ConnectorController, :github_backfill)
+    get("/orgs/:org_id/connectors/github/repos", ConnectorController, :github_repos)
+    delete("/orgs/:org_id/connectors/:kind", ConnectorController, :disconnect)
     get("/orgs/:org_id/mcp_tokens", MCPTokenController, :index)
     post("/orgs/:org_id/mcp_tokens", MCPTokenController, :create)
     delete("/orgs/:org_id/mcp_tokens/:id", MCPTokenController, :delete)
@@ -125,6 +143,22 @@ defmodule NoaWeb.Router do
     post("/orgs/:org_id/proposals/:id/approve", WorkController, :approve)
     post("/orgs/:org_id/proposals/:id/reject", WorkController, :reject)
     post("/orgs/:org_id/proposals/:id/undo", WorkController, :undo)
+    post("/orgs/:org_id/triage", WorkController, :triage)
+    get("/orgs/:org_id/join_requests", JoinController, :index)
+    post("/orgs/:org_id/join_requests/:id/approve", JoinController, :approve)
+    post("/orgs/:org_id/join_requests/:id/reject", JoinController, :reject)
+
+    # Setup (1.18): org admins and PMs; channels and imports are admins only.
+    post("/orgs/:org_id/projects", SetupController, :create_project)
+    patch("/orgs/:org_id/projects/:id", SetupController, :update_project)
+    post("/orgs/:org_id/people", SetupController, :create_person)
+    patch("/orgs/:org_id/people/:id", SetupController, :update_person)
+    post("/orgs/:org_id/people/from_members", SetupController, :add_members)
+    put("/orgs/:org_id/allocations", SetupController, :set_allocation)
+    post("/orgs/:org_id/channels", SetupController, :create_channel)
+    get("/orgs/:org_id/discord/channels", SetupController, :discord_channels)
+    post("/orgs/:org_id/import", SetupController, :import)
+    get("/orgs/:org_id/tasks/:id/owners", WorkController, :suggest_owners)
   end
 
   scope "/api/platform", NoaWeb do
@@ -132,6 +166,7 @@ defmodule NoaWeb.Router do
 
     get("/orgs", PlatformController, :index)
     post("/orgs", PlatformController, :create)
+    get("/status", PlatformController, :status)
   end
 
   # AshAuthentication: password sign-in and reset, magic-link request and sign-in.

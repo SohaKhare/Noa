@@ -1,0 +1,60 @@
+# Noa API on Fly.io. Deploy from api/: `fly deploy --ha=false` (see docs/deploy.md).
+# Run exactly one machine: the projector, WhatsApp notifier and Discord gateway are
+# singletons, so never scale past 1.
+#
+# Secrets (fly secrets set): SECRET_KEY_BASE, TOKEN_SIGNING_SECRET, FALKORDB_URL
+# (the heynoa-graph app), and optionally OPENAI_API_KEY, RESEND_API_KEY, KAPSO_API_KEY,
+# KAPSO_PHONE_NUMBER_ID, KAPSO_WEBHOOK_SECRET, DISCORD_BOT_TOKEN, DISCORD_GUILD_ID,
+# DISCORD_ORG_ID. `fly postgres attach` sets DATABASE_URL.
+app = "heynoa-api"
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[deploy]
+  release_command = "/app/bin/migrate"
+  strategy = "immediate"
+
+[env]
+  PHX_SERVER = "true"
+  PORT = "4000"
+  # Fly Postgres is reached over Fly's private network, which is IPv6.
+  ECTO_IPV6 = "true"
+  # The graph is a FalkorDB app on Fly's private network (deploy/fly.graph.toml), also
+  # IPv6. Set this to "false" for FalkorDB Cloud.
+  FALKORDB_IPV6 = "true"
+  CLIENT_IP_HEADER = "fly-client-ip"
+  POOL_SIZE = "10"
+  WEB_ORIGIN = "https://app.heynoa.xyz"
+  API_BASE_URL = "https://api.heynoa.xyz"
+  MAIL_FROM_NAME = "Noa"
+  MAIL_FROM_EMAIL = "noa@heynoa.xyz"
+  KAPSO_TEMPLATE_UPDATE = "noa_update"
+  KAPSO_TEMPLATE_TASK = "noa_task"
+  KAPSO_TEMPLATE_APPROVAL = "noa_approval"
+  KAPSO_TEMPLATE_LANG = "en_US"
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+  # Background work (projector, notifier, Discord, Oban) needs the machine up.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "connections"
+    soft_limit = 800
+    hard_limit = 1000
+
+  [[http_service.checks]]
+    grace_period = "30s"
+    interval = "15s"
+    method = "GET"
+    path = "/healthz"
+    timeout = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"

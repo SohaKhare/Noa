@@ -318,11 +318,69 @@ defmodule NoaWeb.WorkController do
     })
   end
 
+  @doc "What each connector is doing for this workspace (Settings → Connectors)."
+  def connectors(conn, %{"org_id" => org_id}) do
+    with {:ok, projects} <- Work.projects(org_id, conn.assigns.current_user),
+         {:ok, channels} <- Work.channels(org_id, conn.assigns.current_user) do
+      api = Application.fetch_env!(:noa, :api_base_url)
+      discord_channels = Enum.count(channels, &(&1.platform == :discord and &1.read))
+      repos = projects |> Enum.filter(& &1.repo) |> Enum.map(&%{project: &1.name, repo: &1.repo})
+
+      mine = Noa.Connectors.all(org_id)
+      guild = get_in(mine, ["discord", :external_id])
+      github = mine["github"] || %{}
+
+      json(conn, %{
+        discord: %{
+          connected: Noa.Ingest.Discord.enabled?() and guild != nil,
+          bot: Noa.Ingest.Discord.enabled?(),
+          guild_id: guild,
+          invite_url: Noa.Connectors.discord_invite_url(),
+          channels: discord_channels
+        },
+        whatsapp: %{connected: Noa.WhatsApp.configured?(), webhook: api <> "/webhooks/kapso"},
+        github: %{
+          connected: github[:secret_enc] != nil or mine["github_app"] != nil,
+          app: Noa.GitHub.App.configured?(),
+          installed: mine["github_app"] != nil,
+          install_url: Noa.Connectors.github_install_url(org_id, conn.assigns.current_user),
+          secret_set: github[:secret_enc] != nil,
+          token_set: github[:token_enc] != nil,
+          webhook: api <> "/webhooks/github",
+          repos: repos
+        },
+        email: %{connected: Application.get_env(:noa, Noa.Mailer, [])[:adapter] == Noa.Mailer.Resend},
+        openai: %{connected: is_binary(System.get_env("OPENAI_API_KEY")) and System.get_env("OPENAI_API_KEY") != ""}
+      })
+    end
+  end
+
   def proposals(conn, %{"org_id" => org_id} = params) do
     status = if params["status"] in ~w(approved rejected), do: String.to_existing_atom(params["status"]), else: :pending
 
     with {:ok, proposals} <- Work.proposals(org_id, conn.assigns.current_user, status) do
       json(conn, %{proposals: Enum.map(proposals, &Payload.proposal/1)})
+    end
+  end
+
+  @doc "Runs the triage agent (3.24): files an assignment proposal for each task that needs an owner. Body: optional project_id."
+  def triage(conn, %{"org_id" => org_id} = params) do
+    actor = conn.assigns.current_user
+    project_id = blank(params["project_id"])
+
+    with :ok <- refs_in_org(%{project_id: project_id}, org_id, actor),
+         {:ok, %{filed: filed, checked: checked}} <- Noa.Agent.Triage.run(org_id, actor, project_id: project_id) do
+      json(conn, %{proposals: Enum.map(filed, &Payload.proposal/1), checked: checked})
+    end
+  end
+
+  @doc "Who should own a task, best first, with the graph reasons (3.24). Files nothing."
+  def suggest_owners(conn, %{"org_id" => org_id, "id" => id}) do
+    actor = conn.assigns.current_user
+
+    with :ok <- in_org(Task, id, org_id, actor),
+         {:ok, ranked} <- Noa.Agent.Triage.suggest_owners(org_id, id, actor) do
+      json(conn, %{owners: ranked})
     end
   end
 

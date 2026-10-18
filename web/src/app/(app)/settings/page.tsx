@@ -3,6 +3,7 @@
 import {
   CheckCircleIcon,
   DiscordLogoIcon,
+  EnvelopeSimpleIcon,
   GithubLogoIcon,
   GoogleLogoIcon,
   KeyIcon,
@@ -13,12 +14,31 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { FormError } from "@/components/AuthCard";
-import { Badge, Button, Card, PageHeader } from "@/components/ui";
+import { Badge, Card, PageHeader } from "@/components/ui";
 import { PeopleSettings } from "@/components/PeopleSettings";
-import { ApiError, type Channel, type NotificationPrefs, type NotifyVia, type WhatsAppMessage, getNotifications, getWhatsApp, roleLabel, updateChannel, updateNotifications } from "@/lib/api";
+import {
+  ApiError,
+  backfillGithub,
+  connectDiscord,
+  disconnectConnector,
+  getGithubRepos,
+  rotateGithubSecret,
+  setGithubToken,
+  type Channel,
+  type Connectors as ConnectorStatus,
+  type NotificationPrefs,
+  type NotifyVia,
+  type WhatsAppMessage,
+  getConnectors,
+  getNotifications,
+  getWhatsApp,
+  roleLabel,
+  updateChannel,
+  updateNotifications,
+} from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { currentMembership, useMe } from "@/lib/session";
-import { accessBundles, connectors } from "@/lib/mock";
+import { accessBundles } from "@/lib/mock";
 import { ago, useDirectory } from "@/lib/work";
 
 /* Settings: org admin surfaces (1.5, 1.6, 1.18, 1.22, 2.15, 3.20). */
@@ -38,10 +58,14 @@ const connectorIcon: Record<string, Icon> = {
   google: GoogleLogoIcon,
   whatsapp: WhatsappLogoIcon,
   github: GithubLogoIcon,
+  email: EnvelopeSimpleIcon,
 };
 
 export default function Settings() {
-  const [section, setSection] = useState<Section>("People and roles");
+  // Coming back from installing the GitHub App lands on Connectors.
+  const [section, setSection] = useState<Section>(() =>
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).has("github") ? "Connectors" : "People and roles",
+  );
   const membership = currentMembership(useMe().user);
   return (
     <div className="mx-auto max-w-6xl">
@@ -88,41 +112,277 @@ export default function Settings() {
 function Connectors() {
   const dir = useDirectory();
   const wa = useQuery({ queryKey: ["whatsapp", dir.orgId], queryFn: () => getWhatsApp(dir.orgId!), enabled: !!dir.orgId, refetchInterval: 15_000 });
+  const c = useQuery({ queryKey: ["connectors", dir.orgId], queryFn: () => getConnectors(dir.orgId!), enabled: !!dir.orgId }).data;
+  const { user } = useMe();
+  const admin = currentMembership(user)?.role === "org_admin" || !!user?.is_superadmin;
+  const [returned] = useState(() => (typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("github")));
+  const cards: { id: string; name: string; on: boolean; detail: string; off: string }[] = c
+    ? [
+        {
+          id: "discord",
+          name: "Discord",
+          on: c.discord.connected,
+          detail: `Reading ${c.discord.channels} mapped ${c.discord.channels === 1 ? "channel" : "channels"}`,
+          off: c.discord.guild_id ? "Server connected; waiting for Noa's bot to run" : "Not connected: an org admin connects your server below",
+        },
+        { id: "whatsapp", name: "WhatsApp (Kapso)", on: c.whatsapp.connected, detail: "Sending and receiving through Kapso", off: "Not connected: messages stay in the outbox below" },
+        {
+          id: "github",
+          name: "GitHub",
+          on: c.github.connected,
+          detail: c.github.repos.length ? `Commits, PRs and CI from ${c.github.repos.map((r) => r.repo).join(", ")}` : "No project has a repo yet",
+          off: "Not connected: an org admin sets it up below",
+        },
+        { id: "email", name: "Email (Resend)", on: c.email.connected, detail: "Invites, sign-in links and notifications", off: "No RESEND_API_KEY: emails go to the API log" },
+        { id: "slack", name: "Slack", on: false, detail: "", off: "Not built yet" },
+        { id: "google", name: "Google Meet", on: false, detail: "", off: "Not built yet" },
+      ]
+    : [];
+
   return (
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2">
-        {connectors.map((c) => {
-          const I = connectorIcon[c.id];
-          const whatsapp = c.id === "whatsapp";
-          const connected = whatsapp ? wa.data?.configured : c.status === "connected";
+        {cards.map((card) => {
+          const I = connectorIcon[card.id];
           return (
-            <Card key={c.id} className="flex items-center gap-4 p-4">
+            <Card key={card.id} className="flex items-center gap-4 p-4">
               <span className="grid size-11 place-items-center rounded-2xl bg-mist text-accent">
                 <I size={22} />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-[14px] font-semibold">{whatsapp ? "WhatsApp (Kapso)" : c.name}</p>
-                <p className="truncate text-[12.5px] text-muted">
-                  {whatsapp ? (connected ? "Sending and receiving through Kapso" : "Not connected: messages stay in the outbox below") : c.detail}
-                </p>
+                <p className="text-[14px] font-semibold">{card.name}</p>
+                <p className="text-[12.5px] break-words text-muted">{card.on ? card.detail : card.off}</p>
               </div>
-              {connected ? (
+              {card.on ? (
                 <Badge tone="good">
                   <CheckCircleIcon size={12} weight="fill" /> Connected
                 </Badge>
-              ) : whatsapp ? (
-                <Badge tone="warn">Simulated</Badge>
               ) : (
-                <Button size="sm" variant="ghost">
-                  Connect
-                </Button>
+                <Badge tone={card.id === "whatsapp" ? "warn" : "neutral"}>{card.id === "whatsapp" ? "Simulated" : "Off"}</Badge>
               )}
             </Card>
           );
         })}
       </div>
+      {returned && (
+        <p className={cn("rounded-2xl px-4 py-3 text-[13px] ring-1", returned === "installed" ? "bg-good/10 text-good ring-good/20" : "bg-bad/10 text-bad ring-bad/20")}>
+          {returned === "installed"
+            ? "GitHub is connected. Commits, pull requests and CI from the repos you picked now flow into Noa."
+            : returned === "installation_taken"
+              ? "That GitHub installation is already connected to another workspace."
+              : "GitHub didn't finish connecting. Try Install again from here."}
+        </p>
+      )}
+      {c && admin && <DiscordSetup c={c} />}
+      {c && admin && <GitHubSetup c={c} />}
       <WhatsAppLog messages={wa.data?.messages ?? []} scope={wa.data?.scope} />
     </div>
+  );
+}
+
+/* The company's own Discord server (1.18): add Noa's bot, then connect the server. Org admins. */
+function DiscordSetup({ c }: { c: ConnectorStatus }) {
+  const dir = useDirectory();
+  const client = useQueryClient();
+  const [guild, setGuild] = useState("");
+  const refresh = () => client.invalidateQueries({ queryKey: ["connectors", dir.orgId] });
+  const connect = useMutation({ mutationFn: () => connectDiscord(dir.orgId!, guild), onSuccess: refresh });
+  const remove = useMutation({ mutationFn: () => disconnectConnector(dir.orgId!, "discord"), onSuccess: refresh });
+  const error = (connect.error ?? remove.error) as ApiError | null;
+
+  return (
+    <Card>
+      <p className="text-[14px] font-semibold">Connect your Discord server</p>
+      {c.discord.guild_id ? (
+        <div className="mt-2 flex flex-wrap items-center gap-3 text-[13px]">
+          <span className="flex-1">
+            Server <span className="font-mono">{c.discord.guild_id}</span> is connected. Map its channels under Channels.
+            {!c.discord.bot && " Noa's bot is not running yet, so nothing is read until the Noa admin turns it on."}
+          </span>
+          <button onClick={() => remove.mutate()} disabled={remove.isPending} className="rounded-full px-3 py-1.5 text-[12.5px] font-medium ring-1 ring-line hover:bg-bg">
+            Disconnect
+          </button>
+        </div>
+      ) : (
+        <ol className="mt-2 space-y-3 text-[13px]">
+          <li>
+            1. Add Noa&rsquo;s bot to your server.{" "}
+            {c.discord.invite_url ? (
+              <a href={c.discord.invite_url} target="_blank" rel="noreferrer" className="font-medium text-accent-fg underline">
+                Add to Discord
+              </a>
+            ) : (
+              <span className="text-muted">The Noa admin hasn&rsquo;t set up the bot yet.</span>
+            )}
+          </li>
+          <li>
+            2. Paste your server&rsquo;s id (Discord → Settings → Advanced → Developer Mode on, then right-click the server → Copy Server ID).
+            <form
+              className="mt-2 flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (guild.trim()) connect.mutate();
+              }}
+            >
+              <input
+                value={guild}
+                onChange={(e) => setGuild(e.target.value)}
+                placeholder="123456789012345678"
+                aria-label="Discord server id"
+                className="min-w-0 flex-1 rounded-xl bg-bg px-3 py-2 font-mono text-[13px] ring-1 ring-line focus:outline-none"
+              />
+              <button disabled={connect.isPending || !guild.trim()} className="rounded-full bg-accent px-4 py-2 text-[13px] font-medium text-white disabled:opacity-60">
+                Connect
+              </button>
+            </form>
+          </li>
+        </ol>
+      )}
+      {error && <FormError>{error.message}</FormError>}
+    </Card>
+  );
+}
+
+/* The company's own GitHub (3.7): a webhook secret (shown once), an optional token, and past history. Org admins. */
+function GitHubSetup({ c }: { c: ConnectorStatus }) {
+  const dir = useDirectory();
+  const client = useQueryClient();
+  const [fresh, setFresh] = useState<string | null>(null);
+  const [token, setToken] = useState("");
+  const refresh = () => client.invalidateQueries({ queryKey: ["connectors", dir.orgId] });
+  const rotate = useMutation({ mutationFn: () => rotateGithubSecret(dir.orgId!), onSuccess: (r) => (setFresh(r.secret), refresh()) });
+  const saveToken = useMutation({ mutationFn: () => setGithubToken(dir.orgId!, token), onSuccess: () => (setToken(""), refresh()) });
+  const backfill = useMutation({ mutationFn: () => backfillGithub(dir.orgId!) });
+  const repos = useQuery({ queryKey: ["github-repos", dir.orgId], queryFn: () => getGithubRepos(dir.orgId!), enabled: !!dir.orgId && c.github.installed });
+  const uninstall = useMutation({ mutationFn: () => disconnectConnector(dir.orgId!, "github_app"), onSuccess: refresh });
+  const error = (rotate.error ?? saveToken.error ?? backfill.error ?? uninstall.error) as ApiError | null;
+
+  const history = (
+    <>
+      <button onClick={() => backfill.mutate()} disabled={backfill.isPending || !c.github.repos.length} className="font-medium text-accent-fg underline disabled:opacity-60">
+        {backfill.isPending ? "Loading history…" : "Load recent history"}
+      </button>
+      {backfill.data && (
+        <ul className="mt-1 text-[12.5px] text-muted">
+          {backfill.data.results.map((r) => (
+            <li key={r.project}>
+              {r.project}: {r.error ?? `${r.recorded} new`}
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+
+  if (c.github.app)
+    return (
+      <Card>
+        <p className="text-[14px] font-semibold">Connect GitHub</p>
+        <p className="mt-0.5 text-[12.5px] text-muted">
+          Commits, pull requests and CI from your projects&rsquo; repos go into the graph and every agent pack.{" "}
+          <a href="/onboarding" className="font-medium text-accent-fg underline">
+            {c.github.repos.length ? "Change each project's repo" : "Set each project's repo"}
+          </a>
+        </p>
+        {c.github.installed ? (
+          <div className="mt-3 space-y-2 text-[13px]">
+            <p className="flex items-center gap-2">
+              <CheckCircleIcon size={14} weight="fill" className="text-good" /> Noa&rsquo;s GitHub App is installed.
+              {c.github.install_url && (
+                <a href={c.github.install_url} className="font-medium text-accent-fg underline">
+                  Change repos
+                </a>
+              )}
+            </p>
+            <p className="text-[12.5px] text-muted">
+              It can see: {repos.isLoading ? "…" : repos.data?.repos.length ? repos.data.repos.join(", ") : repos.data?.error ?? "no repos yet"}
+            </p>
+            <div className="flex flex-wrap items-center gap-4">
+              {history}
+              <button onClick={() => uninstall.mutate()} disabled={uninstall.isPending} className="text-[12.5px] text-muted underline">
+                Disconnect
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-3">
+            {c.github.install_url ? (
+              <a href={c.github.install_url} className="inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-[13px] font-medium text-white">
+                <GithubLogoIcon size={15} /> Install Noa on GitHub
+              </a>
+            ) : (
+              <p className="text-[12.5px] text-muted">Only org admins can install it.</p>
+            )}
+            <p className="mt-2 text-[12px] text-muted">Pick your organization and the repos to share. GitHub brings you back here.</p>
+          </div>
+        )}
+        <details className="mt-4 text-[12.5px] text-muted">
+          <summary className="cursor-pointer">Set it up by hand instead</summary>
+          <p className="mt-2">
+            Generate a webhook secret, add a webhook to <span className="font-mono break-all">{c.github.webhook}</span> (JSON; Pushes, Pull requests, Workflow runs).{" "}
+            <button onClick={() => rotate.mutate()} disabled={rotate.isPending} className="font-medium text-accent-fg underline">
+              {c.github.secret_set ? "Make a new secret" : "Generate a secret"}
+            </button>
+          </p>
+          {fresh && <p className="mt-1 font-mono break-all text-ink">{fresh}</p>}
+        </details>
+        {error && <FormError>{error.message}</FormError>}
+      </Card>
+    );
+
+  return (
+    <Card>
+      <p className="text-[14px] font-semibold">Connect GitHub</p>
+      <p className="mt-0.5 text-[12.5px] text-muted">
+        Commits, pull requests and CI from {c.github.repos.length ? c.github.repos.map((r) => r.repo).join(", ") : "your projects' repos"} go into the graph and every agent pack.{" "}
+        <a href="/onboarding" className="font-medium text-accent-fg underline">
+          {c.github.repos.length ? "Change repos" : "Set each project's repo"}
+        </a>
+      </p>
+      <ol className="mt-3 space-y-3 text-[13px]">
+        <li>
+          1. {c.github.secret_set ? "A webhook secret is set." : "Generate a webhook secret."}{" "}
+          <button onClick={() => rotate.mutate()} disabled={rotate.isPending} className="font-medium text-accent-fg underline">
+            {c.github.secret_set ? "Make a new one" : "Generate"}
+          </button>
+          {fresh && (
+            <div className="mt-2 rounded-xl bg-mist/60 p-3 text-[12.5px]">
+              <p>Copy it now; it won&rsquo;t be shown again.</p>
+              <p className="mt-1 font-mono break-all">{fresh}</p>
+            </div>
+          )}
+        </li>
+        <li>
+          2. In each repo (or your GitHub organization): Settings → Webhooks → Add webhook. Payload URL <span className="font-mono break-all">{c.github.webhook}</span>, content type{" "}
+          <span className="font-mono">application/json</span>, the secret above, and the events Pushes, Pull requests and Workflow runs.
+        </li>
+        <li>
+          3. Optional, to load history from before the webhook (needed for private repos): a fine-grained token with read access to contents and pull requests.{" "}
+          {c.github.token_set && <span className="text-good">A token is set.</span>}
+          <form
+            className="mt-2 flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (token.trim()) saveToken.mutate();
+            }}
+          >
+            <input
+              type="password"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              placeholder="github_pat_…"
+              aria-label="GitHub token"
+              className="min-w-0 flex-1 rounded-xl bg-bg px-3 py-2 font-mono text-[13px] ring-1 ring-line focus:outline-none"
+            />
+            <button disabled={saveToken.isPending || !token.trim()} className="rounded-full px-4 py-2 text-[13px] font-medium ring-1 ring-line disabled:opacity-60">
+              Save token
+            </button>
+          </form>
+          <div className="mt-2">{history}</div>
+        </li>
+      </ol>
+      {error && <FormError>{error.message}</FormError>}
+    </Card>
   );
 }
 
@@ -395,6 +655,12 @@ function NotificationPrefs() {
               className="mt-1 w-full rounded-xl bg-bg px-3 py-2 text-[13px] text-ink focus:outline-none"
             />
           </label>
+        )}
+        {p.notify_via === "discord" && (
+          <p className="text-[12px] text-muted">
+            Noa&rsquo;s bot DMs the Discord account you post from in a channel
+            it reads. Discord has no buttons, so messages link to the app.
+          </p>
         )}
         <label className="block text-[12px] text-muted">
           Daily digest

@@ -55,9 +55,12 @@ defmodule NoaWeb.Plugs.RateLimit do
   defp who(conn, :user), do: (conn.assigns[:current_user] && conn.assigns.current_user.id) || ip(conn)
   defp who(conn, _), do: ip(conn)
 
-  # Behind Fly's proxy the client address is in fly-client-ip.
+  # Behind Fly's proxy the client address is in fly-client-ip; behind another proxy,
+  # set CLIENT_IP_HEADER to the header it sets (and make sure it overwrites any the client sent).
   defp ip(conn) do
-    case get_req_header(conn, "fly-client-ip") do
+    header = Application.get_env(:noa, NoaWeb.Plugs.RateLimit, [])[:ip_header] || "fly-client-ip"
+
+    case get_req_header(conn, header) do
       [ip | _] -> ip
       _ -> conn.remote_ip |> :inet.ntoa() |> to_string()
     end

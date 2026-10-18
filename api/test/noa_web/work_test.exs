@@ -28,13 +28,13 @@ defmodule NoaWeb.WorkTest do
   defp proposal(user, org, summary), do: pending(user, org)["proposals"] |> Enum.find(&(&1["summary"] == summary))
 
   test "the seed loads the org map and links people to their accounts", %{org: org, vedant: vedant, counts: counts} do
-    assert counts.people == 5 and counts.projects == 4
+    assert counts.people == 6 and counts.projects == 4
     assert counts.linked == 3
 
     # Running it again updates in place.
     {:ok, _} = Noa.Work.load_seed(org.id, @seed)
     {:ok, people} = Noa.Work.people(org.id, vedant)
-    assert length(people) == 5
+    assert length(people) == 6
 
     dir = signed_in(vedant) |> get("/api/orgs/#{org.id}/directory") |> json_response(200)
     assert dir["projects"] |> Enum.map(& &1["name"]) == ["Emmarie", "Tulpa", "Veriq", "Video Break"]

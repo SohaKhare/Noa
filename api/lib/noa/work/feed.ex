@@ -8,6 +8,7 @@ defmodule Noa.Work.Feed do
   - changes someone else made to their tasks, and changes of theirs a lead decided
   - decisions made today in their projects
   - moves involving them or their projects
+  - projects they were put on this week, pointing at their agent pack
 
   Delivery to WhatsApp and Discord (2.21) can send the same items.
   """
@@ -111,6 +112,18 @@ defmodule Noa.Work.Feed do
                   "to #{(project[s.to_project_id] && project[s.to_project_id].name) || "the bench"} on #{s.starts_on}",
               at: s.inserted_at,
               href: "/people"
+            }
+          ) ++
+          for(
+            a <- (me && me.allocations) || [],
+            recent.(a.inserted_at),
+            do: %{
+              id: "pack:#{a.id}",
+              kind: "pack",
+              text:
+                "You're on #{(project[a.project_id] && project[a.project_id].name) || "a project"} now: your agent pack covers it. Connect your agent from the pack page",
+              at: a.inserted_at,
+              href: "/pack"
             }
           )
 

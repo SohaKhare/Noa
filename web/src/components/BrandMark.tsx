@@ -11,7 +11,7 @@ const strokes = [
   "M6.73828 41.0476L20.2127 27.9048",
 ];
 
-/* Full eight-stroke spark. Strokes draw in once, then stay complete. */
+/* Full eight-stroke spark, drawn solid. The landing site is the one that animates it. */
 export function BrandMark({ size = 26, className = "" }: { size?: number; className?: string; tone?: "accent" | "light" }) {
   const id = `mark-${useId().replace(/:/g, "")}`;
   return (

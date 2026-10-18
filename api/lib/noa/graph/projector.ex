@@ -271,6 +271,57 @@ defmodule Noa.Graph.Projector do
       )
   end
 
+  # GitHub (3.7): commits, pull requests and CI runs, on their project, by their author.
+  defp statements("commit.pushed", d) do
+    [
+      {"""
+       MERGE (c:Commit {id: $sha})
+       SET c.message = $message, c.url = $url, c.branch = $branch, c.at = $at, c.author = $author
+       MERGE (p:Project {id: $project_id})
+       MERGE (c)-[:BELONGS_TO]->(p)
+       """, params(d, ~w(sha message url branch at author project_id))}
+    ] ++
+      edge_to(d["person_id"], "MATCH (c:Commit {id: $id}) MERGE (x:Person {id: $to}) MERGE (x)-[:COMMITTED]->(c)", %{
+        "id" => d["sha"]
+      })
+  end
+
+  defp statements("pr.saved", d) do
+    [
+      {"""
+       MERGE (r:PullRequest {id: $id})
+       SET r.title = $title, r.state = $state, r.url = $url, r.branch = $branch, r.number = $number,
+           r.merged_at = $merged_at, r.at = $at, r.author = $author
+       MERGE (p:Project {id: $project_id})
+       MERGE (r)-[:BELONGS_TO]->(p)
+       """, params(d, ~w(id title state url branch number merged_at at author project_id))}
+    ] ++
+      edge_to(d["person_id"], "MATCH (r:PullRequest {id: $id}) MERGE (x:Person {id: $to}) MERGE (x)-[:OPENED]->(r)", %{
+        "id" => d["id"]
+      })
+  end
+
+  defp statements("ci.completed", d) do
+    [
+      {"""
+       MERGE (r:CIRun {id: $id})
+       SET r.name = $name, r.conclusion = $conclusion, r.branch = $branch, r.sha = $sha, r.url = $url, r.at = $at
+       MERGE (p:Project {id: $project_id})
+       MERGE (r)-[:BELONGS_TO]->(p)
+       """, params(d, ~w(id name conclusion branch sha url at project_id))}
+    ]
+  end
+
+  # Edited and deleted chat messages (2.10): the episode follows; a deleted one keeps its
+  # place (tasks still point at it) but loses its text.
+  defp statements("message.edited", d),
+    do: [
+      {"MATCH (e:Episode {id: $episode_id}) SET e.text = $text, e.edited_at = $at", params(d, ~w(episode_id text at))}
+    ]
+
+  defp statements("message.deleted", d),
+    do: [{"MATCH (e:Episode {id: $episode_id}) SET e.text = null, e.deleted = true", params(d, ~w(episode_id))}]
+
   defp statements(type, d) do
     case String.split(type, ".") do
       [thing, "deleted"] when thing in ~w(person project channel identity task decision) ->

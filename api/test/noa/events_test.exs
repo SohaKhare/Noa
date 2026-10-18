@@ -42,8 +42,8 @@ defmodule Noa.EventsTest do
   test "every write to work appends an event with a snapshot", %{org: org, vedant: vedant} do
     seen = Enum.frequencies(types(org))
     assert seen["project.saved"] == 4 and seen["channel.saved"] == 7 and seen["alias.saved"] == 8
-    # Five people, then Vedant linked to his account.
-    assert seen["person.saved"] == 6
+    # Six people, then Vedant linked to his account.
+    assert seen["person.saved"] == 7
 
     veriq = Enum.find(Work.projects(org.id, vedant) |> elem(1), &(&1.key == "veriq"))
     {:ok, task} = Work.create_task(org.id, %{title: "Score weights v2", project_id: veriq.id}, vedant)

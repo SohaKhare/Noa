@@ -8,15 +8,18 @@ defmodule Noa.WhatsApp.Notifier do
   - A deadline or scope change waits for a lead: to the project lead, buttons Approve / Reject.
   - A pending change is decided: to whoever asked.
   - Someone moves projects: to them, with links to their brief and agent pack.
+  - Someone is put on a project another way (onboarding, a task assigned to them): to
+    them, saying their agent pack now covers it.
 
-  Only people who chose WhatsApp and gave a number get messages (2.15). Quiet hours hold
-  everything except approvals waiting on a lead.
+  Each person gets these on the channel they chose (`Noa.Notify`): WhatsApp with reply
+  buttons, a Discord DM or email with a link to act in the web app, or nothing for "in
+  app" (2.15, 2.21, 3.23). Quiet hours hold everything except approvals waiting on a lead.
   """
   use GenServer
   require Logger
   require Ash.Query
 
-  alias Noa.{Events, WhatsApp, Work}
+  alias Noa.{Events, Work}
 
   @name "whatsapp"
   @every 3_000
@@ -71,7 +74,8 @@ defmodule Noa.WhatsApp.Notifier do
 
       deliver(event, owner, "#{by || "Noa"} put you on \"#{d["title"]}\" in #{project_name(d["project_id"])}#{due}.",
         buttons: [{"start:#{d["id"]}", "Start now"}, {"done:#{d["id"]}", "Done"}, {"help:#{d["id"]}", "Need help"}],
-        context: %{"task_id" => d["id"]}
+        context: %{"task_id" => d["id"]},
+        link: "/"
       )
     else
       []
@@ -89,6 +93,7 @@ defmodule Noa.WhatsApp.Notifier do
           "#{actor_name(event) || "Someone"} wants to change the #{d["kind"]} of \"#{task.title}\": #{d["old_value"] || "none"} → #{d["new_value"] || "none"}#{d["reason"] && " (#{d["reason"]})"}.",
           buttons: [{"approve_change:#{d["id"]}", "Approve"}, {"reject_change:#{d["id"]}", "Reject"}],
           context: %{"change_id" => d["id"], "task_id" => d["task_id"]},
+          link: "/inbox",
           urgent: true
         )
       end
@@ -129,7 +134,34 @@ defmodule Noa.WhatsApp.Notifier do
     deliver(event, person(d["person_id"]), text, context: %{"shift_id" => d["id"]})
   end
 
+  # Someone is put on a project (onboarding, the People board, or a task assigned to them):
+  # their agent pack now covers it. A shift says the same in its own message.
+  def handle(%{type: "allocation.saved", data: d} = event) do
+    if is_nil(previous(event)) and not from_shift?(d) do
+      project = project_name(d["project_id"])
+      web = Application.fetch_env!(:noa, :web_origin)
+      why = if d["role"] == "contributor", do: "You have a task there now, so ", else: ""
+
+      deliver(
+        event,
+        person(d["person_id"]),
+        "#{actor_name(event) || "Noa"} put you on #{project} (#{d["percent"]}%). #{why}your agent pack and brief now cover #{project}: #{web}/pack. Connect your coding agent from that page to give it the context.",
+        context: %{"allocation_id" => d["id"]},
+        link: "/pack"
+      )
+    else
+      []
+    end
+  end
+
   def handle(_event), do: []
+
+  defp from_shift?(d) do
+    Work.Shift
+    |> Ash.Query.filter(person_id == ^d["person_id"] and to_project_id == ^d["project_id"])
+    |> Ash.Query.filter(starts_on == ^Date.from_iso8601!(d["starts_on"]))
+    |> Ash.exists?(authorize?: false)
+  end
 
   ## Delivery
 
@@ -140,14 +172,10 @@ defmodule Noa.WhatsApp.Notifier do
 
     cond do
       to_self -> []
-      Work.notify_target(p) |> elem_or_nil(0) != :whatsapp -> []
       Work.quiet?(p) and not Keyword.get(opts, :urgent, false) -> []
-      true -> [WhatsApp.send(p, text, Keyword.take(opts, [:buttons, :context]))]
+      true -> [Noa.Notify.deliver(p, text, opts)] |> Enum.reject(&(&1 == :skipped))
     end
   end
-
-  defp elem_or_nil(t, i) when is_tuple(t), do: elem(t, i)
-  defp elem_or_nil(_, _), do: nil
 
   ## Lookups (as Noa: the events were already authorized)
 

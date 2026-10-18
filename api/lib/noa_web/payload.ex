@@ -153,8 +153,15 @@ defmodule NoaWeb.Payload do
     }
   end
 
-  defp allocation(a) do
-    %{person_id: a.person_id, project_id: a.project_id, percent: a.percent, role: a.role, starts_on: a.starts_on}
+  def allocation(a) do
+    %{
+      person_id: a.person_id,
+      project_id: a.project_id,
+      percent: a.percent,
+      role: a.role,
+      starts_on: a.starts_on,
+      ends_on: a.ends_on
+    }
   end
 
   defp loaded(%Ash.NotLoaded{}), do: nil

@@ -1,5 +1,5 @@
 defmodule Noa.Ingest.DiscordTest do
-  use ExUnit.Case, async: false
+  use NoaWeb.ConnCase, async: false
 
   alias Noa.Ingest.Discord
   alias Noa.Ingest.Discord.Consumer

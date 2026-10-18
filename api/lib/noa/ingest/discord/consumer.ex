@@ -16,6 +16,12 @@ defmodule Noa.Ingest.Discord.Consumer do
   def handle_event({:MESSAGE_CREATE, payload, _state}), do: Discord.ingest(payload)
 
   @impl true
+  def handle_event({:MESSAGE_UPDATE, {_old, updated}, _state}), do: Discord.edit(updated)
+
+  @impl true
+  def handle_event({:MESSAGE_DELETE, deleted, _state}), do: Discord.delete(deleted)
+
+  @impl true
   def handle_event({:GUILD_MEMBER_ADD, {guild_id, member}, _state}) do
     with {:ok, org_id} <- configured_org(guild_id) do
       Discord.ingest_member(org_id, %{
@@ -36,11 +42,5 @@ defmodule Noa.Ingest.Discord.Consumer do
     end
   end
 
-  defp configured_org(guild_id) do
-    case Application.get_env(:noa, :discord_org_id) || System.get_env("DISCORD_ORG_ID") do
-      nil -> {:ignore, :unknown_workspace}
-      "" -> {:ignore, :unknown_workspace}
-      org_id -> if Discord.guild_allowed?(guild_id), do: {:ok, org_id}, else: {:ignore, :wrong_guild}
-    end
-  end
+  defp configured_org(guild_id), do: Discord.org_for_guild(guild_id)
 end

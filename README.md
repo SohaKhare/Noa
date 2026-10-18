@@ -66,12 +66,12 @@ Slack · Discord · Google Meet · WhatsApp (Kapso) · GitHub
 
 ## What works today
 
-Everything below runs locally against real Postgres and FalkorDB, with tests (`cd api && mix test`, 108 tests including permission-leak tests on every route).
+Everything below runs locally against real Postgres and FalkorDB, with tests (`cd api && mix test`, 140 tests including permission-leak tests on every route).
 
 | Area | Working | Notes |
 | --- | --- | --- |
 | Accounts and workspaces | Yes | Invite-only sign-in (password or magic link), roles, superadmin console, people and invites. [docs/auth.md](docs/auth.md) |
-| Org map | Yes | People, projects, aliases, channels and allocations from a seed; channel-to-project mapping in Settings |
+| Org map and onboarding | Yes | Set up a workspace in the app (`/onboarding`): projects, people (including everyone who joined), who works where, channels (listed from Discord when the bot is connected), or import an org map JSON. Mapping also in Settings |
 | Event log | Yes | Every write to work is an append-only event in the same transaction; chat messages are recorded once |
 | Graph | Yes | One FalkorDB graph per workspace, kept in step by a projector and rebuildable from the log (`mix noa.graph`) |
 | Chat to proposals | Yes, with a model key | Typed extraction (tasks, status, deadlines, decisions, scope) with routing, run by an Oban job per channel. Needs `OPENAI_API_KEY` |
@@ -84,12 +84,15 @@ Everything below runs locally against real Postgres and FalkorDB, with tests (`c
 | Shifts | Yes | Drag someone on the staffing board; Noa moves the allocation, hands over tasks and routes questions to them for two weeks |
 | KT brief and experts | Yes | Per-project brief with people to meet from the graph (download as `brief.md`); PageRank and bus factor in Portfolio |
 | Graph view | Yes | Each project's FalkorDB neighbourhood; click two nodes to see the shortest path between them |
-| Discord | In progress | Ingest calls `Noa.Work.record_message/2` |
+| Discord | Yes, once the bot token is set | Gateway ingest of mapped channels (DMs and bots refused), backfill, member identities, DMs for notifications |
 | WhatsApp | Yes, sends once Kapso is configured | Signed webhooks, reply buttons, "done" moves a card, shift links to the brief and pack. Without credentials, messages stay in a local outbox. [docs/whatsapp.md](docs/whatsapp.md) |
 | Agent pack | Yes | `CLAUDE.md`, `AGENTS.md`, `tasks.md` and `brief.md` generated from the project graph, with a day-one checklist |
 | MCP server | Yes | Coding agents connect with a personal token and get live context from the graph: project context, my tasks, cited answers, who knows what, paths, task status. [docs/mcp.md](docs/mcp.md) |
-| Notifications | In app, and on WhatsApp | The bell shows what waits on you and what changed around you. WhatsApp sends the same items when someone chose it; Discord delivery is still to do |
-| Live updates | Planned | Boards update over Phoenix Channels |
+| Notifications and digest | Yes | The bell in the app; the same items on WhatsApp (with buttons), as a Discord DM or by email, per person; quiet hours; a daily digest at each person's chosen time |
+| Live updates | Yes | Inbox, boards and My day refresh every 10 seconds while open |
+| Triage agent | Yes | Finds work nobody is carrying and suggests owners from the graph, with the route behind each reason; "Who should own this?" on every task; MCP tools for agents. [docs/hackathon.md](docs/hackathon.md) |
+| Shared memory | Yes | People, ingest and agents write concurrently with one event order and a graph that matches Postgres. [docs/memory.md](docs/memory.md) |
+| Deploy | Ready | Docker images for API, web and landing; Fly.io configs or one server with Docker Compose and Caddy. [docs/deploy.md](docs/deploy.md) |
 
 ## Getting started
 
@@ -120,13 +123,15 @@ pnpm dev:landing                              # marketing site on http://localho
 
 Set `OPENAI_API_KEY` for extraction and model-written `@noa` answers. Without it Noa still runs; extraction waits and `@noa` answers with a cited list.
 
+To deploy (Fly.io, or one server with Docker Compose and Caddy), see [docs/deploy.md](docs/deploy.md).
+
 | Path | What |
 | --- | --- |
 | `api/` | Phoenix + Ash backend: accounts, workspaces, work, event log, graph, extraction, `@noa`, shifts. [api/README.md](api/README.md) |
 | `web/` | Next.js app: My day, Inbox, project board / timeline / decisions / people / KT, Projects, Portfolio, People (staffing board), Ask Noa, Settings |
 | `landing/` | Next.js marketing site with animated feature scenes |
 | `packages/theme/` | Shared design tokens (Tailwind v4) |
-| `docs/` | [schema](docs/schema.md), [extraction](docs/extraction.md), [auth](docs/auth.md), [security](docs/security.md), [load test](docs/load.md), [org map](docs/org-map.md), [design](docs/design.md), [demo script](docs/demo.md), [hackathon compliance](docs/hackathon.md), [MCP](docs/mcp.md), [WhatsApp](docs/whatsapp.md) |
+| `docs/` | [schema](docs/schema.md), [extraction](docs/extraction.md), [auth](docs/auth.md), [security](docs/security.md), [load test](docs/load.md), [org map](docs/org-map.md), [design](docs/design.md), [demo script](docs/demo.md), [hackathon compliance](docs/hackathon.md), [MCP](docs/mcp.md), [WhatsApp](docs/whatsapp.md), [memory](docs/memory.md), [deploy](docs/deploy.md) |
 
 ## Build plan
 

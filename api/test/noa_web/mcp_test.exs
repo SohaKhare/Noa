@@ -65,7 +65,7 @@ defmodule NoaWeb.MCPTest do
     tools = rpc(t, "tools/list") |> json_response(200) |> get_in(["result", "tools"]) |> Enum.map(& &1["name"])
 
     assert Enum.sort(tools) ==
-             ~w(ask decisions how_connected kt_brief list_projects my_tasks project_context update_task_status who_knows)
+             ~w(ask assign_task decisions how_connected kt_brief list_projects my_tasks project_context risks suggest_owner triage update_task_status who_knows)
 
     assert rpc(t, "nope") |> json_response(200) |> get_in(["error", "code"]) == -32601
   end

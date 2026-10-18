@@ -10,7 +10,10 @@ defmodule Noa.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
-      listeners: [Phoenix.CodeReloader]
+      listeners: [Phoenix.CodeReloader],
+      # Nostrum is runtime: false so it doesn't start itself without a Discord token; the
+      # release still carries it (loaded, not started) so Noa.Application can start it.
+      releases: [noa: [applications: [nostrum: :load]]]
     ]
   end
 

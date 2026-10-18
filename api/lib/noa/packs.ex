@@ -47,9 +47,62 @@ defmodule Noa.Packs do
 
   defp data(org_id, project, actor) do
     case graph_data(org_id, project.id) do
-      {:ok, data} -> {:ok, Map.put(data, :store, "falkordb")}
-      _ -> postgres_data(org_id, project, actor)
+      {:ok, data} ->
+        {:ok, data |> Map.put(:store, "falkordb") |> Map.put(:code, graph_code(org_id, project.id))}
+
+      _ ->
+        with {:ok, data} <- postgres_data(org_id, project, actor),
+             do: {:ok, Map.put(data, :code, log_code(org_id, project.id))}
     end
+  end
+
+  # What GitHub shows for the project (3.7): pull requests, CI runs and recent commits.
+  defp graph_code(org_id, id) do
+    q = fn cypher ->
+      case Graph.ro_query(org_id, cypher, %{id: id}) do
+        {:ok, rows} -> Enum.map(rows, fn r -> Map.new(r, fn {k, v} -> {String.to_atom(k), v} end) end)
+        _ -> []
+      end
+    end
+
+    %{
+      prs:
+        q.("""
+        MATCH (r:PullRequest)-[:BELONGS_TO]->(:Project {id: $id})
+        RETURN r.number AS number, r.title AS title, r.state AS state, r.author AS author, r.branch AS branch,
+               r.merged_at AS merged_at, r.at AS at
+        ORDER BY r.at DESC LIMIT 30
+        """),
+      ci:
+        q.("""
+        MATCH (c:CIRun)-[:BELONGS_TO]->(:Project {id: $id})
+        RETURN c.name AS name, c.conclusion AS conclusion, c.branch AS branch, c.at AS at
+        ORDER BY c.at DESC LIMIT 30
+        """),
+      commits:
+        q.("""
+        MATCH (c:Commit)-[:BELONGS_TO]->(:Project {id: $id})
+        RETURN c.message AS message, c.author AS author, c.branch AS branch, c.at AS at
+        ORDER BY c.at DESC LIMIT 8
+        """)
+    }
+  end
+
+  # The same from the event log, when the graph isn't built.
+  defp log_code(org_id, id) do
+    import Ecto.Query
+
+    rows = fn type, limit ->
+      Noa.Events.Event
+      |> where([e], e.org_id == ^org_id and e.type == ^type and fragment("?->>'project_id' = ?", e.data, ^id))
+      |> order_by(desc: :id)
+      |> limit(^limit)
+      |> Noa.Repo.all()
+      |> Enum.map(fn e -> Map.new(e.data, fn {k, v} -> {String.to_atom(k), v} end) end)
+    end
+
+    prs = rows.("pr.saved", 60) |> Enum.uniq_by(& &1.id)
+    %{prs: prs, ci: rows.("ci.completed", 30), commits: rows.("commit.pushed", 8)}
   end
 
   defp graph_data(org_id, id) do
@@ -205,6 +258,7 @@ defmodule Noa.Packs do
       ),
       section("Decided, and why", Enum.map(Enum.take(data.decisions, 8), &decision_line/1)),
       section("Where work stands", status_lines(data.tasks)),
+      section("Recent changes on GitHub", code_lines(data[:code])),
       section("How to work here", [
         "Open tasks live in `tasks.md` and on the Noa board; Noa keeps both current from chat.",
         "Deadline and scope changes go to the lead for approval; status changes apply at once.",
@@ -244,6 +298,29 @@ defmodule Noa.Packs do
     |> Enum.reject(&is_nil/1)
     |> Enum.join("\n\n")
     |> Kernel.<>("\n\n" <> footer())
+  end
+
+  defp code_lines(nil), do: []
+
+  defp code_lines(%{prs: prs, ci: ci, commits: commits}) do
+    week_ago = DateTime.utc_now() |> DateTime.add(-7 * 86_400, :second) |> DateTime.to_iso8601()
+    merged = Enum.filter(prs, &(&1.state == "merged" and to_string(&1.merged_at) >= week_ago))
+    open = Enum.filter(prs, &(&1.state == "open"))
+    latest_ci = ci |> Enum.uniq_by(&{&1.name, &1.branch}) |> Enum.take(4)
+
+    Enum.map(
+      Enum.take(merged, 6),
+      &"Merged: ##{&1.number} #{&1.title} (#{&1.author}, #{String.slice(to_string(&1.merged_at), 0, 10)})"
+    ) ++
+      Enum.map(Enum.take(open, 6), &"Open PR: ##{&1.number} #{&1.title} (#{&1.author}, `#{&1.branch}`)") ++
+      Enum.map(
+        latest_ci,
+        &"CI #{&1.name} on `#{&1.branch}`: #{if &1.conclusion == "success", do: "passing", else: &1.conclusion}"
+      ) ++
+      if(merged == [] and open == [],
+        do: Enum.map(Enum.take(commits, 5), &"Commit on `#{&1.branch}`: #{&1.message} (#{&1.author})"),
+        else: []
+      )
   end
 
   defp decision_line(d) do

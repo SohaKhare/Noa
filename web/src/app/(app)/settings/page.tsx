@@ -27,6 +27,7 @@ import {
   connectDiscord,
   disconnectConnector,
   getGithubRepos,
+  getSlackChannels,
   rotateGithubSecret,
   setGithubToken,
   type Channel,
@@ -70,9 +71,12 @@ const connectorIcon: Record<string, Icon> = {
 
 export default function Settings() {
   const orgAdmin = isOrgAdmin(useMe().user);
-  // Coming back from installing the GitHub App lands on Connectors.
+  // Coming back from a connector's OAuth flow lands on Connectors.
   const [section, setSection] = useState<Section>(() =>
-    typeof window !== "undefined" && new URLSearchParams(window.location.search).has("github") ? "Connectors" : "People and roles",
+    typeof window !== "undefined" &&
+    (new URLSearchParams(window.location.search).has("github") || new URLSearchParams(window.location.search).has("slack"))
+      ? "Connectors"
+      : "People and roles",
   );
   const membership = currentMembership(useMe().user);
   return (
@@ -129,7 +133,10 @@ function Connectors() {
   const c = useQuery({ queryKey: ["connectors", dir.orgId], queryFn: () => getConnectors(dir.orgId!), enabled: !!dir.orgId }).data;
   const { user } = useMe();
   const admin = currentMembership(user)?.role === "org_admin" || !!user?.is_superadmin;
-  const [returned] = useState(() => (typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("github")));
+  const [returned] = useState(() => {
+    const params = typeof window === "undefined" ? null : new URLSearchParams(window.location.search);
+    return { github: params?.get("github") ?? null, slack: params?.get("slack") ?? null };
+  });
   const cards: { id: string; name: string; on: boolean; detail: string; off: string }[] = c
     ? [
         {
@@ -138,6 +145,13 @@ function Connectors() {
           on: c.discord.connected,
           detail: `Reading ${c.discord.channels} mapped ${c.discord.channels === 1 ? "channel" : "channels"}`,
           off: c.discord.guild_id ? "Server connected; waiting for Noa's bot to run" : "Not connected: an org admin connects your server below",
+        },
+        {
+          id: "slack",
+          name: "Slack",
+          on: c.slack.connected,
+          detail: `Reading ${c.slack.channels} mapped ${c.slack.channels === 1 ? "channel" : "channels"}`,
+          off: c.slack.configured ? "Not connected: an org admin installs Noa below" : "The Noa admin has not configured the Slack app",
         },
         { id: "whatsapp", name: "WhatsApp (Kapso)", on: c.whatsapp.connected, detail: "Sending and receiving through Kapso", off: "Not connected: messages stay in the outbox below" },
         {
@@ -148,7 +162,6 @@ function Connectors() {
           off: "Not connected: an org admin sets it up below",
         },
         { id: "email", name: "Email", on: c.email.connected, detail: "Invites, sign-in links and notifications go out by email", off: "No email account set (GOOGLE_APP_PASSWORD): emails go to the API log" },
-        { id: "slack", name: "Slack", on: false, detail: "", off: "Not built yet" },
         { id: "google", name: "Google Meet", on: false, detail: "", off: "Not built yet" },
       ]
     : [];
@@ -178,20 +191,63 @@ function Connectors() {
           );
         })}
       </div>
-      {returned && (
-        <p className={cn("rounded-2xl px-4 py-3 text-[13px] ring-1", returned === "installed" ? "bg-good/10 text-good ring-good/20" : "bg-bad/10 text-bad ring-bad/20")}>
-          {returned === "installed"
+      {returned.github && (
+        <p className={cn("rounded-2xl px-4 py-3 text-[13px] ring-1", returned.github === "installed" ? "bg-good/10 text-good ring-good/20" : "bg-bad/10 text-bad ring-bad/20")}>
+          {returned.github === "installed"
             ? "GitHub is connected. Commits, pull requests and CI from the repos you picked now flow into Noa."
-            : returned === "installation_taken"
+            : returned.github === "installation_taken"
               ? "That GitHub installation is already connected to another workspace."
               : "GitHub didn't finish connecting. Try Install again from here."}
         </p>
       )}
       <DiscordAccount />
+      {returned.slack && (
+        <p className={cn("rounded-2xl px-4 py-3 text-[13px] ring-1", returned.slack === "installed" ? "bg-good/10 text-good ring-good/20" : "bg-bad/10 text-bad ring-bad/20")}>
+          {returned.slack === "installed"
+            ? "Slack is connected. Choose the public and private channels Noa may read under Channels."
+            : returned.slack === "slack_workspace_taken"
+              ? "That Slack workspace is already connected to another Noa workspace."
+              : "Slack didn't finish connecting. Try Install again from here."}
+        </p>
+      )}
       {c && admin && <DiscordSetup c={c} />}
+      {c && admin && <SlackSetup c={c} />}
       {c && admin && <GitHubSetup c={c} />}
       <WhatsAppLog messages={wa.data?.messages ?? []} scope={wa.data?.scope} />
     </div>
+  );
+}
+
+function SlackSetup({ c }: { c: ConnectorStatus }) {
+  const dir = useDirectory();
+  const client = useQueryClient();
+  const refresh = () => client.invalidateQueries({ queryKey: ["connectors", dir.orgId] });
+  const remove = useMutation({ mutationFn: () => disconnectConnector(dir.orgId!, "slack"), onSuccess: refresh });
+
+  return (
+    <Card>
+      <p className="text-[14px] font-semibold">Connect your Slack workspace</p>
+      <p className="mt-0.5 text-[12.5px] text-muted">
+        Noa reads only public and private channels you map, and only while the app is a member. Direct messages and Slack Connect are never read.
+      </p>
+      {c.slack.connected ? (
+        <div className="mt-3 flex flex-wrap items-center gap-3 text-[13px]">
+          <span className="flex-1">
+            Workspace <span className="font-mono">{c.slack.team_id}</span> is connected. Choose channels under Channels.
+          </span>
+          <button onClick={() => remove.mutate()} disabled={remove.isPending} className="rounded-full px-3 py-1.5 text-[12.5px] font-medium ring-1 ring-line hover:bg-bg disabled:opacity-60">
+            Disconnect
+          </button>
+        </div>
+      ) : c.slack.install_url ? (
+        <a href={c.slack.install_url} className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#4A154B] px-4 py-2 text-[13px] font-medium text-white">
+          <SlackLogoIcon size={15} /> Install Noa on Slack
+        </a>
+      ) : (
+        <p className="mt-3 text-[12.5px] text-muted">The Slack app needs its client ID, client secret and signing secret before it can be installed.</p>
+      )}
+      {remove.error && <FormError>{(remove.error as ApiError).message}</FormError>}
+    </Card>
   );
 }
 
@@ -452,6 +508,79 @@ const platformName = {
   email: "Email",
 } as const;
 
+function SlackChannelDiscovery({ admin }: { admin: boolean }) {
+  const dir = useDirectory();
+  const client = useQueryClient();
+  const [pick, setPick] = useState<Record<string, string>>({});
+  const slack = useQuery({
+    queryKey: ["slack-channels", dir.orgId],
+    queryFn: () => getSlackChannels(dir.orgId!),
+    enabled: !!dir.orgId && admin,
+  });
+  const add = useMutation({
+    mutationFn: ({ channel, value }: { channel: { id: string; name: string }; value: string }) =>
+      createChannel(dir.orgId!, {
+        platform: "slack",
+        name: `#${channel.name}`,
+        external_id: channel.id,
+        ...(value === "split" ? { split: true, project_id: null } : { project_id: value }),
+      }),
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: ["directory", dir.orgId] });
+      slack.refetch();
+    },
+  });
+
+  if (!admin) return null;
+
+  return (
+    <Card>
+      <p className="flex items-center gap-2 text-[14px] font-semibold">
+        <SlackLogoIcon size={17} className="text-accent-fg" /> Add Slack channels
+        {slack.data?.connected ? <Badge tone="good">Connected</Badge> : <Badge>Not connected</Badge>}
+      </p>
+      <p className="mt-0.5 text-[12.5px] text-muted">
+        Only joined, non-shared public and private channels appear. Adding one starts a 15-message backfill.
+      </p>
+      {slack.error && <FormError>{(slack.error as ApiError).message}</FormError>}
+      <ul className="mt-3 space-y-2">
+        {(slack.data?.channels ?? []).map((channel) => (
+          <li key={channel.id} className="flex flex-wrap items-center gap-2 text-[13px]">
+            <span className="min-w-36 flex-1 truncate">
+              {channel.private ? "🔒 " : "#"}{channel.name}
+            </span>
+            {channel.mapped ? (
+              <span className="text-[12px] text-good">Reading</span>
+            ) : (
+              <>
+                <select
+                  value={pick[channel.id] ?? ""}
+                  onChange={(event) => setPick((current) => ({ ...current, [channel.id]: event.target.value }))}
+                  aria-label={`Project for #${channel.name}`}
+                  className="rounded-lg bg-bg px-2 py-1.5 text-[12px] focus:outline-none"
+                >
+                  <option value="">Project…</option>
+                  {dir.projects.map((project) => (
+                    <option key={project.id} value={project.id}>{project.name}</option>
+                  ))}
+                  <option value="split">Split by message</option>
+                </select>
+                <button
+                  onClick={() => add.mutate({ channel, value: pick[channel.id] })}
+                  disabled={!pick[channel.id] || add.isPending}
+                  className="rounded-full bg-accent px-3 py-1.5 text-[12px] font-medium text-white disabled:opacity-60"
+                >
+                  Read
+                </button>
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
 /* Channel to project map (1.18), saved to the API. Only org admins can change it. */
 /* Every channel in the connected Discord server (1.18, 2.10): connect them one by one to a project, load each one's history when you want it, and clean out mappings that match nothing. Org admins. */
 function ServerChannels() {
@@ -569,7 +698,8 @@ function ServerChannels() {
 function Channels() {
   const dir = useDirectory();
   const client = useQueryClient();
-  const admin = currentMembership(useMe().user)?.role === "org_admin";
+  const { user } = useMe();
+  const admin = currentMembership(user)?.role === "org_admin" || !!user?.is_superadmin;
   const save = useMutation({
     mutationFn: ({
       id,
@@ -596,7 +726,9 @@ function Channels() {
     });
 
   return (
-    <Card className="p-0">
+    <div className="space-y-4">
+      <SlackChannelDiscovery admin={admin} />
+      <Card className="p-0">
       <div className="border-b border-line px-5 py-4">
         <p className="text-[14px] font-semibold">Channel to project</p>
         <p className="text-[12.5px] text-muted">
@@ -674,7 +806,8 @@ function Channels() {
           ))}
         </tbody>
       </table>
-    </Card>
+      </Card>
+    </div>
   );
 }
 
@@ -720,6 +853,7 @@ function Bundles() {
 const viaLabel: Record<NotifyVia, string> = {
   whatsapp: "WhatsApp",
   discord: "Discord DM",
+  slack: "Slack DM",
   email: "Email",
   in_app: "In app only",
 };
@@ -818,6 +952,11 @@ function NotificationPrefs() {
           <p className="text-[12px] text-muted">
             Link your account with /noa link first. Noa DMs task and approval
             buttons to your verified account; your usual permissions still apply.
+          </p>
+        )}
+        {p.notify_via === "slack" && (
+          <p className="text-[12px] text-muted">
+            Noa DMs the Slack account linked when you post in a mapped channel. Slack notifications link back to the app.
           </p>
         )}
         <label className="block text-[12px] text-muted">

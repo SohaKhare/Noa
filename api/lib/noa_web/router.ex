@@ -57,10 +57,17 @@ defmodule NoaWeb.Router do
     get("/setup", GitHubSetupController, :show)
   end
 
+  # Slack's OAuth callback carries the signed state generated for an org admin.
+  scope "/slack", NoaWeb do
+    pipe_through(:api)
+    get("/oauth/callback", SlackOAuthController, :callback)
+  end
+
   scope "/webhooks", NoaWeb do
     pipe_through(:webhook)
     post("/kapso", KapsoWebhookController, :receive)
     post("/github", GitHubWebhookController, :receive)
+    post("/slack", SlackWebhookController, :receive)
   end
 
   scope "/mcp", NoaWeb do
@@ -165,6 +172,7 @@ defmodule NoaWeb.Router do
     post("/orgs/:org_id/channels/:id/backfill", SetupController, :backfill_channel)
     delete("/orgs/:org_id/channels/:id", SetupController, :delete_channel)
     get("/orgs/:org_id/discord/channels", SetupController, :discord_channels)
+    get("/orgs/:org_id/slack/channels", SetupController, :slack_channels)
     post("/orgs/:org_id/import", SetupController, :import)
     get("/orgs/:org_id/tasks/:id/owners", WorkController, :suggest_owners)
   end

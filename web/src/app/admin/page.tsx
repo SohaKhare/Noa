@@ -103,6 +103,7 @@ const serviceLabel: Record<keyof PlatformStatus["services"], string> = {
   whatsapp: "WhatsApp sending (Kapso)",
   whatsapp_webhook: "WhatsApp replies (webhook secret)",
   discord: "Discord bot",
+  slack: "Slack app",
   github: "GitHub webhook",
   email: "Email (Gmail SMTP or Resend)",
 };

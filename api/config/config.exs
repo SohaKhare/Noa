@@ -24,7 +24,7 @@ config :phoenix, :filter_parameters, [
 # Background jobs. Extraction runs one channel at a time per org (1.17).
 config :noa, Oban,
   repo: Noa.Repo,
-  queues: [extraction: 2, whatsapp: 4],
+  queues: [extraction: 2, whatsapp: 4, slack: 4],
   # Daily digests (2.9): every 15 minutes, queue the ones that are due.
   plugins: [{Oban.Plugins.Cron, crontab: [{"*/15 * * * *", Noa.Work.Digest.Dispatch}]}]
 

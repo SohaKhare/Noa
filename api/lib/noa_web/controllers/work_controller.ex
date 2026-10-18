@@ -334,10 +334,12 @@ defmodule NoaWeb.WorkController do
          {:ok, channels} <- Work.channels(org_id, conn.assigns.current_user) do
       api = Application.fetch_env!(:noa, :api_base_url)
       discord_channels = Enum.count(channels, &(&1.platform == :discord and &1.read))
+      slack_channels = Enum.count(channels, &(&1.platform == :slack and &1.read))
       repos = projects |> Enum.filter(& &1.repo) |> Enum.map(&%{project: &1.name, repo: &1.repo})
 
       mine = Noa.Connectors.all(org_id)
       guild = get_in(mine, ["discord", :external_id])
+      slack = mine["slack"] || %{}
       github = mine["github"] || %{}
 
       json(conn, %{
@@ -347,6 +349,14 @@ defmodule NoaWeb.WorkController do
           guild_id: guild,
           invite_url: Noa.Connectors.discord_invite_url(),
           channels: discord_channels
+        },
+        slack: %{
+          connected: is_binary(Noa.Connectors.slack_token(org_id)),
+          configured: Noa.Ingest.Slack.configured?(),
+          team_id: slack[:external_id],
+          install_url: Noa.Connectors.slack_install_url(org_id, conn.assigns.current_user),
+          webhook: api <> "/webhooks/slack",
+          channels: slack_channels
         },
         whatsapp: %{connected: Noa.WhatsApp.configured?(), webhook: api <> "/webhooks/kapso"},
         github: %{

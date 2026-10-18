@@ -22,6 +22,14 @@ defmodule NoaWeb.FallbackController do
       {422,
        "That isn't a Discord server id. In Discord, turn on Developer Mode, right-click the server and Copy Server ID."},
     guild_taken: {409, "That Discord server is already connected to another workspace."},
+    slack_workspace_taken: {409, "That Slack workspace is already connected to another workspace."},
+    slack_channel_unavailable:
+      {422, "That Slack channel is not available. Add Noa to a non-shared channel and refresh the channel list."},
+    connector_taken: {409, "That connector is already connected to another workspace."},
+    install_expired: {410, "That installation link expired. Start again from Settings."},
+    install_invalid: {422, "That installation could not be verified. Start again from Settings."},
+    not_admin: {403, "Only a workspace admin can install this connector."},
+    not_connected: {409, "Connect this provider before using it."},
     invalid_token: {422, "Paste a GitHub token."},
     discord_link_invalid: {422, "That Discord link expired or was used. Run /noa link again in your connected server."},
     discord_already_linked:

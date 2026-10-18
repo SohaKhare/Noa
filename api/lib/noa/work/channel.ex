@@ -13,6 +13,7 @@ defmodule Noa.Work.Channel do
   postgres do
     table("channels")
     repo(Noa.Repo)
+    identity_wheres_to_sql(unique_external_id: "external_id is not null")
 
     references do
       reference(:org, on_delete: :delete)
@@ -44,6 +45,8 @@ defmodule Noa.Work.Channel do
 
   identities do
     identity(:unique_name, [:org_id, :platform, :name])
+
+    identity(:unique_external_id, [:org_id, :platform, :external_id], where: expr(not is_nil(external_id)))
   end
 
   changes do

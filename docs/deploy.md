@@ -14,7 +14,7 @@ About $5 on Fly for a week (API, Postgres and FalkorDB); Vercel costs nothing at
 
 DNS is on Cloudflare: set the Fly and Vercel records to "DNS only" (grey cloud) so both can issue certificates.
 
-**Who sets what.** The Noa admin (superadmin) owns the platform: the Fly app, its secrets, Noa's Discord bot and the Kapso WhatsApp number. Each company's org admin connects their own Discord server and GitHub in Settings → Connectors; their GitHub secrets are encrypted at rest with keys derived from `SECRET_KEY_BASE` (rotating it means reconnecting GitHub).
+**Who sets what.** The Noa admin (superadmin) owns the platform: the Fly app, its secrets, the Discord and Slack apps, and the Kapso WhatsApp number. Each company's org admin connects their own Discord server, Slack workspace and GitHub organization in Settings → Connectors. Per-workspace tokens and GitHub secrets are encrypted at rest with keys derived from `SECRET_KEY_BASE` (rotating it means reconnecting those providers).
 
 **The app and the API must share a parent domain.** The web app signs in with an httpOnly, SameSite=Lax cookie set by the API, which is only sent between hosts of the same site. `app.heynoa.xyz` and `api.heynoa.xyz` work; a `*.vercel.app` app talking to a `*.fly.dev` API does not.
 
@@ -30,6 +30,7 @@ DNS is on Cloudflare: set the Fly and Vercel records to "DNS only" (grey cloud) 
 | `OPENAI_API_KEY` | for extraction | Without it, chat is recorded but not turned into proposals, and `@noa` answers extractively |
 | `KAPSO_*` | for WhatsApp | See docs/whatsapp.md; webhook `https://api.../webhooks/kapso` |
 | `DISCORD_BOT_TOKEN`, `DISCORD_CLIENT_ID` | for Discord | Noa's bot, run by the Noa admin. Each company's org admin adds it to their server and connects the server in Settings → Connectors. Empty token keeps Discord off |
+| `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`, `SLACK_SIGNING_SECRET` | for Slack | One Slack app installed per workspace through OAuth. See [slack.md](slack.md) |
 | `GITHUB_APP_ID`, `GITHUB_APP_SLUG`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_WEBHOOK_SECRET` | for GitHub | Noa's GitHub App, registered once by the Noa admin; each company installs it from Settings → Connectors. Without it, org admins can add webhooks by hand with their own secret. See docs/github.md |
 
 ## 1. Graph: FalkorDB Cloud
@@ -48,7 +49,7 @@ fly auth login
 # Postgres
 fly postgres create --name heynoa-db --region sin --initial-cluster-size 1 --vm-size shared-cpu-1x --volume-size 3
 
-# API (exactly one machine: the projector, WhatsApp notifier and Discord gateway are singletons)
+# API (exactly one machine: the projector, notifier and Discord gateway are singletons)
 cd api
 fly launch --no-deploy --copy-config --name heynoa-api
 fly postgres attach heynoa-db --app heynoa-api
@@ -59,7 +60,8 @@ fly secrets set --app heynoa-api \
 # Optional, any time later (each change restarts the machine):
 #   fly secrets set --app heynoa-api OPENAI_API_KEY=... RESEND_API_KEY=... \
 #     KAPSO_API_KEY=... KAPSO_PHONE_NUMBER_ID=... KAPSO_WEBHOOK_SECRET=... \
-#     DISCORD_BOT_TOKEN=... DISCORD_CLIENT_ID=...
+#     DISCORD_BOT_TOKEN=... DISCORD_CLIENT_ID=... \
+#     SLACK_CLIENT_ID=... SLACK_CLIENT_SECRET=... SLACK_SIGNING_SECRET=...
 fly deploy --ha=false
 fly certs add api.heynoa.xyz --app heynoa-api    # then add the DNS record it prints
 cd ..
@@ -138,7 +140,7 @@ Caddy gets the certificates. The API runs migrations on every start. Postgres, F
 
 ## Notes
 
-- **One API machine.** The projector, the WhatsApp notifier and the Discord gateway each run once per node. Two API machines would send WhatsApp messages twice. Scale up the machine, not out.
+- **One API machine.** The projector, notification reader and Discord gateway each run once per node. Two API machines would send notifications twice. Scale up the machine, not out.
 - **Rate limits** key on `fly-client-ip` on Fly and on `X-Real-IP` (set by Caddy) on one server; `CLIENT_IP_HEADER` picks the header.
 - **Tearing down.** Stopped machines stop billing but volumes don't: when you are done, `fly apps destroy heynoa-api heynoa-db` (and `heynoa-graph`, `heynoa-web`, `heynoa-landing` if used). That deletes the data; `pg_dump` first to keep it.
 - **Backups.** Postgres is the system of record; the graph can always be rebuilt from it with `Noa.Release.graph/1`. Back up Postgres (`fly postgres` snapshots, or `pg_dump` on one server).

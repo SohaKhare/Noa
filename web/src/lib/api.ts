@@ -100,6 +100,14 @@ export const revokeInvite = (orgId: string, id: string) => api(`/api/orgs/${orgI
 // Platform (superadmin)
 export type Connectors = {
   discord: { connected: boolean; bot: boolean; guild_id: string | null; invite_url: string | null; channels: number };
+  slack: {
+    connected: boolean;
+    configured: boolean;
+    team_id: string | null;
+    install_url: string | null;
+    webhook: string;
+    channels: number;
+  };
   whatsapp: { connected: boolean; webhook: string };
   github: {
     connected: boolean;
@@ -118,7 +126,7 @@ export const getConnectors = (orgId: string) => api<Connectors>(`/api/orgs/${org
 export const connectDiscord = (orgId: string, guildId: string) =>
   api<{ ok: true }>(`/api/orgs/${orgId}/connectors/discord`, { method: "PUT", body: JSON.stringify({ guild_id: guildId }) });
 export const getGithubRepos = (orgId: string) => api<{ repos: string[]; error?: string }>(`/api/orgs/${orgId}/connectors/github/repos`);
-export const disconnectConnector = (orgId: string, kind: "discord" | "github" | "github_app") => api<{ ok: true }>(`/api/orgs/${orgId}/connectors/${kind}`, { method: "DELETE" });
+export const disconnectConnector = (orgId: string, kind: "discord" | "slack" | "github" | "github_app") => api<{ ok: true }>(`/api/orgs/${orgId}/connectors/${kind}`, { method: "DELETE" });
 export const rotateGithubSecret = (orgId: string) => post<{ secret: string; webhook: string }>(`/api/orgs/${orgId}/connectors/github/secret`);
 export const setGithubToken = (orgId: string, token: string) =>
   api<{ ok: true }>(`/api/orgs/${orgId}/connectors/github/token`, { method: "PUT", body: JSON.stringify({ token }) });
@@ -126,7 +134,7 @@ export const backfillGithub = (orgId: string) =>
   post<{ results: { project: string; recorded?: number; error?: string }[] }>(`/api/orgs/${orgId}/connectors/github/backfill`);
 export const getPlatformOrgs = () => api<{ orgs: PlatformOrg[] }>("/api/platform/orgs").then((r) => r.orgs);
 export type PlatformStatus = {
-  services: Record<"database" | "graph" | "openai" | "whatsapp" | "whatsapp_webhook" | "discord" | "github" | "email", boolean>;
+  services: Record<"database" | "graph" | "openai" | "whatsapp" | "whatsapp_webhook" | "discord" | "slack" | "github" | "email", boolean>;
   readers: { name: string; label: string; running: boolean; position: number; latest: number; behind: number }[];
   jobs: Record<string, Record<string, number>>;
 };
@@ -252,7 +260,10 @@ export const createPerson = (orgId: string, data: { name: string; title?: string
 export const addMembersAsPeople = (orgId: string) => post<{ added: number }>(`/api/orgs/${orgId}/people/from_members`).then((r) => r.added);
 export const setAllocation = (orgId: string, data: { person_id: string; project_id: string; percent: number }) =>
   api<{ allocation: Allocation | null }>(`/api/orgs/${orgId}/allocations`, { method: "PUT", body: JSON.stringify(data) }).then((r) => r.allocation);
-export const createChannel = (orgId: string, data: { name: string; external_id?: string; project_id?: string | null; split?: boolean; backfill?: boolean }) =>
+export const createChannel = (
+  orgId: string,
+  data: { platform?: "discord" | "slack"; name: string; external_id?: string; project_id?: string | null; split?: boolean; backfill?: boolean },
+) =>
   post<{ channel: Channel }>(`/api/orgs/${orgId}/channels`, data).then((r) => r.channel);
 export type ServerChannel = {
   id: string;
@@ -269,6 +280,8 @@ export const getDiscordChannels = (orgId: string) =>
 export const backfillChannel = (orgId: string, channelId: string) =>
   post<{ backfill: "queued" | "already_queued" | "discord_off" | "skipped" | "failed" }>(`/api/orgs/${orgId}/channels/${channelId}/backfill`);
 export const deleteChannel = (orgId: string, channelId: string) => api<{ ok: true }>(`/api/orgs/${orgId}/channels/${channelId}`, { method: "DELETE" });
+export const getSlackChannels = (orgId: string) =>
+  api<{ connected: boolean; channels: { id: string; name: string; private: boolean; mapped: boolean }[] }>(`/api/orgs/${orgId}/slack/channels`);
 export const importOrgMap = (orgId: string, seed: unknown) => post<{ loaded: Record<string, number> }>(`/api/orgs/${orgId}/import`, { seed }).then((r) => r.loaded);
 
 export const updateChannel = (orgId: string, id: string, data: Partial<Pick<Channel, "project_id" | "split" | "read">>) =>
@@ -378,7 +391,7 @@ export const linkDiscordAccount = (orgId: string, code: string) =>
   post<{ discord_id: string }>(`/api/orgs/${orgId}/me/discord`, { code });
 export const unlinkDiscordAccount = (orgId: string) =>
   api<{ discord_id: null }>(`/api/orgs/${orgId}/me/discord`, { method: "DELETE" });
-export type NotifyVia = "whatsapp" | "discord" | "email" | "in_app";
+export type NotifyVia = "whatsapp" | "discord" | "slack" | "email" | "in_app";
 export type NotificationPrefs = {
   notify_via: NotifyVia;
   phone: string | null;

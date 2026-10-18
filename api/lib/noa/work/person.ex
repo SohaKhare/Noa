@@ -32,7 +32,7 @@ defmodule Noa.Work.Person do
     # Notification preferences (2.15). Delivery (2.9, 2.21) reads these through
     # `Noa.Work.notify_target/1` and `Noa.Work.quiet?/2`.
     attribute(:notify_via, :atom,
-      constraints: [one_of: [:whatsapp, :discord, :email, :in_app]],
+      constraints: [one_of: [:whatsapp, :discord, :slack, :email, :in_app]],
       allow_nil?: false,
       default: :in_app,
       public?: true

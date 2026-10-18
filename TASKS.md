@@ -94,7 +94,7 @@ Exit test: A real Discord message becomes a proposed task in the right project a
 | 1.22 | Reporting lines (reports-to) in org map and people settings | New | Saish | In review | #1 |
 | 1.23 | Seed loader: `mix noa.seed` loads `docs/seeds/nyi.json` (projects, channels, aliases, allocations, git handles) | New | Saish | In review | #2 |
 | 1.24 | Work API: projects, tasks and proposals as Ash resources with policies; endpoints the web app uses instead of `mock.ts` | New | Saish | In review | #2 |
-| 1.25 | Real email delivery: Gmail SMTP with a Google app password (same as Tulpa v1); Resend still supported | New | Saish | In progress |  |
+| 1.25 | Real email delivery: Gmail SMTP with a Google app password (same as Tulpa v1); Resend still supported | New | Saish | In review | #7 |
 | 1.26 | Guard against removing or demoting a workspace's last admin | New | Saish | In review | #2 |
 | 1.27 | Join link: teammates ask to join with a work email; an org admin approves and the invite email follows | New | Saish | In review | #4 |
 | 1.28 | Per-company connectors: org admins connect Discord and GitHub in Settings (secrets encrypted). Code/tests ready; API deployed with GitHub App secrets and verified install-link generation; bot running but no company server connected; GitHub install and live test pending | New | Saish | In review | #4 |
@@ -113,7 +113,7 @@ Exit test: NYI uses no other tracker; a developer and a non-tech teammate both r
 | 2.3 | Duplicate task matching before proposing | New | Saish | In review | #3 |
 | 2.4 | Decisions and supersession | Port | Saish | In review | #3 |
 | 2.5 | `@noa` agent with citations (ash_ai tools, audience-first rules) | Port | Saish | In review | #3 |
-| 2.6 | Discord completion at Saish's request: /noa commands, verified account linking, private cited replies, task/proposal/lead approval buttons and KT Q&A; WhatsApp buttons already built, Slack deferred | New | Saish | In review |  |
+| 2.6 | Discord completion at Saish's request: /noa commands, verified account linking, private cited replies, task/proposal/lead approval buttons and KT Q&A; WhatsApp buttons already built, Slack deferred | New | Saish | In review | #7 |
 | 2.7 | WhatsApp "done" replies move cards | New | Saish | In review | #3 |
 | 2.8 | Meeting notetaker: a bot joins Google Meet calls, transcribes speakers, and sends utterances to Noa as messages (then extraction to action items) | New | Soha | In progress |  |
 | 2.9 | Daily digest per person (from v1 recap) | Port | Saish | In review | #4 |

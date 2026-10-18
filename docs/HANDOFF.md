@@ -2,6 +2,12 @@
 
 Read this first in a new session. It covers what is built, what is deployed, what is uncommitted, where the credentials are, and what to do next. Standing rules from Saish: **don't push to GitHub, don't commit (Saish commits), don't call fal.ai.** Never print credentials; they live in the gitignored files listed below.
 
+## Current: authorized pending-changes rollout
+
+Saish explicitly authorized reviewing and committing all remaining changes, adding Slack/Attendee env settings to Fly, and redeploying. Branch: `saish/1.2-pending-integrations-deploy`, based on main `cacda07` (Slack #9 and Attendee #11 already merged). Four settings (`SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`, `SLACK_SIGNING_SECRET`, `ATTENDEE_API_KEY`) are staged on `heynoa-api`; existing database/OpenAI secrets are untouched. No secret values are printed or committed.
+
+Included: WhatsApp `tasks`/`my tasks` lists and task-completion lead notifications, README graph explanations, phased real-data demo plan. Review removed a policy-bypassing project lookup from the new task-list path, bounded long replies, and made the new completion owner fallback nil-safe. Validation: 249 API tests pass (1 load excluded), four voice-worker tests pass, compile warnings-as-errors/format and both frontend type/lint checks pass. API deployment/health and provider configuration checks are pending. Do not claim a Slack install, real Meet recording or transcription success. Discord voice remains disabled. Both Vercel statuses on `cacda07` report completed; local Vercel CLI has no credentials to force redeploys.
+
 ## PR #8: meeting extension
 
 Saish explicitly authorized committing, pushing and merging this extension via a PR, overriding the standing no-commit/push rule for this operation only. PR: https://github.com/SohaKhare/Noa/pull/8 (`saish/2.22-meeting-minutes` → `main`). Implementation is code-complete; deployment and real voice/ASR acceptance remain pending and recording defaults off. Unrelated demo and setup-tracker edits are deliberately left uncommitted. GitHub API/voice/Next.js checks passed; image checks are being verified. Both Vercel deployments are reported blocked, also present on the pre-existing base commit; do not describe those deployments as successful.

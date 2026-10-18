@@ -161,6 +161,84 @@ defmodule Noa.WhatsAppTest do
   end
 
   describe "replies act as the person" do
+    test "\"tasks\" lists their open work, soonest due first", %{org: org, vedant: vedant, saish: saish} do
+      me = Work.person_for(saish, org.id)
+
+      {:ok, _} =
+        Work.create_task(
+          org.id,
+          %{title: "Caption export", project_id: project(org, "veriq").id, owner_id: me.id, due_on: Date.utc_today()},
+          vedant
+        )
+
+      reply =
+        Inbound.handle(inbound("wamid.t1", "919800000002", %{"type" => "text", "text" => %{"body" => "my tasks"}}))
+
+      assert reply =~ "Your open tasks:\n1. Caption export (Veriq · due "
+      assert reply =~ ~s(Reply "done <task>")
+    end
+
+    test "task lists exclude completed work and other people's assignments", %{org: org, vedant: vedant, saish: saish} do
+      me = Work.person_for(saish, org.id)
+      lead = Work.person_for(vedant, org.id)
+      project_id = project(org, "veriq").id
+
+      for attrs <- [
+            %{title: "Undated assignment", owner_id: me.id},
+            %{title: "Already completed", owner_id: me.id, status: :done},
+            %{title: "Only for Vedant", owner_id: lead.id}
+          ] do
+        assert {:ok, _} = Work.create_task(org.id, Map.put(attrs, :project_id, project_id), vedant)
+      end
+
+      reply = Inbound.handle(inbound("wamid.list-scope", "919800000002", %{"text" => %{"body" => "tasks"}}))
+      assert reply =~ "Undated assignment"
+      refute reply =~ "Already completed"
+      refute reply =~ "Only for Vedant"
+    end
+
+    test "task lists cap long titles and the number of displayed tasks", %{org: org, vedant: vedant, saish: saish} do
+      me = Work.person_for(saish, org.id)
+      project_id = project(org, "veriq").id
+
+      for i <- 1..11 do
+        assert {:ok, _} =
+                 Work.create_task(
+                   org.id,
+                   %{
+                     title: "Long task #{i} " <> String.duplicate("x", 2000),
+                     owner_id: me.id,
+                     project_id: project_id,
+                     due_on: ~D[2000-01-01]
+                   },
+                   vedant
+                 )
+      end
+
+      reply = Inbound.handle(inbound("wamid.list-limit", "919800000002", %{"text" => %{"body" => "my work"}}))
+      assert reply =~ "10. Long task 10"
+      refute reply =~ "11. Long task 11"
+      assert reply =~ "more in Noa"
+      assert String.length(reply) < 4096
+    end
+
+    test "finishing a task tells the project's lead", %{org: org, vedant: vedant, saish: saish} do
+      me = Work.person_for(saish, org.id)
+      veriq = project(org, "veriq")
+
+      {:ok, _} =
+        veriq
+        |> Ash.Changeset.for_update(:update, %{lead_id: Work.person_for(vedant, org.id).id})
+        |> Ash.update(authorize?: false)
+
+      {:ok, t} = Work.create_task(org.id, %{title: "Caption export", project_id: veriq.id, owner_id: me.id}, vedant)
+
+      {:ok, _} = Work.update_task(t.id, %{status: :done}, saish)
+      Notifier.handle(last_event(org, "task.saved"))
+
+      assert Enum.any?(outbox("+919800000001"), &(&1.body =~ ~s(Saish finished "Caption export" in Veriq)))
+    end
+
     test "Done and Start buttons move the card", %{org: org} do
       t = task(org, "Report share links")
 

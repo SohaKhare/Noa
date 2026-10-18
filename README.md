@@ -32,7 +32,7 @@ Slack · Discord · Google Meet · WhatsApp (Kapso) · GitHub
                     │
      FalkorDB: one graph per company
      Person · Project · Task · Decision · Episode
-     vector + full-text indexes · PageRank · paths
+     full-text + range indexes · PageRank · paths
                     │
    Work API · Notifier · Agent (@noa, KT) · MCP server
                     │
@@ -42,6 +42,96 @@ Slack · Discord · Google Meet · WhatsApp (Kapso) · GitHub
 - FalkorDB is the knowledge store: every `@noa` answer, expert lookup, KT brief, path and portfolio insight is a graph query. Postgres keeps accounts, permissions and the append-only event log the graph is built from, so the graph can always be rebuilt.
 - Every extracted item is a typed schema validated before it reaches the graph, and every item cites its source message.
 - Graph algorithms do the product work: weighted `KNOWS_ABOUT` edges, PageRank, betweenness and connected components find experts, the people work runs through, the bridges between projects, working groups and bus-factor risks. `@noa` walks the graph from what you ask about, searches full-text indexes over messages, tasks and decisions, and shows the graph route behind every source. How each FalkorDB feature is used, and how Noa meets the hackathon rules: [docs/hackathon.md](docs/hackathon.md).
+
+## The graph
+
+Each company gets its own FalkorDB graph (`noa_<org id without dashes>`). The projector (`api/lib/noa/graph/projector.ex`) writes it from the event log with parameterised `MERGE`s, so it can be dropped and replayed at any time (`mix noa.graph`).
+
+```mermaid
+graph LR
+  Person -- WORKS_ON --> Project
+  Person -- LEADS --> Project
+  Person -. "KNOWS_ABOUT {weight}" .-> Project
+  Person -- HAS_IDENTITY --> Identity["Identity (Discord, Slack, WhatsApp)"]
+  Channel -- MAPS_TO --> Project
+  Episode["Episode (a message or meeting line)"] -- IN --> Channel
+  Person -- AUTHORED --> Episode
+  Task -- BELONGS_TO --> Project
+  Task -- ASSIGNED_TO --> Person
+  Task -- EXTRACTED_FROM --> Episode
+  Person -- DECIDED --> Decision
+  Decision -- AFFECTS --> Project
+  Decision -- AFFECTS --> Task
+  Decision -- EXTRACTED_FROM --> Episode
+  Decision -- SUPERSEDES --> Decision
+  ChangeRecord -- CHANGED --> Task
+  Person -- COMMITTED --> Commit
+  Person -- OPENED --> PullRequest
+  Commit -- BELONGS_TO --> Project
+  PullRequest -- BELONGS_TO --> Project
+  CIRun -- BELONGS_TO --> Project
+```
+
+| Node | What it is | Key properties |
+| --- | --- | --- |
+| `Person` | Someone in the org map | `name`, `title`, `handles` |
+| `Project` | A product or client project | `name`, `key`, `repo`, `aliases` |
+| `Channel` | A Discord/Slack channel Noa may read | `name`, `platform`, `read` |
+| `Episode` | One message or meeting utterance: the evidence | `text` (full-text indexed), `at`, `author`, `platform` |
+| `Task` | Work, with its owner and deadline | `title` (full-text), `status`, `due` |
+| `Decision` | What was decided, until superseded | `statement` (full-text), `kind`, `status` |
+| `ChangeRecord` | A change to a task's date, scope or owner, and whether the lead approved it | `kind`, `old`, `new`, `status`, `reason` |
+| `Commit`, `PullRequest`, `CIRun` | GitHub activity per project | `message` / `title` (full-text), `state`, `url` |
+| `Identity` | A chat account linked to a person | `platform`, `external_id`, `name` |
+
+Every `Task` and `Decision` has an `EXTRACTED_FROM` edge to the message it came from, which is how every answer cites its source. `KNOWS_ABOUT` is derived: rebuilt from the graph itself (below), never written by hand.
+
+NYI's production graph on Oct 18, 2026: 363 episodes, 150 commits, 90 pull requests, 51 tasks, 32 change records, 10 decisions, 6 people, 4 projects; 1,046 relationships (`IN` 363, `BELONGS_TO` 291, `AUTHORED` 84, `EXTRACTED_FROM` 61, `COMMITTED` 60, `OPENED` 58, `ASSIGNED_TO` 44, `CHANGED` 32, `WORKS_ON` 18, `KNOWS_ABOUT` 10, `AFFECTS` 10).
+
+### The graph doing the work
+
+These are the queries the product depends on, from the code.
+
+**Who knows what** (`api/lib/noa/graph/experts.ex`). `KNOWS_ABOUT` weights are summed from what the graph shows each person did on a project: finished tasks ×3, active decisions ×3, merged PRs ×2, open tasks, messages in its channels and commits ×1 each. One of the six passes:
+
+```cypher
+MATCH (x:Person)<-[:ASSIGNED_TO]-(t:Task {status: 'done'})-[:BELONGS_TO]->(p:Project)
+WITH x, p, count(*) AS n
+MERGE (x)-[k:KNOWS_ABOUT]->(p)
+SET k.weight = coalesce(k.weight, 0) + n * $w
+```
+
+Used by "Who should own this?", the triage agent, KT briefs ("people to meet"), agent packs and the MCP tools `who_knows` and `suggest_owner`.
+
+**Who the work runs through, and who connects teams** (Portfolio, `@noa`):
+
+```cypher
+CALL algo.pageRank(NULL, NULL) YIELD node, score
+WITH node, score WHERE node:Person
+RETURN node.name AS name, score ORDER BY score DESC LIMIT 3
+```
+
+```cypher
+CALL algo.betweenness({nodeLabels: ['Person', 'Project', 'Task'],
+  relationshipTypes: ['ASSIGNED_TO', 'BELONGS_TO', 'WORKS_ON', 'LEADS']})
+YIELD node, score WITH node, score WHERE node:Person AND score > 0
+RETURN node.name AS name, score ORDER BY score DESC LIMIT 3
+```
+
+Working groups come from `algo.WCC` over `WORKS_ON`/`LEADS`; bus-factor risk is a project where one person holds most of the `KNOWS_ABOUT` weight.
+
+**Retrieval for `@noa`** (`api/lib/noa/agent/graph.ex`). A question is answered from the graph: full-text search finds the messages, tasks and decisions it mentions, then walks out to their project and source:
+
+```cypher
+CALL db.idx.fulltext.queryNodes('Episode', $q) YIELD node AS e
+OPTIONAL MATCH (e)-[:IN]->(c:Channel)
+OPTIONAL MATCH (c)-[:MAPS_TO]->(p:Project)
+RETURN e, p
+```
+
+"How is Saish connected to Emmarie?" runs a bounded path search, `MATCH p = (a {id: $a})-[*1..5]-(b {id: $b})`, shortest first; the Graph tab highlights the same path. Each answer lists the graph route behind every source, so you can see the graph did the work. Postgres is only a fallback when the graph is down or not built yet.
+
+More on each FalkorDB feature and the hackathon rules: [docs/hackathon.md](docs/hackathon.md). Full schema and constraints: [docs/schema.md](docs/schema.md).
 
 ## Stack
 

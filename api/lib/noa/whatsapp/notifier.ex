@@ -96,18 +96,30 @@ defmodule Noa.WhatsApp.Notifier do
         link: "/"
       )
     else
-      if (d["status"] == "blocked" and previous) && previous.data["status"] != "blocked" do
-        leads(%{project_id: d["project_id"], org_id: event.org_id})
-        |> Enum.flat_map(fn lead ->
-          deliver(
-            event,
-            lead,
-            "#{actor_name(event) || "Someone"} needs help with \"#{d["title"]}\": #{d["blocked_reason"] || "Blocked"}.",
-            link: "/"
+      cond do
+        # Finished work reaches the lead without anyone writing a status update.
+        (d["status"] == "done" and previous) && previous.data["status"] != "done" ->
+          owner = d["owner_id"] && person(d["owner_id"])
+          who = actor_name(event) || (owner && owner.name) || "Someone"
+
+          leads(%{project_id: d["project_id"], org_id: event.org_id})
+          |> Enum.flat_map(
+            &deliver(event, &1, "#{who} finished \"#{d["title"]}\" in #{project_name(d["project_id"])}.", link: "/")
           )
-        end)
-      else
-        []
+
+        (d["status"] == "blocked" and previous) && previous.data["status"] != "blocked" ->
+          leads(%{project_id: d["project_id"], org_id: event.org_id})
+          |> Enum.flat_map(fn lead ->
+            deliver(
+              event,
+              lead,
+              "#{actor_name(event) || "Someone"} needs help with \"#{d["title"]}\": #{d["blocked_reason"] || "Blocked"}.",
+              link: "/"
+            )
+          end)
+
+        true ->
+          []
       end
     end
   end

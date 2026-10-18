@@ -4,7 +4,11 @@ The build tracker, mirrored from the "Build tracker" tab of the team plan doc: h
 
 The plan doc is the main chart. This file holds the same rows so agents can read and update them inside the repo. Context for every item is in [PLAN.md](PLAN.md).
 
-## Release readiness (Oct 18, after Gmail integration)
+## Current rollout (Oct 18, Slack + Attendee)
+
+Saish authorized reviewing/committing all pending changes and redeploying. Slack PR #9 and Attendee Meet PR #11 are merged into main. The three Slack app credentials and Attendee API key are staged on Fly without changing existing OpenAI/database secrets. Pending WhatsApp task-list/completion notifications and README/demo updates are included in this release. Validation: 249 API tests pass (1 load excluded), four voice-worker tests pass, compile/format and web/landing type/lint checks pass. API deployment and post-deploy verification are in progress; no real Slack workspace install or consented meeting test is claimed. Vercel reports both projects deployed on base commit `cacda07`; local CLI authentication is unavailable for a forced frontend redeploy.
+
+## Earlier release readiness (Oct 18, after Gmail integration)
 
 Merged `origin/main` through `c33af97` locally, preserving uncommitted WhatsApp edits. Gmail parser, Work ingestion and poller integration tests pass; oversized messages now close their unread IMAP stream before the next poll. Latest checks: 191 API tests passed, 1 load test excluded; compile, format, web TypeScript, ESLint and production web build passed. API working tree, including Gmail and Discord completion, is deployed. Live Gmail receipt is **not verified**: Gmail settings/app password are absent locally and live configuration remains pending. Email sending (1.25) remains Soha's task, separate from inbound IMAP (1.29).
 
@@ -71,7 +75,7 @@ Exit test: A real Discord message becomes a proposed task in the right project a
 | # | Item | Source | Owner | Status | PR |
 | --- | --- | --- | --- | --- | --- |
 | 1.1 | New repo | Copy | Soha | Done |  |
-| 1.2 | Fly deploy: Dockerfiles, `fly.toml`, release migrations | Copy | Saish | In review | #4 |
+| 1.2 | Fly release rollout: Slack + Attendee credentials, merged integrations and pending WhatsApp/docs changes; preserve singleton API and verify migrations/health | Copy | Saish | In progress | #4 |
 | 1.3 | Observability: Logfire/OpenTelemetry, LLM audit and usage | Copy | Saish | In review | #3 |
 | 1.4 | Auth: password, magic link, Google, reset (AshAuthentication) | Copy | Saish | In review | #1 |
 | 1.5 | Orgs, invites, access requests | Copy | Saish | In review | #1 |
@@ -178,7 +182,7 @@ Exit test: A new team reaches its first proposed tasks in under 10 minutes witho
 | 4.4 | Empty, loading and error states on every page | New | Saish | In review | #4 |
 | 4.5 | Landing, privacy and terms pages (privacy and terms drafted; need a read before launch) | Copy | Saish | In review | #4 |
 | 4.6 | Second-team onboarding test on a fresh org (automated in setup_test; manual run to do) | New | Saish | In review | #4 |
-| 4.7 | 3-minute video of real NYI use | New | Saish | Not started |  |
+| 4.7 | Real NYI demo video: 6–7 minute main cut, short edit from the same footage; phased plan in docs/demo.md | New | Saish | Not started |  |
 | 4.8 | README with architecture and setup; blog post | New | Saish | In progress |  |
 | 4.9 | Submit on WeMakeDevs (all tracks allowed) | New | Saish | Not started |  |
 

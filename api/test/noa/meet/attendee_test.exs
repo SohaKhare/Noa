@@ -69,6 +69,22 @@ defmodule Noa.Meet.AttendeeTest do
              Attendee.transcript("bot_123", @opts)
   end
 
+  test "transcript reads Attendee's nested transcription object" do
+    Req.Test.stub(__MODULE__, fn conn ->
+      Req.Test.json(conn, [
+        %{
+          "speaker_name" => "Soha",
+          "timestamp_ms" => 1_792_354_616_289,
+          "duration_ms" => 2166,
+          "transcription" => %{"transcript" => "The detail documentation."}
+        }
+      ])
+    end)
+
+    assert {:ok, [%{speaker: "Soha", text: "The detail documentation.", start_ms: 1_792_354_616_289}]} =
+             Attendee.transcript("bot_123", @opts)
+  end
+
   test "rejects invalid bot IDs and invalid transcript lines" do
     assert {:error, :invalid_bot_id} = Attendee.transcript("../other", @opts)
 

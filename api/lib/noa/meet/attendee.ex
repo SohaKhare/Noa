@@ -65,8 +65,16 @@ defmodule Noa.Meet.Attendee do
   # Reject malformed lines rather than creating a source citation with made-up timing.
   defp normalize(lines) do
     Enum.reduce_while(lines, {:ok, []}, fn line, {:ok, acc} ->
+      # Attendee nests the text as %{"transcript" => text}; older payloads send a string.
+      text =
+        case line do
+          %{"transcription" => %{"transcript" => text}} -> text
+          %{"transcription" => text} -> text
+          _ -> nil
+        end
+
       case line do
-        %{"timestamp_ms" => at, "duration_ms" => duration, "transcription" => text}
+        %{"timestamp_ms" => at, "duration_ms" => duration}
         when is_integer(at) and at >= 0 and is_integer(duration) and duration >= 0 and is_binary(text) ->
           normalized = %{
             provider_utterance_id: line["id"],

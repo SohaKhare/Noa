@@ -75,7 +75,7 @@ Exit test: A real Discord message becomes a proposed task in the right project a
 | # | Item | Source | Owner | Status | PR |
 | --- | --- | --- | --- | --- | --- |
 | 1.1 | New repo | Copy | Soha | Done |  |
-| 1.2 | API deployed as release-cd22820: Slack + Attendee settings active, migrations/health verified, one machine. Frontend redeployment handed to Soha | Copy | Saish | Done | #4, #12 |
+| 1.2 | API deployed as release-cd22820: Slack + Attendee settings active, migrations/health verified, one machine. Frontend redeployment handed to Soha | Copy | Saish | Done | #4, #12, #13 |
 | 1.3 | Observability: Logfire/OpenTelemetry, LLM audit and usage | Copy | Saish | In review | #3 |
 | 1.4 | Auth: password, magic link, Google, reset (AshAuthentication) | Copy | Saish | In review | #1 |
 | 1.5 | Orgs, invites, access requests | Copy | Saish | In review | #1 |

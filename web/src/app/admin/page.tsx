@@ -104,7 +104,7 @@ const serviceLabel: Record<keyof PlatformStatus["services"], string> = {
   whatsapp_webhook: "WhatsApp replies (webhook secret)",
   discord: "Discord bot",
   github: "GitHub webhook",
-  email: "Email (Resend)",
+  email: "Email (Gmail SMTP or Resend)",
 };
 
 /* Services, event-log readers and background jobs, refreshed every 15 seconds. */

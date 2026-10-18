@@ -64,6 +64,24 @@ defmodule Noa.WhatsApp.Notifier do
   end
 
   @doc "The messages one event causes, sent now. Returns the list of `{person, text, opts}` it sent."
+  def handle(%{type: "proposal.saved", data: %{"status" => "pending"} = d} = event) do
+    if is_nil(previous(event)) do
+      recipients =
+        if d["owner_id"], do: [person(d["owner_id"])], else: leads(%{project_id: d["project_id"], org_id: event.org_id})
+
+      recipients
+      |> Enum.filter(&(&1 && &1.notify_via == :discord))
+      |> Enum.flat_map(fn recipient ->
+        deliver(event, recipient, "Noa found a proposal: #{d["summary"]}",
+          buttons: [{"approve:#{d["id"]}", "Approve"}, {"reject:#{d["id"]}", "Reject"}],
+          link: "/inbox"
+        )
+      end)
+    else
+      []
+    end
+  end
+
   def handle(%{type: "task.saved", data: d} = event) do
     previous = previous(event)
 
@@ -78,7 +96,19 @@ defmodule Noa.WhatsApp.Notifier do
         link: "/"
       )
     else
-      []
+      if (d["status"] == "blocked" and previous) && previous.data["status"] != "blocked" do
+        leads(%{project_id: d["project_id"], org_id: event.org_id})
+        |> Enum.flat_map(fn lead ->
+          deliver(
+            event,
+            lead,
+            "#{actor_name(event) || "Someone"} needs help with \"#{d["title"]}\": #{d["blocked_reason"] || "Blocked"}.",
+            link: "/"
+          )
+        end)
+      else
+        []
+      end
     end
   end
 
@@ -204,9 +234,9 @@ defmodule Noa.WhatsApp.Notifier do
 
   # The project's lead, or the workspace's admins and PMs if it has none.
   defp leads(task) do
-    project = Ash.get!(Work.Project, task.project_id, authorize?: false)
+    project = task.project_id && Ash.get!(Work.Project, task.project_id, authorize?: false)
 
-    if project.lead_id do
+    if project && project.lead_id do
       [person(project.lead_id)]
     else
       Work.Person

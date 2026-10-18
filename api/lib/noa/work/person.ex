@@ -65,12 +65,24 @@ defmodule Noa.Work.Person do
   actions do
     defaults([:read, :destroy])
 
+    read :discord_authentication do
+      prepare(build(select: [:id, :org_id, :membership_id]))
+    end
+
     create :create do
       accept([:key, :name, :title, :email, :handles, :org_id, :membership_id])
+      change(Noa.Work.Changes.ProtectDiscordHandles)
     end
 
     update :update do
+      require_atomic?(false)
       accept([:name, :title, :email, :handles, :membership_id])
+      change(Noa.Work.Changes.ProtectDiscordHandles)
+    end
+
+    # Only the gateway challenge flow supplies the verified handle list.
+    update :discord_link do
+      accept([:handles])
     end
 
     # Anyone can set their own; admins and PMs can set anyone's.
@@ -84,12 +96,20 @@ defmodule Noa.Work.Person do
       authorize_if(always())
     end
 
-    policy action_type(:read) do
+    policy action(:read) do
       authorize_if(expr(exists(org.memberships, user_id == ^actor(:id))))
+    end
+
+    policy action(:discord_authentication) do
+      authorize_if(expr(not is_nil(membership_id) and ^actor(:discord_handle) in handles))
     end
 
     policy action([:create, :update, :destroy]) do
       authorize_if({Noa.Work.Checks.ActorInOrg, roles: [:org_admin, :pm]})
+    end
+
+    policy action(:discord_link) do
+      authorize_if(expr(membership.user_id == ^actor(:id)))
     end
 
     policy action(:notifications) do

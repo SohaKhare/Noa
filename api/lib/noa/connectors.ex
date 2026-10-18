@@ -40,7 +40,7 @@ defmodule Noa.Connectors do
   def discord_invite_url do
     case System.get_env("DISCORD_CLIENT_ID") do
       id when is_binary(id) and id != "" ->
-        "https://discord.com/oauth2/authorize?client_id=#{id}&scope=bot&permissions=68608"
+        "https://discord.com/oauth2/authorize?client_id=#{id}&scope=bot%20applications.commands&permissions=1117184"
 
       _ ->
         nil

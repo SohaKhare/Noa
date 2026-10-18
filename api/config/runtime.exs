@@ -23,7 +23,8 @@ if config_env() != :test do
       approval: System.get_env("KAPSO_TEMPLATE_APPROVAL"),
       language: System.get_env("KAPSO_TEMPLATE_LANG", "en_US")
     },
-    notifier: System.get_env("NOA_WHATSAPP_NOTIFIER", "true") == "true"
+    notifier: System.get_env("NOA_WHATSAPP_NOTIFIER", "true") == "true",
+    display_number: System.get_env("KAPSO_DISPLAY_NUMBER")
 end
 
 # GitHub (3.7): webhook secret, and a token for backfilling private repos.
@@ -64,7 +65,7 @@ if config_env() == :prod do
 
   config :nostrum,
     token: System.get_env("DISCORD_BOT_TOKEN"),
-    gateway_intents: [:guilds, :guild_messages, :guild_members, :message_content]
+    gateway_intents: [:guilds, :guild_messages, :guild_members, :message_content, :direct_messages]
 
   # Without a Resend key, emails (invites, magic links, resets) are written to the log
   # so an admin can still pass a link on.
@@ -84,4 +85,37 @@ if config_env() == :prod do
     secret_key_base: System.fetch_env!("SECRET_KEY_BASE"),
     check_origin: [System.fetch_env!("WEB_ORIGIN")],
     server: true
+end
+
+# Email through Google Workspace SMTP (1.25), the same setup as Tulpa v1. With a Google
+# app password present, invites, sign-in links, resets and notifications go out through
+# Gmail; this wins over Resend and the log fallback. Gmail requires the From address to
+# be the signed-in account (or a verified send-as alias), so From defaults to the SMTP
+# user unless MAIL_FROM overrides.
+smtp_password = System.get_env("GOOGLE_APP_PASSWORD")
+
+if smtp_password && smtp_password != "" && config_env() != :test do
+  smtp_username = System.get_env("MAIL_SMTP_USERNAME") || "itsupport@notyouridea.com"
+
+  config :noa, Noa.Mailer,
+    adapter: Swoosh.Adapters.SMTP,
+    relay: "smtp.gmail.com",
+    port: 587,
+    username: smtp_username,
+    password: smtp_password,
+    ssl: false,
+    tls: :always,
+    auth: :always,
+    retries: 2,
+    # OTP 26+ verifies TLS but needs the CA certs and SNI given explicitly, or Gmail's
+    # STARTTLS upgrade fails with :tls_failed.
+    tls_options: [
+      verify: :verify_peer,
+      cacerts: :public_key.cacerts_get(),
+      server_name_indication: ~c"smtp.gmail.com",
+      versions: [:"tlsv1.2", :"tlsv1.3"],
+      depth: 3
+    ]
+
+  config :noa, mail_from: {System.get_env("MAIL_FROM_NAME", "Noa"), System.get_env("MAIL_FROM") || smtp_username}
 end

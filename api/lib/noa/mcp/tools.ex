@@ -124,7 +124,14 @@ defmodule Noa.MCP.Tools do
 
   @doc "Runs a tool: `{:ok, text}`, `{:error, text}` for a failure the model should see, or `:unknown`."
   def call(name, args, user, org_id) do
-    run(name, args, user, org_id)
+    case run(name, args, user, org_id) do
+      {:error, text} when is_binary(text) -> {:error, text}
+      # Anything else that went wrong comes back as a message the agent can read.
+      {:error, %Ash.Error.Forbidden{}} -> {:error, "You don't have access to that."}
+      {:error, :not_found} -> {:error, "Not found."}
+      {:error, _other} -> {:error, "Noa couldn't do that right now. Try again, or ask in the web app."}
+      result -> result
+    end
   rescue
     e -> {:error, "Noa couldn't do that: #{Exception.message(e)}"}
   end

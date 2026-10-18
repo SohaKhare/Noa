@@ -185,30 +185,29 @@ defmodule Noa.Ingest.Discord do
   end
 
   @doc """
-  Sends a direct message from Noa's bot to the person's Discord account (the identity
-  Noa linked when they first wrote in a mapped channel). `{:ok, message}`, or
+  Sends a direct message from Noa's bot to the person's verified Discord account.
+  Display-name-inferred identities are never notification destinations. `{:ok, message}`, or
   `{:error, :no_discord_account}` / `{:error, :not_connected}`.
   """
-  def dm(%Noa.Work.Person{id: person_id}, text) do
-    identity =
-      Noa.Work.Identity
-      |> Ash.Query.filter(person_id == ^person_id and platform == :discord)
-      |> Ash.read!(authorize?: false)
-      |> Enum.find(&Regex.match?(~r/^\d+$/, &1.external_id))
+  def dm(%Noa.Work.Person{} = person, text, opts \\ []) do
+    alias Noa.Ingest.Discord.{Accounts, Commands, Views}
+    discord_id = Accounts.discord_id(person)
 
-    cond do
-      not enabled?() ->
-        {:error, :not_connected}
-
-      is_nil(identity) ->
-        {:error, :no_discord_account}
-
-      true ->
-        with {:ok, channel} <- Nostrum.Api.User.create_dm(String.to_integer(identity.external_id)),
-             do: Nostrum.Api.Message.create(channel.id, String.slice(text, 0, 2000))
+    if enabled?() and discord_id do
+      with {:ok, actor} <- Accounts.actor(person.org_id, discord_id),
+           {:ok, current} <- Ash.get(Noa.Work.Person, person.id, actor: actor),
+           true <- Accounts.discord_id(current) == discord_id,
+           {:ok, channel} <- Commands.api().dm(discord_id) do
+        components = Views.notification_buttons(person.org_id, opts[:buttons])
+        Commands.api().message(to_string(channel.id), Views.text(text, components))
+      else
+        _ -> {:error, :no_discord_account}
+      end
+    else
+      {:error, if(enabled?(), do: :no_discord_account, else: :not_connected)}
     end
   rescue
-    e -> {:error, e}
+    _ -> {:error, :discord_delivery_failed}
   end
 
   @doc "The workspace a server belongs to: connected in Settings, or the platform setting."
@@ -369,7 +368,11 @@ defmodule Noa.Ingest.Discord do
 
   defmodule Backfill do
     @moduledoc "Loads a newly mapped Discord channel's recent history (2.10, 1.18)."
-    use Oban.Worker, queue: :extraction, max_attempts: 3, unique: [period: 3600, keys: [:org_id, :channel_id]]
+    use Oban.Worker,
+      queue: :extraction,
+      max_attempts: 3,
+      # One load per channel at a time; asking again after it finishes runs it again.
+      unique: [period: 3600, keys: [:org_id, :channel_id], states: [:available, :scheduled, :executing, :retryable]]
 
     @impl Oban.Worker
     def perform(%Oban.Job{args: %{"org_id" => org_id, "channel_id" => channel_id}}) do

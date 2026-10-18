@@ -84,7 +84,7 @@ Everything below runs locally against real Postgres and FalkorDB, with tests (`c
 | Shifts | Yes | Drag someone on the staffing board; Noa moves the allocation, hands over tasks and routes questions to them for two weeks |
 | KT brief and experts | Yes | Per-project brief with people to meet from the graph (download as `brief.md`); PageRank and bus factor in Portfolio |
 | Graph view | Yes | Each project's FalkorDB neighbourhood; click two nodes to see the shortest path between them |
-| Discord | Yes, once the bot token is set | Gateway ingest of mapped channels (DMs and bots refused), backfill, member identities, DMs for notifications |
+| Discord | Yes, after server connection and verified account linking | Mapped-channel ingest/backfill, `/noa` private cited replies, task/approval buttons, recaps, KT briefs and notification DMs. Explicit DM questions are answered but never ingested. [docs/discord.md](docs/discord.md) |
 | Gmail inbox | Opt-in | Read-only IMAP poll of new mail in a configured workspace's INBOX; plain-text content enters the event log and extraction. See [docs/gmail.md](docs/gmail.md) |
 | WhatsApp | Yes, sends once Kapso is configured | Signed webhooks, reply buttons, "done" moves a card, shift links to the brief and pack. Without credentials, messages stay in a local outbox. [docs/whatsapp.md](docs/whatsapp.md) |
 | Agent pack | Yes | `CLAUDE.md`, `AGENTS.md`, `tasks.md` and `brief.md` generated from the project graph, with a day-one checklist |

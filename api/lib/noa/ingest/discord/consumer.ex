@@ -4,16 +4,33 @@ defmodule Noa.Ingest.Discord.Consumer do
 
   Keeping the event shape at this boundary means a gateway library can be added or
   swapped without allowing connector code to bypass the Work/event-log pipeline.
-  `MESSAGE_CREATE` is the only event that reads content; DMs and bot messages are
-  rejected by the normalizer before they reach the database.
+  Guild messages go through the consent gate; slash commands, mentions and explicit
+  questions to Noa use verified accounts. DMs never enter the ingestion pipeline.
   """
 
   use Nostrum.Consumer
 
   alias Noa.Ingest.Discord
+  alias Noa.Ingest.Discord.Commands
 
   @impl true
-  def handle_event({:MESSAGE_CREATE, payload, _state}), do: Discord.ingest(payload)
+  def handle_event({:READY, %{user: %{id: _}}, _state}), do: register()
+
+  @impl true
+  def handle_event({:INTERACTION_CREATE, interaction, _state}), do: Commands.handle(interaction)
+
+  @impl true
+  def handle_event({:MESSAGE_CREATE, payload, _state}) do
+    message = Discord.normalize_payload(payload)
+
+    if is_nil(message["guild_id"]) do
+      Commands.direct(message)
+    else
+      result = Discord.ingest(payload)
+      if match?({:ok, _}, result), do: Commands.mention(payload)
+      result
+    end
+  end
 
   @impl true
   def handle_event({:MESSAGE_UPDATE, {_old, updated}, _state}), do: Discord.edit(updated)
@@ -32,8 +49,12 @@ defmodule Noa.Ingest.Discord.Consumer do
   end
 
   @impl true
+  def handle_event({:GUILD_AVAILABLE, guild, state}), do: handle_event({:GUILD_CREATE, guild, state})
+
+  @impl true
   def handle_event({:GUILD_CREATE, guild, _state}) do
     guild = Discord.normalize_payload(guild)
+    register(guild["id"])
 
     with {:ok, org_id} <- configured_org(guild["id"]) do
       Enum.each(guild["members"] || [], fn member ->
@@ -43,4 +64,16 @@ defmodule Noa.Ingest.Discord.Consumer do
   end
 
   defp configured_org(guild_id), do: Discord.org_for_guild(guild_id)
+
+  defp register(guild_id \\ nil) do
+    case Commands.register(guild_id) do
+      :ok ->
+        :ok
+
+      _ ->
+        require Logger
+        Logger.warning("Noa Discord command registration failed; retry registration after reconnecting")
+        :error
+    end
+  end
 end

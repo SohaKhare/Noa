@@ -41,7 +41,7 @@ defmodule Noa.Work.Feed do
       items =
         for(
           p <- proposals,
-          lead or (me && p.owner_id == me.id),
+          lead or (me != nil and p.owner_id == me.id),
           do: %{
             id: "proposal:#{p.id}",
             kind: "approval",
@@ -52,7 +52,8 @@ defmodule Noa.Work.Feed do
         ) ++
           for(
             c <- changes,
-            c.status == :pending and (lead or (me && project[c.project_id] && project[c.project_id].lead_id == me.id)),
+            c.status == :pending and
+              (lead or (me != nil and project[c.project_id] != nil and project[c.project_id].lead_id == me.id)),
             do: %{
               id: "change:#{c.id}",
               kind: "approval",
@@ -65,7 +66,7 @@ defmodule Noa.Work.Feed do
           for(
             c <- changes,
             recent.(c.inserted_at),
-            (me && task[c.task_id] && task[c.task_id].owner_id == me.id) and c.requested_by_id != actor.id and
+            me != nil and task[c.task_id] != nil and task[c.task_id].owner_id == me.id and c.requested_by_id != actor.id and
               c.status == :applied,
             do: %{
               id: "changed:#{c.id}",
@@ -101,7 +102,7 @@ defmodule Noa.Work.Feed do
           for(
             s <- shifts,
             recent.(s.inserted_at),
-            (me && s.person_id == me.id) or MapSet.member?(mine, s.from_project_id) or
+            (me != nil and s.person_id == me.id) or MapSet.member?(mine, s.from_project_id) or
               MapSet.member?(mine, s.to_project_id),
             do: %{
               id: "shift:#{s.id}",

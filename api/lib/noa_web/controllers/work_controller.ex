@@ -226,8 +226,18 @@ defmodule NoaWeb.WorkController do
   @doc "The signed-in person's notification preferences (2.15)."
   def notifications(conn, %{"org_id" => org_id}) do
     case Work.person_for(conn.assigns.current_user, org_id) do
-      nil -> {:error, :not_found}
-      person -> json(conn, %{notifications: Payload.notifications(person)})
+      nil ->
+        {:error, :not_found}
+
+      person ->
+        json(conn, %{
+          notifications: Payload.notifications(person),
+          whatsapp: %{
+            number: Noa.WhatsApp.display_number(),
+            window_open: Noa.WhatsApp.window_open?(person.phone),
+            sending: Noa.WhatsApp.configured?()
+          }
+        })
     end
   end
 
@@ -349,8 +359,8 @@ defmodule NoaWeb.WorkController do
           webhook: api <> "/webhooks/github",
           repos: repos
         },
-        email: %{connected: Application.get_env(:noa, Noa.Mailer, [])[:adapter] == Noa.Mailer.Resend},
-        openai: %{connected: is_binary(System.get_env("OPENAI_API_KEY")) and System.get_env("OPENAI_API_KEY") != ""}
+        email: %{connected: Noa.Mailer.delivering?()},
+        openai: %{connected: Noa.LLM.configured?()}
       })
     end
   end

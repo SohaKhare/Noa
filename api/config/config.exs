@@ -8,7 +8,15 @@ config :noa, Noa.Graph, url: "redis://127.0.0.1:6379", projector: true
 config :ash, warn_on_transaction_hooks?: false
 
 # Never log these request fields (4.3).
-config :phoenix, :filter_parameters, ["password", "token", "reset_token", "secret", "api_key", "key"]
+config :phoenix, :filter_parameters, [
+  "password",
+  "token",
+  "reset_token",
+  "secret",
+  "api_key",
+  "key",
+  "code"
+]
 
 # Background jobs. Extraction runs one channel at a time per org (1.17).
 config :noa, Oban,
@@ -47,7 +55,7 @@ config :nostrum,
   youtubedl: nil,
   streamlink: nil,
   token: System.get_env("DISCORD_BOT_TOKEN"),
-  gateway_intents: [:guilds, :guild_messages, :guild_members, :message_content]
+  gateway_intents: [:guilds, :guild_messages, :guild_members, :message_content, :direct_messages]
 
 # The emailed magic link signs in on GET so it can redirect straight into the web app.
 config :ash_authentication, :bypass_require_interaction_for_magic_link?, true

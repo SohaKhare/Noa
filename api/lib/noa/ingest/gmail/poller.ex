@@ -36,21 +36,23 @@ defmodule Noa.Ingest.Gmail.Poller do
 
   @doc "Sync once; safe to retry after network errors or a restart."
   def sync(config) do
+    imap = Keyword.get(config, :imap, IMAP)
+
     with {:ok, channel} <- channel(config[:org_id], config[:username]),
-         {:ok, socket} <- IMAP.connect(config[:host], config[:port], config[:username], config[:password]) do
+         {:ok, socket} <- imap.connect(config[:host], config[:port], config[:username], config[:password]) do
       try do
-        with {:ok, {validity, uidnext}} <- IMAP.examine(socket) do
+        with {:ok, {validity, uidnext}} <- imap.examine(socket) do
           name = "gmail:#{config[:org_id]}:#{config[:username]}:#{validity}"
 
           if not initialized?(name) do
             Events.put_position(name, uidnext - 1)
             {:ok, 0}
           else
-            import_new(socket, name, channel, config[:org_id])
+            import_new(imap, socket, name, channel, config[:org_id])
           end
         end
       after
-        IMAP.close(socket)
+        imap.close(socket)
       end
     end
   end
@@ -86,14 +88,14 @@ defmodule Noa.Ingest.Gmail.Poller do
     count > 0
   end
 
-  defp import_new(socket, name, channel, org_id) do
+  defp import_new(imap, socket, name, channel, org_id) do
     position = Events.position(name)
 
-    with {:ok, uids} <- IMAP.search(socket, max(position + 1, 1)) do
+    with {:ok, uids} <- imap.search(socket, max(position + 1, 1)) do
       uids
       |> Enum.take(@batch)
       |> Enum.reduce_while({:ok, 0}, fn uid, {:ok, count} ->
-        case IMAP.fetch(socket, uid) do
+        case imap.fetch(socket, uid) do
           {:ok, raw} ->
             case record(Message.parse(raw), org_id, channel, name, uid) do
               {:ok, :imported} ->
@@ -115,7 +117,8 @@ defmodule Noa.Ingest.Gmail.Poller do
           {:error, :message_too_large} ->
             Logger.warning("Gmail skipped oversized message UID #{uid} (over 1 MB)")
             Events.put_position(name, uid)
-            {:cont, {:ok, count}}
+            # The rejected literal is still unread on this socket; reconnect next poll.
+            {:halt, {:ok, count}}
 
           error ->
             {:halt, error}

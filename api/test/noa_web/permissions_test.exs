@@ -39,6 +39,9 @@ defmodule NoaWeb.PermissionsTest do
     {:get, "/mcp_tokens"},
     {:post, "/mcp_tokens"},
     {:delete, "/mcp_tokens/:task"},
+    {:get, "/me/discord"},
+    {:post, "/me/discord"},
+    {:delete, "/me/discord"},
     {:get, "/me/notifications"},
     {:patch, "/me/notifications"},
     {:get, "/projects/:project/brief"},
@@ -64,6 +67,8 @@ defmodule NoaWeb.PermissionsTest do
     {:post, "/people/from_members"},
     {:put, "/allocations"},
     {:post, "/channels"},
+    {:post, "/channels/:channel/backfill"},
+    {:delete, "/channels/:channel"},
     {:get, "/discord/channels"},
     {:post, "/import"},
     {:get, "/join_requests"},
@@ -171,7 +176,8 @@ defmodule NoaWeb.PermissionsTest do
           assert conn.status == 200, "#{method} #{route} gave #{conn.status}"
 
         # So are their own notification settings and agent tokens (personal, not the workspace's).
-        route in ["/me/notifications", "/mcp_tokens", "/mcp_tokens/:task"] ->
+        route in ["/me/notifications", "/mcp_tokens", "/mcp_tokens/:task"] or
+            (route == "/me/discord" and method == :delete) ->
           # Their own settings and tokens; deleting someone else's token id finds nothing.
           assert conn.status in [200, 201, 204, 404], "#{method} #{route} gave #{conn.status}"
 

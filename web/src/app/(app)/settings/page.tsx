@@ -16,9 +16,14 @@ import { useState } from "react";
 import { FormError } from "@/components/AuthCard";
 import { Badge, Card, PageHeader } from "@/components/ui";
 import { PeopleSettings } from "@/components/PeopleSettings";
+import { DiscordAccount, DiscordLinkConfirmation } from "@/components/DiscordAccount";
 import {
   ApiError,
+  backfillChannel,
   backfillGithub,
+  createChannel,
+  deleteChannel,
+  getDiscordChannels,
   connectDiscord,
   disconnectConnector,
   getGithubRepos,
@@ -26,18 +31,20 @@ import {
   setGithubToken,
   type Channel,
   type Connectors as ConnectorStatus,
+  type ServerChannel,
   type NotificationPrefs,
   type NotifyVia,
   type WhatsAppMessage,
   getConnectors,
   getNotifications,
   getWhatsApp,
+  getWhatsAppWindow,
   roleLabel,
   updateChannel,
   updateNotifications,
 } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import { currentMembership, useMe } from "@/lib/session";
+import { currentMembership, isOrgAdmin, useMe } from "@/lib/session";
 import { accessBundles } from "@/lib/mock";
 import { ago, useDirectory } from "@/lib/work";
 
@@ -62,6 +69,7 @@ const connectorIcon: Record<string, Icon> = {
 };
 
 export default function Settings() {
+  const orgAdmin = isOrgAdmin(useMe().user);
   // Coming back from installing the GitHub App lands on Connectors.
   const [section, setSection] = useState<Section>(() =>
     typeof window !== "undefined" && new URLSearchParams(window.location.search).has("github") ? "Connectors" : "People and roles",
@@ -77,6 +85,7 @@ export default function Settings() {
             : undefined
         }
       />
+      <DiscordLinkConfirmation />
       <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
         <nav
           aria-label="Settings"
@@ -99,7 +108,12 @@ export default function Settings() {
         </nav>
         <div>
           {section === "Connectors" && <Connectors />}
-          {section === "Channels" && <Channels />}
+          {section === "Channels" && (
+            <div className="space-y-4">
+              {orgAdmin && <ServerChannels />}
+              <Channels />
+            </div>
+          )}
           {section === "People and roles" && <PeopleRoles />}
           {section === "Access bundles" && <Bundles />}
           {section === "Notifications" && <NotificationPrefs />}
@@ -133,7 +147,7 @@ function Connectors() {
           detail: c.github.repos.length ? `Commits, PRs and CI from ${c.github.repos.map((r) => r.repo).join(", ")}` : "No project has a repo yet",
           off: "Not connected: an org admin sets it up below",
         },
-        { id: "email", name: "Email (Resend)", on: c.email.connected, detail: "Invites, sign-in links and notifications", off: "No RESEND_API_KEY: emails go to the API log" },
+        { id: "email", name: "Email", on: c.email.connected, detail: "Invites, sign-in links and notifications go out by email", off: "No email account set (GOOGLE_APP_PASSWORD): emails go to the API log" },
         { id: "slack", name: "Slack", on: false, detail: "", off: "Not built yet" },
         { id: "google", name: "Google Meet", on: false, detail: "", off: "Not built yet" },
       ]
@@ -173,6 +187,7 @@ function Connectors() {
               : "GitHub didn't finish connecting. Try Install again from here."}
         </p>
       )}
+      <DiscordAccount />
       {c && admin && <DiscordSetup c={c} />}
       {c && admin && <GitHubSetup c={c} />}
       <WhatsAppLog messages={wa.data?.messages ?? []} scope={wa.data?.scope} />
@@ -438,6 +453,119 @@ const platformName = {
 } as const;
 
 /* Channel to project map (1.18), saved to the API. Only org admins can change it. */
+/* Every channel in the connected Discord server (1.18, 2.10): connect them one by one to a project, load each one's history when you want it, and clean out mappings that match nothing. Org admins. */
+function ServerChannels() {
+  const dir = useDirectory();
+  const client = useQueryClient();
+  const q = useQuery({ queryKey: ["discord-channels", dir.orgId], queryFn: () => getDiscordChannels(dir.orgId!), enabled: !!dir.orgId, refetchInterval: 10_000 });
+  const [loading, setLoading] = useState<Record<string, string>>({});
+  const refresh = () => {
+    client.invalidateQueries({ queryKey: ["discord-channels", dir.orgId] });
+    client.invalidateQueries({ queryKey: ["directory", dir.orgId] });
+  };
+  const route = useMutation({
+    mutationFn: async ({ c, value }: { c: ServerChannel; value: string }) => {
+      const target = value === "off" ? { read: false } : value === "split" ? { read: true, split: true, project_id: null } : { read: true, split: false, project_id: value };
+      if (c.channel_id) return updateChannel(dir.orgId!, c.channel_id, target);
+      if (value === "off") return null;
+      return createChannel(dir.orgId!, { name: `#${c.name}`, external_id: c.id, backfill: false, ...target });
+    },
+    onSuccess: refresh,
+  });
+  const history = useMutation({
+    mutationFn: (c: ServerChannel) => backfillChannel(dir.orgId!, c.channel_id!),
+    onSuccess: (r, c) => setLoading((m) => ({ ...m, [c.id]: r.backfill === "already_queued" ? "Already loading…" : "Loading history…" })),
+  });
+  const remove = useMutation({ mutationFn: (id: string) => deleteChannel(dir.orgId!, id), onSuccess: refresh });
+  const error = (route.error ?? history.error ?? remove.error) as ApiError | null;
+
+  if (!q.data?.connected) return null;
+  const value = (c: ServerChannel) => (!c.channel_id || !c.read ? "off" : c.split ? "split" : (c.project_id ?? "off"));
+
+  return (
+    <Card className="p-0">
+      <div className="border-b border-line px-5 py-4">
+        <p className="text-[14px] font-semibold">Your Discord server</p>
+        <p className="text-[12.5px] text-muted">
+          Every channel in the connected server. Pick a project to start reading one, then load its history if you want the past too. Only connect channels whose members know Noa reads them.
+        </p>
+      </div>
+      {error && (
+        <div className="px-5 pt-3">
+          <FormError>{error.message}</FormError>
+        </div>
+      )}
+      <table className="w-full text-[13px]">
+        <thead>
+          <tr className="border-b border-line text-left text-[11.5px] text-muted">
+            <th className="px-5 py-2.5 font-medium">Channel</th>
+            <th className="py-2.5 font-medium">Project</th>
+            <th className="py-2.5 text-right font-medium">Messages</th>
+            <th className="px-5 py-2.5 text-right font-medium">History</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-line">
+          {q.data.channels.map((c) => (
+            <tr key={c.id}>
+              <td className="px-5 py-3 font-medium">#{c.name}</td>
+              <td>
+                <select
+                  value={value(c)}
+                  disabled={route.isPending}
+                  onChange={(e) => route.mutate({ c, value: e.target.value })}
+                  aria-label={`Project for #${c.name}`}
+                  className="rounded-lg bg-bg px-2 py-1.5 text-[12.5px] focus:outline-none"
+                >
+                  <option value="off">Not read</option>
+                  {dir.projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                  <option value="split">Split by message</option>
+                </select>
+              </td>
+              <td className="text-right font-mono text-[12px] text-muted">{c.messages}</td>
+              <td className="px-5 text-right">
+                {c.channel_id && c.read ? (
+                  loading[c.id] ? (
+                    <span className="text-[12px] text-muted">{loading[c.id]}</span>
+                  ) : (
+                    <button onClick={() => history.mutate(c)} disabled={history.isPending} className="text-[12.5px] font-medium text-accent-fg underline">
+                      Load history
+                    </button>
+                  )
+                ) : (
+                  <span className="text-[12px] text-muted">–</span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {q.data.stale.length > 0 && (
+        <div className="border-t border-line px-5 py-4">
+          <p className="text-[12.5px] font-semibold text-muted">Not in your server</p>
+          <p className="text-[12px] text-muted">Mappings that match no channel in the connected server, often from the starter org map.</p>
+          <ul className="mt-2 space-y-1.5">
+            {q.data.stale.map((c) => (
+              <li key={c.channel_id} className="flex items-center gap-3 text-[13px]">
+                <span className="flex-1">
+                  {c.name}
+                  {c.messages > 0 && <span className="text-muted"> · {c.messages} messages kept</span>}
+                </span>
+                <button onClick={() => remove.mutate(c.channel_id)} disabled={remove.isPending} className="text-[12.5px] text-muted underline">
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function Channels() {
   const dir = useDirectory();
   const client = useQueryClient();
@@ -606,6 +734,12 @@ function NotificationPrefs() {
     queryFn: () => getNotifications(dir.orgId!),
     enabled: !!dir.orgId,
   });
+  const wa = useQuery({
+    queryKey: ["whatsapp-window", dir.orgId],
+    queryFn: () => getWhatsAppWindow(dir.orgId!),
+    enabled: !!dir.orgId,
+    refetchInterval: 15_000,
+  });
   const save = useMutation({
     mutationFn: (data: Partial<NotificationPrefs>) =>
       updateNotifications(dir.orgId!, data),
@@ -657,10 +791,33 @@ function NotificationPrefs() {
             />
           </label>
         )}
+        {p.notify_via === "whatsapp" && wa.data?.number && (
+          <div className="rounded-xl bg-bg px-3 py-2.5 text-[12.5px]">
+            <p className="flex items-center gap-2">
+              <span
+                className={cn(
+                  "size-2 rounded-full",
+                  wa.data.window_open ? "bg-good" : "bg-warn",
+                )}
+              />
+              {wa.data.window_open
+                ? "Noa can message you with buttons for the next day."
+                : "Message Noa once so it can reach you with buttons for 24 hours."}
+            </p>
+            <a
+              href={`https://wa.me/${wa.data.number.replace(/\D/g, "")}?text=hi`}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-1.5 inline-block font-medium text-accent-fg underline"
+            >
+              Message Noa on WhatsApp ({wa.data.number})
+            </a>
+          </div>
+        )}
         {p.notify_via === "discord" && (
           <p className="text-[12px] text-muted">
-            Noa&rsquo;s bot DMs the Discord account you post from in a channel
-            it reads. Discord has no buttons, so messages link to the app.
+            Link your account with /noa link first. Noa DMs task and approval
+            buttons to your verified account; your usual permissions still apply.
           </p>
         )}
         <label className="block text-[12px] text-muted">

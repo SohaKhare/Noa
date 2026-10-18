@@ -26,7 +26,7 @@ DNS is on Cloudflare: set the Fly and Vercel records to "DNS only" (grey cloud) 
 | `DATABASE_URL` | yes | Set by `fly postgres attach` |
 | `FALKORDB_URL` | yes | From the FalkorDB Cloud dashboard: `redis://<user>:<password>@<host>:<port>` (`rediss://` on paid plans with TLS) |
 | `WEB_ORIGIN`, `API_BASE_URL` | yes | `https://app...`, `https://api...` (in `api/fly.toml`) |
-| `RESEND_API_KEY`, `MAIL_FROM_EMAIL` | for email | Without a key, emails (invites, magic links) are written to the API log |
+| `GOOGLE_APP_PASSWORD`, `MAIL_SMTP_USERNAME` (optional `MAIL_FROM`) | for email | Gmail SMTP with a Google Workspace app password, as Tulpa v1 does; sends from `itsupport@notyouridea.com` unless `MAIL_SMTP_USERNAME` says otherwise. `RESEND_API_KEY` still works instead. Without either, emails go to the API log |
 | `OPENAI_API_KEY` | for extraction | Without it, chat is recorded but not turned into proposals, and `@noa` answers extractively |
 | `KAPSO_*` | for WhatsApp | See docs/whatsapp.md; webhook `https://api.../webhooks/kapso` |
 | `DISCORD_BOT_TOKEN`, `DISCORD_CLIENT_ID` | for Discord | Noa's bot, run by the Noa admin. Each company's org admin adds it to their server and connects the server in Settings → Connectors. Empty token keeps Discord off |

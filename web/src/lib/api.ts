@@ -5,7 +5,8 @@
   yet still read lib/mock.ts.
 */
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+// Tolerate a trailing slash in the setting ("https://api.example.com/").
+export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/+$/, "");
 
 export type Role = "org_admin" | "pm" | "member" | "guest";
 export type Org = { id: string; name: string; slug: string; allowed_domains: string[] };
@@ -251,10 +252,23 @@ export const createPerson = (orgId: string, data: { name: string; title?: string
 export const addMembersAsPeople = (orgId: string) => post<{ added: number }>(`/api/orgs/${orgId}/people/from_members`).then((r) => r.added);
 export const setAllocation = (orgId: string, data: { person_id: string; project_id: string; percent: number }) =>
   api<{ allocation: Allocation | null }>(`/api/orgs/${orgId}/allocations`, { method: "PUT", body: JSON.stringify(data) }).then((r) => r.allocation);
-export const createChannel = (orgId: string, data: { name: string; external_id?: string; project_id?: string | null; split?: boolean }) =>
+export const createChannel = (orgId: string, data: { name: string; external_id?: string; project_id?: string | null; split?: boolean; backfill?: boolean }) =>
   post<{ channel: Channel }>(`/api/orgs/${orgId}/channels`, data).then((r) => r.channel);
+export type ServerChannel = {
+  id: string;
+  name: string;
+  mapped: boolean;
+  channel_id: string | null;
+  project_id: string | null;
+  split: boolean;
+  read: boolean;
+  messages: number;
+};
 export const getDiscordChannels = (orgId: string) =>
-  api<{ connected: boolean; channels: { id: string; name: string; mapped: boolean }[] }>(`/api/orgs/${orgId}/discord/channels`);
+  api<{ connected: boolean; channels: ServerChannel[]; stale: { channel_id: string; name: string; messages: number }[] }>(`/api/orgs/${orgId}/discord/channels`);
+export const backfillChannel = (orgId: string, channelId: string) =>
+  post<{ backfill: "queued" | "already_queued" | "discord_off" | "skipped" | "failed" }>(`/api/orgs/${orgId}/channels/${channelId}/backfill`);
+export const deleteChannel = (orgId: string, channelId: string) => api<{ ok: true }>(`/api/orgs/${orgId}/channels/${channelId}`, { method: "DELETE" });
 export const importOrgMap = (orgId: string, seed: unknown) => post<{ loaded: Record<string, number> }>(`/api/orgs/${orgId}/import`, { seed }).then((r) => r.loaded);
 
 export const updateChannel = (orgId: string, id: string, data: Partial<Pick<Channel, "project_id" | "split" | "read">>) =>
@@ -358,6 +372,12 @@ export type GraphView = { nodes: GraphNode[]; edges: { from: string; to: string;
 export const getGraph = (orgId: string, projectId: string) => api<GraphView>(`/api/orgs/${orgId}/graph?project_id=${projectId}`);
 export const getGraphPath = (orgId: string, from: string, to: string) =>
   api<{ path: string[] }>(`/api/orgs/${orgId}/graph/path?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`).then((r) => r.path);
+export const getDiscordAccount = (orgId: string) =>
+  api<{ discord_id: string | null }>(`/api/orgs/${orgId}/me/discord`);
+export const linkDiscordAccount = (orgId: string, code: string) =>
+  post<{ discord_id: string }>(`/api/orgs/${orgId}/me/discord`, { code });
+export const unlinkDiscordAccount = (orgId: string) =>
+  api<{ discord_id: null }>(`/api/orgs/${orgId}/me/discord`, { method: "DELETE" });
 export type NotifyVia = "whatsapp" | "discord" | "email" | "in_app";
 export type NotificationPrefs = {
   notify_via: NotifyVia;
@@ -369,6 +389,9 @@ export type NotificationPrefs = {
 };
 export const getNotifications = (orgId: string) =>
   api<{ notifications: NotificationPrefs }>(`/api/orgs/${orgId}/me/notifications`).then((r) => r.notifications);
+/* Noa's WhatsApp number and whether your 24-hour window is open (you wrote to Noa in the last day). */
+export const getWhatsAppWindow = (orgId: string) =>
+  api<{ whatsapp: { number: string | null; window_open: boolean; sending: boolean } }>(`/api/orgs/${orgId}/me/notifications`).then((r) => r.whatsapp);
 export const updateNotifications = (orgId: string, data: Partial<NotificationPrefs>) =>
   api<{ notifications: NotificationPrefs }>(`/api/orgs/${orgId}/me/notifications`, { method: "PATCH", body: JSON.stringify(data) }).then(
     (r) => r.notifications,

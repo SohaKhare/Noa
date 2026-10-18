@@ -23,21 +23,31 @@ const wordmark = Special_Gothic_Condensed_One({
 const description =
   "Noa turns your team's Discord, Slack, Meet and WhatsApp conversations into tasks, owners, deadlines and decisions, kept current and always cited.";
 
+const logo = { url: "/logo.svg", alt: "Noa", type: "image/svg+xml" };
+
 export const metadata: Metadata = {
+  metadataBase: new URL("https://heynoa.xyz"),
   title: "Noa: your company brain",
   description,
   applicationName: "Noa",
+  icons: {
+    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
+    shortcut: ["/favicon.svg"],
+    apple: [{ url: "/logo.svg", type: "image/svg+xml" }],
+  },
   openGraph: {
     type: "website",
     siteName: "Noa",
     title: "Noa: your company brain",
     description,
     locale: "en_US",
+    images: [logo],
   },
   twitter: {
     card: "summary_large_image",
     title: "Noa: your company brain",
     description,
+    images: [logo],
   },
 };
 

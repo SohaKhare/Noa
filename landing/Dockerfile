@@ -15,7 +15,9 @@ RUN mkdir -p landing/public
 ARG NEXT_PUBLIC_APP_URL
 ARG NEXT_PUBLIC_CDN_URL=https://cdn.saish.xyz
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL NEXT_PUBLIC_CDN_URL=$NEXT_PUBLIC_CDN_URL
-RUN pnpm --filter @noa/landing build
+# Use webpack for reliable standalone tracing in the CI container build.
+RUN pnpm --filter @noa/landing build --webpack \
+  && test -f landing/.next/standalone/landing/server.js
 
 FROM node:24-slim
 WORKDIR /app

@@ -12,8 +12,8 @@ RUN pnpm install --frozen-lockfile --filter "@noa/web..."
 COPY web web
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-# Use webpack for reliable standalone tracing in the CI container build.
-RUN pnpm --filter @noa/web build --webpack \
+# Assert the standalone server exists before assembling the runtime image.
+RUN pnpm --filter @noa/web build \
   && node -e 'const fs=require("node:fs");const {config}=JSON.parse(fs.readFileSync("web/.next/required-server-files.json","utf8"));console.log("Standalone config",{output:config.output,root:config.outputFileTracingRoot,distDir:config.distDir});console.log("Build files",fs.readdirSync("web/.next"));' \
   && test -f web/.next/standalone/web/server.js
 

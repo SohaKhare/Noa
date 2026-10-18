@@ -1,9 +1,9 @@
 import path from "node:path";
-import type { NextConfig } from "next";
+import { fileURLToPath } from "node:url";
 
 const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL || "https://cdn.saish.xyz";
 
-function cdnHostname(url: string) {
+function cdnHostname(url) {
   try {
     return new URL(url).hostname;
   } catch {
@@ -13,17 +13,17 @@ function cdnHostname(url: string) {
 
 const hostname = cdnHostname(cdnUrl);
 
-const nextConfig: NextConfig = {
+/** @type {import("next").NextConfig} */
+const nextConfig = {
   transpilePackages: ["@noa/theme"],
-  // Self-contained server for the Docker image; traced from the workspace root for @noa/theme.
   output: "standalone",
-  outputFileTracingRoot: path.join(__dirname, ".."),
+  outputFileTracingRoot: path.join(path.dirname(fileURLToPath(import.meta.url)), ".."),
   ...(hostname && {
     images: {
       unoptimized: true,
       remotePatterns: [
         {
-          protocol: "https" as const,
+          protocol: "https",
           hostname,
           pathname: "/noa/**",
         },

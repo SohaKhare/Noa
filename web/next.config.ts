@@ -5,8 +5,7 @@ import type { NextConfig } from "next";
 // auth, data and live updates all come from Phoenix.
 const nextConfig: NextConfig = {
   transpilePackages: ["@noa/theme"],
-  // Self-contained server for the Docker image; traced from the workspace root for @noa/theme.
-  output: "standalone",
+  // Trace workspace dependencies (including @noa/theme) from the repository root.
   outputFileTracingRoot: path.join(__dirname, ".."),
 };
 

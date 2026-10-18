@@ -22,7 +22,7 @@ Every table has `org_id`. Reads need a membership in that org. Writes are checke
 | `projects` | `Project` | `key` (e.g. `veriq`), `name`, `about`, `repo`, `status`, `lead_id` → person | Admins, PMs, the seed |
 | `project_aliases` | alias on `Project` | `alias` (case-insensitive, unique per org), `project_id` | Admins, PMs, the seed |
 | `allocations` | `WORKS_ON` | `person_id`, `project_id`, `percent`, `role`, `starts_on`, `ends_on`; never deleted, a shift sets `ends_on` | Admins, PMs, the seed |
-| `channels` | `Channel` + `MAPS_TO` | `platform`, `name`, `external_id`, `project_id`, `split`, `read` | Admins, the seed |
+| `channels` | `Channel` + `MAPS_TO` | `platform` (including `email`), `name`, `external_id`, `project_id`, `split`, `read` | Admins, the seed; explicitly configured Gmail inbox |
 | `tasks` | `Task` + `BELONGS_TO`, `ASSIGNED_TO`, `EXTRACTED_FROM` | `title`, `detail`, `status` (todo, in_progress, blocked, done), `due_on`, `blocked_reason`, `owner_id`, `source`, `done_at` | Members, PMs, admins (not guests); delete: PMs and admins |
 | `proposals` | (Inbox only) | `kind` (task, status_change, deadline_change, decision, scope_change), `summary`, `data` (the typed item), `confidence`, `source`, `status` (pending, approved, rejected), `owner_id`, `project_id`, `task_id` | Noa's pipeline; decided by leads, or by the member it is about |
 | `identities` | `Identity` + `HAS_IDENTITY` | `platform` (discord, slack, whatsapp, meet, github), `external_id`, `display_name`, `person_id` (empty until matched or linked) | Ingest through `Noa.Work.identify/4`; admins and PMs link |
@@ -48,7 +48,7 @@ Rules:
 
 - A write and its event commit together; if the append fails, the write rolls back.
 - A message delivered twice is stored once: `record_message` returns `{:duplicate, event}` the second time.
-- Messages from unknown or unread channels are refused (`{:error, :not_read}`), and DMs have no channel row, so they never reach the log.
+- Messages from unknown or unread channels are refused (`{:error, :not_read}`). Chat DMs have no channel row and never reach the log. Item 1.29 adds an explicitly configured Gmail support `INBOX` as a separate `email` channel: all new inbox plain-text email (no attachments) is workspace-visible and eligible for typed LLM extraction. The workspace approved this exception; email is not a chat DM.
 - `task.source.episode_id` is the message's `episode_id`, which links the card to the Episode in the graph.
 
 ## Graph (1.9, 1.10, 1.11)

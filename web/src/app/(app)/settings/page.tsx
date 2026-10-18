@@ -434,6 +434,7 @@ const platformName = {
   discord: "Discord",
   slack: "Slack",
   whatsapp: "WhatsApp",
+  email: "Email",
 } as const;
 
 /* Channel to project map (1.18), saved to the API. Only org admins can change it. */

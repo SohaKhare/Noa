@@ -56,6 +56,7 @@ Rules:
 - **The event log is the truth.** FalkorDB is a projection that can be rebuilt by replaying events, so never write to the graph except through the projector.
 - **Typed extraction only.** Each extraction type is an Ecto embedded schema compiled to a strict JSON schema, and the model can only return that shape. InstructorLite validates the output and retries; untyped output never reaches the graph. Prefer precision over recall.
 - **Everything cites its source.** Every Task and Decision has `EXTRACTED_FROM` an Episode.
+- **Gmail inbox opt-in (1.29).** NYI approved importing all new mail arriving at `itsupport@notyouridea.com` (no historical backfill, no attachment content), LLM processing and workspace-member visibility. This explicitly approved email inbox differs from private chat DMs, which remain excluded. The connector uses read-only IMAP over TLS, not SMTP.
 - **Ash policies enforce permissions** on every read, including `@noa` answers and MCP calls. Direct messages are never ingested, and unmapped channels are never ingested.
 
 ## Graph schema (draft; frozen by item 0.3 into `docs/schema.md`)

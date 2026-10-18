@@ -85,6 +85,7 @@ Everything below runs locally against real Postgres and FalkorDB, with tests (`c
 | KT brief and experts | Yes | Per-project brief with people to meet from the graph (download as `brief.md`); PageRank and bus factor in Portfolio |
 | Graph view | Yes | Each project's FalkorDB neighbourhood; click two nodes to see the shortest path between them |
 | Discord | Yes, once the bot token is set | Gateway ingest of mapped channels (DMs and bots refused), backfill, member identities, DMs for notifications |
+| Gmail inbox | Opt-in | Read-only IMAP poll of new mail in a configured workspace's INBOX; plain-text content enters the event log and extraction. See [docs/gmail.md](docs/gmail.md) |
 | WhatsApp | Yes, sends once Kapso is configured | Signed webhooks, reply buttons, "done" moves a card, shift links to the brief and pack. Without credentials, messages stay in a local outbox. [docs/whatsapp.md](docs/whatsapp.md) |
 | Agent pack | Yes | `CLAUDE.md`, `AGENTS.md`, `tasks.md` and `brief.md` generated from the project graph, with a day-one checklist |
 | MCP server | Yes | Coding agents connect with a personal token and get live context from the graph: project context, my tasks, cited answers, who knows what, paths, task status. [docs/mcp.md](docs/mcp.md) |

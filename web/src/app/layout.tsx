@@ -7,6 +7,7 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 const wordmark = Special_Gothic_Condensed_One({ weight: "400", subsets: ["latin"], variable: "--font-gothic" });
 
+// Keep app metadata centralized for consistent previews.
 const description = "Your company brain.";
 const logo = { url: "/logo.svg", alt: "Noa", type: "image/svg+xml" };
 

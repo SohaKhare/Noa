@@ -20,6 +20,7 @@ const wordmark = Special_Gothic_Condensed_One({
   variable: "--font-gothic",
 });
 
+// Shared metadata keeps the landing page previews consistent.
 const description =
   "Noa turns your team's Discord, Slack, Meet and WhatsApp conversations into tasks, owners, deadlines and decisions, kept current and always cited.";
 

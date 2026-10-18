@@ -13,7 +13,7 @@ defmodule Noa.Extraction.Prompt do
   Rules:
   - Only extract items with clear support in the messages. Do not infer or invent.
   - For each item, cite the exact message sequence numbers (the [N] prefixes) that support it in evidence_sequences. Cite at least one message from the Transcript; messages under Earlier are context only.
-  - tasks: new work someone agreed to or was asked to do. title is imperative, at most 80 characters. owner is a name from the People list, or null. "I'll do it" or "on it" means the speaker. due is an ISO date (YYYY-MM-DD) resolved against the window date, or null.
+  - tasks: new work someone agreed to or was asked to do. title is imperative, at most 80 characters. owner is the person who will do the work, as a name from the People list, or null. "I'll do it" or "on it" means the speaker. When someone asks or assigns another person ("Soha, can you…", "@vedant take this", "assigning X to Prathamesh"), the owner is the person asked, not the speaker. If it is unclear who will do it, owner is null; never default to the speaker. due is an ISO date (YYYY-MM-DD) resolved against the window date, or null.
   - status_changes: a task from Open tasks (or one named in the transcript) moved to todo, in_progress, blocked or done. blocker is required when status is blocked.
   - deadline_changes: an existing task's due date moved. new_due is an ISO date.
   - decisions: a choice the team made (kind "decision") or a conclusion they reached (kind "conclusion"). Not tasks.
@@ -80,5 +80,9 @@ defmodule Noa.Extraction.Prompt do
     """
   end
 
-  defp lines_text(lines), do: Enum.map_join(lines, "\n", &"[#{&1.seq}] #{&1.author}: #{&1.body}")
+  # Messages in a thread carry its name: work is usually agreed inside the thread.
+  defp lines_text(lines), do: Enum.map_join(lines, "\n", &"[#{&1.seq}] #{thread(&1)}#{&1.author}: #{&1.body}")
+
+  defp thread(%{thread: name}) when is_binary(name) and name != "", do: "(thread “#{name}”) "
+  defp thread(_), do: ""
 end

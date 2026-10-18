@@ -42,19 +42,19 @@ Exit test: Skeleton deploys to Fly with login; API reaches FalkorDB; graph and e
 
 | # | Item | Source | Owner | Status | PR |
 | --- | --- | --- | --- | --- | --- |
-| 0.1 | Confirm the tools NYI uses daily | New | Soha | Not started |  |
-| 0.2 | Ask organizers: judging, multi-track, Tulpa v1 reuse split | New | Saish | Not started |  |
+| 0.1 | Confirm the tools NYI uses daily (overtaken: Discord, WhatsApp, Gmail, GitHub, Meet are built or in progress) | New | Soha | Cut |  |
+| 0.2 | Ask organizers: judging, multi-track, Tulpa v1 reuse split (rules checked on the event page; see docs/hackathon.md) | New | Saish | Cut |  |
 | 0.3 | Freeze graph schema, extraction schemas, API contracts | New | Saish | Not started |  |
-| 0.4 | Wireframes for every page (UI and flows tab) | New | Saish | Not started |  |
+| 0.4 | Wireframes for every page (overtaken: pages built directly) | New | Saish | Cut |  |
 | 0.5 | Spike: falkordb Elixir client (vector, full-text, PageRank, paths) | New | Saish | In review | #2 |
 | 0.6 | Spike: Kapso send, receive, buttons, signed webhooks | New | Saish | In review | #3 |
-| 0.7 | Spike: Google Meet transcript API on one NYI meeting | New | Soha | Not started |  |
-| 0.8 | Spike: ash_ai tools + MCP, ash_typescript, React Gantt library | New | Saish | Not started |  |
+| 0.7 | Spike: Google Meet transcript API on one NYI meeting (replaced by the notetaker bot, 2.8) | New | Soha | Cut |  |
+| 0.8 | Spike: ash_ai tools + MCP, ash_typescript, React Gantt library (MCP built directly, 3.6) | New | Saish | Cut |  |
 | 0.9 | Spike: extraction prompt on 40 real NYI messages | Port | Saish | In progress |  |
 | 0.10 | Register Discord, Slack and Google apps (Internal + External testing) | New | Soha | In progress |  |
-| 0.11 | Kapso account, 3 WhatsApp templates, start Meta verification | New | Saish | In progress |  |
+| 0.11 | Kapso account, 3 WhatsApp templates (PENDING with Meta as of Oct 18 evening), Meta verification. Demo uses the 24-hour window; Kapso webhook points at production | New | Saish | In progress |  |
 | 0.12 | FalkorDB Cloud, Fly.io, Postgres, Logfire, Sentry, domain. Fly configs and one-server compose ready (docs/deploy.md); accounts and domain to do | Copy | Saish | In review | #4 |
-| 0.13 | Privacy policy and terms text | New | Soha | Not started |  |
+| 0.13 | Privacy policy and terms text (landing /privacy and /terms; read before launch) | New | Soha | Done |  |
 | 0.14 | NYI org map: projects, people, roles, reporting lines, allocations, channel-to-project | New | Saish | In review | #1 |
 | 0.15 | Team consent for channels; export Tulpa v1 data | Import | Soha | Not started |  |
 | 0.16 | 40-question golden set from real NYI questions | New | Soha | Not started |  |

@@ -7,6 +7,7 @@ defmodule Noa.WhatsApp.Inbound do
     `approve_change:`/`reject_change:` decide a pending change (leads only, by policy).
   - "done" or "on it", alone or with a task name: moves that task (alone: the task Noa
     last messaged them about).
+  - "tasks" or "my tasks": their open tasks, soonest due first.
   - Anything else is a question for `@noa`, answered from the graph with sources.
 
   Messages to Noa are commands and questions, never team chat: they are not extracted.
@@ -123,11 +124,13 @@ defmodule Noa.WhatsApp.Inbound do
 
   @done ~r/^(done|finished|completed|shipped)\b[\s:,-]*/i
   @start ~r/^(start|starting|on it|working on)\b[\s:,-]*/i
+  @list ~r/^(my\s+)?(tasks|todo|to-?dos|work)\??$/i
 
   defp text("", _p, _phone), do: "Ask me anything about your projects, or reply \"done\" when you finish a task."
 
   defp text(text, p, phone) do
     cond do
+      text =~ @list -> my_tasks(p)
       text =~ @done -> by_text(Regex.replace(@done, text, ""), :done, p, phone)
       text =~ @start -> by_text(Regex.replace(@start, text, ""), :in_progress, p, phone)
       true -> ask(text, p)
@@ -151,6 +154,40 @@ defmodule Noa.WhatsApp.Inbound do
     if task_id,
       do: move(task_id, status, p),
       else: "Which task? Reply with its name, like \"done Board report PDF export\"."
+  end
+
+  defp my_tasks(p) do
+    actor = user(p)
+
+    with {:ok, mine} <- Work.tasks(p.org_id, actor, owner_id: p.id, open: true),
+         {:ok, visible_projects} <- Work.projects(p.org_id, actor) do
+      format_tasks(mine, Map.new(visible_projects, &{&1.id, &1.name}))
+    else
+      _ -> "I couldn't load your tasks right now. Try My day in Noa."
+    end
+  end
+
+  defp format_tasks(mine, projects) do
+    case Enum.sort_by(mine, &(&1.due_on || ~D[9999-12-31]), Date) do
+      [] ->
+        "Nothing open on your plate. Ask me anything about your projects."
+
+      tasks ->
+        lines =
+          tasks
+          |> Enum.take(10)
+          |> Enum.with_index(1)
+          |> Enum.map_join("\n", fn {t, i} ->
+            status = if t.status == :todo, do: "", else: " · #{String.replace(to_string(t.status), "_", " ")}"
+            due = if t.due_on, do: " · due #{Calendar.strftime(t.due_on, "%a %-d %b")}", else: ""
+            title = String.slice(t.title, 0, 180)
+            project = String.slice(Map.get(projects, t.project_id, "Project"), 0, 80)
+            "#{i}. #{title} (#{project}#{due}#{status})"
+          end)
+
+        more = if length(tasks) > 10, do: "\n…and #{length(tasks) - 10} more in Noa.", else: ""
+        "Your open tasks:\n#{lines}#{more}\n\nReply \"done <task>\" or \"on it <task>\" to update one."
+    end
   end
 
   defp ask(question, p) do

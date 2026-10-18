@@ -216,6 +216,10 @@ Update Oct 17 evening: the agent pack (3.18), graph panel (3.13), KT page (3.12)
 
 ### Phase 4: Harden and ship (Oct 18)
 
+#### Current release rollout (1.2)
+
+Slack PR #9 and Attendee Google Meet PR #11 are merged. Saish authorized committing all pending WhatsApp task-list/completion-notification and README/demo changes, staging the four new Slack/Attendee settings, and redeploying. Existing OpenAI/database secrets are not overwritten. The WhatsApp list reads tasks and project names through the requesting user's Ash policies and bounds reply length. Current checks: 249 API tests, four voice tests, compile/format, web/landing types and lint pass. Fly rollout/health verification remains in progress; real Slack installation and consented Meet acceptance are separate. Discord recording is not enabled by this rollout. The demo plan now targets a 6–7 minute main cut with an optional short edit; no video is claimed recorded.
+
 #### User-authorized meeting extension (2.22, PR #8)
 
 The Discord voice/shared minutes implementation is code-complete in PR #8; live deployment/acceptance remains pending. Saish owns this pipeline; Soha retains Google Meet bot ownership (2.8). `/noa meeting start/consent/stop/cancel/notes` uses a DAVE-capable Node receiver because pinned Nostrum has no DAVE support. Every participant must link and explicitly consent; newcomers stop recording, consent expires, raw audio stays temporary, and the feature defaults off. New `Noa.Meetings.Minutes` is a strict InstructorLite schema reusing existing task/decision shapes. No graph labels/edges or existing extraction types changed. All generated work remains pending—even later normal chat extraction excludes meeting Episodes to prevent auto-apply bypass.

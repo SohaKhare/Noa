@@ -30,7 +30,21 @@ type BoardCard = {
   due: string | null;
   blockedReason?: string | null;
   source: Source;
+  /* When the work was said in chat, or created in Noa. */
+  at: string;
   task?: WorkTask;
+};
+
+/* Board range: recent work first, so the team prioritizes what is live now. */
+const ranges = [
+  { key: "week", label: "This week", days: 7 },
+  { key: "15d", label: "Last 15 days", days: 15 },
+  { key: "all", label: "All", days: null },
+] as const;
+type Range = (typeof ranges)[number]["key"];
+const inRange = (at: string, range: Range, now: number) => {
+  const days = ranges.find((r) => r.key === range)?.days;
+  return days == null || now - new Date(at).getTime() <= days * 86_400_000;
 };
 
 const fromTask = (t: WorkTask): BoardCard => ({
@@ -41,6 +55,7 @@ const fromTask = (t: WorkTask): BoardCard => ({
   due: t.due_on,
   blockedReason: t.blocked_reason,
   source: toSource(t.source),
+  at: t.source?.at ?? t.inserted_at,
   task: t,
 });
 
@@ -65,7 +80,7 @@ export function ProjectView({ projectKey }: { projectKey: string }) {
   const tasks = (tasksQuery.data ?? []).map(fromTask);
   const proposed: BoardCard[] = (proposals.data ?? [])
     .filter((x) => x.kind === "task" && x.project_id === p.id)
-    .map((x) => ({ id: x.id, title: x.data.title ?? x.summary, status: "proposed", ownerId: x.owner_id, due: x.data.due ?? null, source: toSource(x.source) }));
+    .map((x) => ({ id: x.id, title: x.data.title ?? x.summary, status: "proposed", ownerId: x.owner_id, due: x.data.due ?? null, source: toSource(x.source), at: x.source?.at ?? x.inserted_at }));
   const cards = [...proposed, ...tasks];
   const open = tasks.find((t) => t.id === openTask) ?? null;
   const done = tasks.filter((t) => t.status === "done").length;
@@ -516,7 +531,11 @@ function DueEditor({ card }: { card: BoardCard }) {
   );
 }
 
-function Board({ cards, onOpen }: { cards: BoardCard[]; onOpen: (id: string) => void }) {
+function Board({ cards: allCards, onOpen }: { cards: BoardCard[]; onOpen: (id: string) => void }) {
+  const [range, setRange] = useState<Range>("15d");
+  const [now] = useState(() => Date.now());
+  const cards = allCards.filter((c) => inRange(c.at, range, now));
+  const hidden = allCards.length - cards.length;
   const dndId = useId();
   const router = useRouter();
   const move = useMoveTask();
@@ -532,6 +551,32 @@ function Board({ cards, onOpen }: { cards: BoardCard[]; onOpen: (id: string) => 
   const openCard = (id: string) => (cards.find((c) => c.id === id)?.status === "proposed" ? router.push("/inbox") : onOpen(id));
   return (
     <DndContext id={dndId} sensors={sensors} onDragEnd={onDragEnd}>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div role="radiogroup" aria-label="Show work from" className="inline-flex rounded-full bg-surface p-1 card-shadow">
+          {ranges.map((r) => (
+            <button
+              key={r.key}
+              role="radio"
+              aria-checked={range === r.key}
+              onClick={() => setRange(r.key)}
+              className={cn(
+                "rounded-full px-3 py-1 text-[12.5px] font-medium transition-colors",
+                range === r.key ? "bg-accent text-white" : "text-ink/70 hover:text-ink",
+              )}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+        {hidden > 0 && (
+          <span className="text-[12px] text-muted">
+            {hidden} older {hidden === 1 ? "card" : "cards"} hidden ·{" "}
+            <button onClick={() => setRange("all")} className="text-accent-fg hover:underline">
+              show all
+            </button>
+          </span>
+        )}
+      </div>
       {move.error && (
         <div className="mb-3">
           <FormError>{(move.error as ApiError).message}</FormError>

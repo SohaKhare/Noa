@@ -134,7 +134,7 @@ defmodule Noa.Ingest.DiscordIngestTest do
         "id" => to_string(id),
         "channel_id" => "2001",
         "content" => text,
-        "timestamp" => "2026-10-17T04:30:00Z",
+        "timestamp" => DateTime.utc_now() |> DateTime.add(-86_400, :second) |> DateTime.to_iso8601(),
         "author" => %{"id" => "3001", "username" => "saish"}
       }
     end
@@ -163,5 +163,115 @@ defmodule Noa.Ingest.DiscordIngestTest do
              Discord.backfill(org.id, "2001", token: "t", limit: 2, req_options: [plug: {Req.Test, DiscordAPI}])
 
     assert 3 == Events.since(0, org_id: org.id, limit: 1000) |> Enum.count(&(&1.type == "message.received"))
+  end
+
+  test "backfill only loads the history window and stops paging past it", %{org: org} do
+    veriq =
+      Noa.Work.Channel |> Ash.read!(authorize?: false) |> Enum.find(&(&1.org_id == org.id and &1.name == "#veriq"))
+
+    {:ok, _} = veriq |> Ash.Changeset.for_update(:update, %{external_id: "2001"}) |> Ash.update(authorize?: false)
+
+    ago = fn days -> DateTime.utc_now() |> DateTime.add(-days * 86_400, :second) |> DateTime.to_iso8601() end
+
+    msg = fn id, text, days ->
+      %{
+        "id" => to_string(id),
+        "channel_id" => "2001",
+        "content" => text,
+        "timestamp" => ago.(days),
+        "author" => %{"id" => "3001", "username" => "saish"}
+      }
+    end
+
+    Req.Test.stub(DiscordAPI, fn conn ->
+      conn = Plug.Conn.fetch_query_params(conn)
+
+      case conn.query_params["before"] do
+        nil -> Req.Test.json(conn, [msg.(203, "this week", 3), msg.(202, "two months ago", 60)])
+        _ -> flunk("paged past the history window")
+      end
+    end)
+
+    assert {:ok, 1} =
+             Discord.backfill(org.id, "2001", token: "t", limit: 2, req_options: [plug: {Req.Test, DiscordAPI}])
+
+    assert ["this week"] ==
+             Events.since(0, org_id: org.id, limit: 1000)
+             |> Enum.filter(&(&1.type == "message.received"))
+             |> Enum.map(& &1.data["text"])
+  end
+
+  test "a Discord tag becomes the person's name, so extraction knows who was asked", %{org: org} do
+    {:ok, _} = Noa.Work.identify(org.id, :discord, "824574911841566740", "soha")
+
+    payload = %{
+      "id" => "9001",
+      "guild_id" => "1001",
+      "channel_id" => "2001",
+      "channel_name" => "veriq",
+      "content" => "<@824574911841566740> we want to focus on an i2v API. <@!555> can review",
+      "timestamp" => DateTime.utc_now() |> DateTime.to_iso8601(),
+      "author" => %{"id" => "3001", "username" => "pratos"},
+      "mentions" => [%{"id" => "824574911841566740", "username" => "soha"}, %{"id" => "555", "global_name" => "Vedant"}]
+    }
+
+    Discord.ingest(org.id, payload)
+
+    [text] =
+      Events.since(0, org_id: org.id, limit: 1000)
+      |> Enum.filter(&(&1.type == "message.received"))
+      |> Enum.map(& &1.data["text"])
+
+    assert text == "@Soha we want to focus on an i2v API. @Vedant can review"
+  end
+
+  test "backfill reads the channel's threads and files them under the channel", %{org: org} do
+    veriq =
+      Noa.Work.Channel |> Ash.read!(authorize?: false) |> Enum.find(&(&1.org_id == org.id and &1.name == "#veriq"))
+
+    {:ok, _} = veriq |> Ash.Changeset.for_update(:update, %{external_id: "2001"}) |> Ash.update(authorize?: false)
+    now = fn -> DateTime.utc_now() |> DateTime.add(-3600, :second) |> DateTime.to_iso8601() end
+
+    msg = fn id, channel, text ->
+      %{
+        "id" => to_string(id),
+        "channel_id" => channel,
+        "content" => text,
+        "timestamp" => now.(),
+        "author" => %{"id" => "3001", "username" => "saish"}
+      }
+    end
+
+    Req.Test.stub(DiscordAPI, fn conn ->
+      case conn.request_path do
+        "/api/v10/channels/2001/messages" ->
+          Req.Test.json(conn, [msg.(301, "2001", "who takes i2v?")])
+
+        "/api/v10/channels/2001/threads/archived/public" ->
+          Req.Test.json(conn, %{"threads" => []})
+
+        "/api/v10/guilds/" <> _ ->
+          Req.Test.json(conn, %{
+            "threads" => [
+              %{"id" => "4001", "parent_id" => "2001", "name" => "i2v API"},
+              %{"id" => "4002", "parent_id" => "9999", "name" => "elsewhere"}
+            ]
+          })
+
+        "/api/v10/channels/4001/messages" ->
+          Req.Test.json(conn, [msg.(302, "4001", "I'll design it by Friday")])
+      end
+    end)
+
+    assert {:ok, 2} =
+             Discord.backfill(org.id, "2001", token: "t", limit: 50, req_options: [plug: {Req.Test, DiscordAPI}])
+
+    [parent, in_thread] =
+      Events.since(0, org_id: org.id, limit: 1000)
+      |> Enum.filter(&(&1.type == "message.received"))
+      |> Enum.map(& &1.data)
+
+    assert parent["thread"] == nil
+    assert in_thread["thread"] == "i2v API" and in_thread["channel"] == parent["channel"]
   end
 end

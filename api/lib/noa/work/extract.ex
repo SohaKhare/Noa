@@ -112,6 +112,7 @@ defmodule Noa.Work.Extract do
       id: d["episode_id"],
       seq: id,
       channel: d["channel"],
+      thread: d["thread"],
       author: d["author"] || "someone",
       at: at,
       offset: config(:utc_offset, 0),

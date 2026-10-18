@@ -1,9 +1,9 @@
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import type { NextConfig } from "next";
 
 const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL || "https://cdn.saish.xyz";
 
-function cdnHostname(url) {
+function cdnHostname(url: string) {
   try {
     return new URL(url).hostname;
   } catch {
@@ -13,17 +13,17 @@ function cdnHostname(url) {
 
 const hostname = cdnHostname(cdnUrl);
 
-/** @type {import("next").NextConfig} */
-const nextConfig = {
+const nextConfig: NextConfig = {
   transpilePackages: ["@noa/theme"],
-  output: "standalone",
-  outputFileTracingRoot: path.join(path.dirname(fileURLToPath(import.meta.url)), ".."),
+  // Vercel uses its normal output; only Docker needs a self-contained server.
+  output: process.env.NOA_DOCKER_BUILD === "true" ? "standalone" : undefined,
+  outputFileTracingRoot: path.join(__dirname, ".."),
   ...(hostname && {
     images: {
       unoptimized: true,
       remotePatterns: [
         {
-          protocol: "https",
+          protocol: "https" as const,
           hostname,
           pathname: "/noa/**",
         },

@@ -4,7 +4,7 @@
 FROM node:24-slim AS build
 RUN corepack enable
 WORKDIR /repo
-ENV NEXT_TELEMETRY_DISABLED=1 COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+ENV NEXT_TELEMETRY_DISABLED=1 COREPACK_ENABLE_DOWNLOAD_PROMPT=0 NOA_DOCKER_BUILD=true
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages packages
 COPY web/package.json web/
@@ -14,7 +14,6 @@ ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 # Assert the standalone server exists before assembling the runtime image.
 RUN pnpm --filter @noa/web build \
-  && node -e 'const fs=require("node:fs");const {config}=JSON.parse(fs.readFileSync("web/.next/required-server-files.json","utf8"));console.log("Standalone config",{output:config.output,root:config.outputFileTracingRoot,distDir:config.distDir});console.log("Build files",fs.readdirSync("web/.next"));' \
   && test -f web/.next/standalone/web/server.js
 
 FROM node:24-slim

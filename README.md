@@ -8,18 +8,38 @@ NotYourIdea (NYI) runs four products with a small team that moves between them. 
 
 | | |
 | --- | --- |
-| **Live app** | [app.heynoa.xyz](https://app.heynoa.xyz) (invite-only workspaces) · site: [heynoa.xyz](https://heynoa.xyz) |
-| **Demo video** | https://www.youtube.com/watch?v=djpEx_QtBUI |
-| **Track** | **03 Company Brain** |
+| **Live app** | [app.heynoa.xyz](https://app.heynoa.xyz) · site: [heynoa.xyz](https://heynoa.xyz) · [demo login below](#try-the-demo) |
+| **Demo video** | [youtube.com/watch?v=djpEx_QtBUI](https://www.youtube.com/watch?v=djpEx_QtBUI) |
+| **Tracks** | **03 Company Brain** (main) and **01 Agents That Act on Connected Data** |
 | **Hackathon** | [Graph Hacks: Context for AI Agents](https://www.wemakedevs.org/hackathons/falkordb), WeMakeDevs × FalkorDB, Oct 15–18, 2026 |
-| **Team** | NotYourIdea: Saish, Soha, Vedant |
+| **Team** | **BayalisLabs**: Saish, Soha and Vedant, from NotYourIdea |
 
 ![NotYourIdea's company graph in FalkorDB](docs/images/graph-production.png)
 
 <sub>NYI's production graph, exported from FalkorDB on Oct 19, 2026 and rendered with [`docs/images/render-graph.js`](docs/images/render-graph.js). Big dots are people and projects; the clusters are the messages, commits and PRs behind them. Message text is not shown.</sub>
 
+## Try the demo
+
+Sign in at **[app.heynoa.xyz](https://app.heynoa.xyz)** with one of these accounts. They belong to **Lumen Labs**, a made-up company we built for judges: four projects (Tulpa, Atlas, Ledger, Beacon), eight people, two weeks of chat and GitHub activity, all mock data. It loads through the same pipeline as real work (`Noa.Demo`, `api/priv/demo/lumen.json`), so every task and decision links to the message it came from.
+
+| Sign in as | Email | Password | What to try |
+| --- | --- | --- | --- |
+| **Maya Rao**, PM / lead | `maya@demo.heynoa.xyz` | `LumenDemo#2026` | **Inbox**: approve proposals and a deadline change waiting on the lead. **Portfolio**: PageRank, bridges and bus-factor risks. **Atlas → Graph**: click two nodes for the path. On "Rate limiting on the Tulpa API", press **Who should own this?** **Ask Noa**: "Who knows the most about Ledger and what is blocking it?" |
+| **Priya Nair**, backend engineer | `priya@demo.heynoa.xyz` | `LumenDemo#2026` | **My day**: tasks across Ledger and Tulpa, one blocked. **Agent pack**: `CLAUDE.md` for Ledger from the graph. Create a token and connect the MCP server to Claude Code (below). |
+
+Connect a coding agent as Priya (Agent pack → create a token):
+
+```bash
+claude mcp add --transport http noa https://api.heynoa.xyz/mcp --header "Authorization: Bearer <token>"
+```
+
+Then ask it "what am I on in Ledger?", "who knows about the Stripe migration?" or "mark the invoice suite done".
+
+The demo is shared, so other visitors may have changed things before you. The demo accounts can't invite people or connect integrations, and NotYourIdea's own workspace is separate.
+
 ## Contents
 
+- [Try the demo](#try-the-demo)
 - [What Noa does](#what-noa-does)
 - [Architecture](#architecture)
 - [The graph data model](#the-graph-data-model)
@@ -241,9 +261,9 @@ Postgres stays the system of record for accounts, permissions and the event log,
 | A public source-code repository | This repo, [github.com/SohaKhare/Noa](https://github.com/SohaKhare/Noa) |
 | A README with setup instructions and the graph data model | [Run it locally](#run-it-locally) and [The graph data model](#the-graph-data-model) |
 | The Cypher queries or graph algorithms the product depends on | [Cypher and graph algorithms](#cypher-and-graph-algorithms-the-product-depends-on) and [docs/hackathon.md](docs/hackathon.md) |
-| A demo video of the working project | _link to be added_ |
-| A live deployment | [app.heynoa.xyz](https://app.heynoa.xyz), API at `api.heynoa.xyz`, both on NYI's real workspace |
-| The track | 03 Company Brain |
+| A demo video of the working project | [youtube.com/watch?v=djpEx_QtBUI](https://www.youtube.com/watch?v=djpEx_QtBUI) |
+| A live deployment | [app.heynoa.xyz](https://app.heynoa.xyz), API at `api.heynoa.xyz`, with a [demo login](#try-the-demo) |
+| The tracks | 03 Company Brain (main); 01 Agents That Act on Connected Data: the triage agent, owner suggestions and MCP tools that assign and update work under the lead rules |
 | FalkorDB as the primary graph database, doing real work | [Why FalkorDB is central](#why-falkordb-is-central) |
 | New work during the event | The repo and all FalkorDB code were written Oct 15–18, 2026. Tulpa v1, NYI's earlier product, contributed patterns only and never used FalkorDB. |
 | Data you're allowed to use | NYI's own team chat, repos and meetings, from channels the team opted in. See [Privacy and data](#privacy-and-data). |
@@ -345,4 +365,4 @@ Inside the product, Noa uses OpenAI models for extraction and for writing `@noa`
 
 ## Team
 
-**BayalisLabs**: Saish, Soha, Vedant.
+**BayalisLabs**: Saish, Soha and Vedant, from NotYourIdea (NYI).

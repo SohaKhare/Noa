@@ -216,9 +216,9 @@ Update Oct 17 evening: the agent pack (3.18), graph panel (3.13), KT page (3.12)
 
 ### Phase 4: Harden and ship (Oct 18)
 
-#### User-authorized meeting extension (2.22)
+#### User-authorized meeting extension (2.22, PR #8)
 
-Saish is building Discord voice standups and a shared minutes pipeline; Soha retains Google Meet bot ownership (2.8). `/noa meeting start/consent/stop/cancel/notes` uses a DAVE-capable Node receiver because pinned Nostrum has no DAVE support. Every participant must link and explicitly consent; newcomers stop recording, consent expires, raw audio stays temporary, and the feature defaults off. New `Noa.Meetings.Minutes` is a strict InstructorLite schema reusing existing task/decision shapes. No graph labels/edges or existing extraction types changed. All generated work remains pending—even later normal chat extraction excludes meeting Episodes to prevent auto-apply bypass.
+The Discord voice/shared minutes implementation is code-complete in PR #8; live deployment/acceptance remains pending. Saish owns this pipeline; Soha retains Google Meet bot ownership (2.8). `/noa meeting start/consent/stop/cancel/notes` uses a DAVE-capable Node receiver because pinned Nostrum has no DAVE support. Every participant must link and explicitly consent; newcomers stop recording, consent expires, raw audio stays temporary, and the feature defaults off. New `Noa.Meetings.Minutes` is a strict InstructorLite schema reusing existing task/decision shapes. No graph labels/edges or existing extraction types changed. All generated work remains pending—even later normal chat extraction excludes meeting Episodes to prevent auto-apply bypass.
 
 The shared, authenticated `POST /api/orgs/:org_id/meetings` endpoint accepts completed consented transcripts from Soha's bot; tracked session list/detail endpoints and the source contract are in `docs/meetings.md`. New Postgres resource/migration/snapshot track meetings; existing source Episodes and approved work reach FalkorDB only through the projector. No automatic Google Meet joining is implemented by 2.22.
 

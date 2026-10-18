@@ -2,6 +2,10 @@
 
 Read this first in a new session. It covers what is built, what is deployed, what is uncommitted, where the credentials are, and what to do next. Standing rules from Saish: **don't push to GitHub, don't commit (Saish commits), don't call fal.ai.** Never print credentials; they live in the gitignored files listed below.
 
+## PR #8: meeting extension
+
+Saish explicitly authorized committing, pushing and merging this extension via a PR, overriding the standing no-commit/push rule for this operation only. PR: https://github.com/SohaKhare/Noa/pull/8 (`saish/2.22-meeting-minutes` → `main`). Implementation is code-complete; deployment and real voice/ASR acceptance remain pending and recording defaults off. Unrelated demo and setup-tracker edits are deliberately left uncommitted. GitHub API/voice/Next.js checks passed; image checks are being verified. Both Vercel deployments are reported blocked, also present on the pre-existing base commit; do not describe those deployments as successful.
+
 ## Latest: meeting extension built locally (not deployed/enabled)
 
 - Current branch: `saish/2.22-meeting-minutes`, based on Saish's new `962c024` Discord/mail commit. Those commits/checkouts landed concurrently; meeting-specific tracked wiring was restored on top without reverting SMTP/landing/other work. The agent created no commits or pushes.

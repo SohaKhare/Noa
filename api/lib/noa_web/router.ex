@@ -115,6 +115,11 @@ defmodule NoaWeb.Router do
 
     # Work (1.24): everyone in the org reads; policies decide writes.
     get("/orgs/:org_id/directory", WorkController, :directory)
+    get("/orgs/:org_id/google_meetings", MeetController, :index)
+    post("/orgs/:org_id/google_meetings", MeetController, :create)
+    post("/orgs/:org_id/google_meetings/:id/stop", MeetController, :stop)
+    post("/orgs/:org_id/google_meetings/:id/sync", MeetController, :sync)
+    post("/orgs/:org_id/google_meetings/:id/import", MeetController, :import)
     get("/orgs/:org_id/meetings", MeetingController, :index)
     get("/orgs/:org_id/meetings/:id", MeetingController, :show)
     post("/orgs/:org_id/meetings", MeetingController, :create)

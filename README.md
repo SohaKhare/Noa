@@ -51,7 +51,7 @@ Slack · Discord · Google Meet · WhatsApp (Kapso) · GitHub
 | Graph | FalkorDB Cloud via the official [`falkordb`](https://hex.pm/packages/falkordb) Hex client |
 | AI | OpenAI Structured Outputs through InstructorLite; `ash_ai` for agent tools and MCP |
 | Frontend | Next.js 16 for the app (`web/`) and the marketing site (`landing/`), Tailwind v4, Motion, dnd-kit, `ash_typescript` RPC client, Phoenix Channels |
-| Connectors | Discord (Nostrum), Slack Events API, Google Meet REST, WhatsApp via [Kapso](https://kapso.com/) |
+| Connectors | Discord (Nostrum, including consented voice minutes), visible Google Meet bot via Attendee (manual transcript fetch; see [setup](docs/meet-integration.md)), Slack Events API, WhatsApp via [Kapso](https://kapso.com/) |
 | Ops | Fly.io, Postgres, Logfire / OpenTelemetry, Sentry, GitHub Actions |
 
 ## Roles

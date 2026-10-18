@@ -115,7 +115,7 @@ Exit test: NYI uses no other tracker; a developer and a non-tech teammate both r
 | 2.5 | `@noa` agent with citations (ash_ai tools, audience-first rules) | Port | Saish | In review | #3 |
 | 2.6 | Discord completion at Saish's request: /noa commands, verified account linking, private cited replies, task/proposal/lead approval buttons and KT Q&A; WhatsApp buttons already built, Slack deferred | New | Saish | In review | #7 |
 | 2.7 | WhatsApp "done" replies move cards | New | Saish | In review | #3 |
-| 2.8 | Meeting notetaker: a bot joins Google Meet calls, transcribes speakers, and sends utterances to Noa as messages (then extraction to action items) | New | Soha | In progress |  |
+| 2.8 | Google Meet notetaker via Attendee; project/channel confirmation hands transcript to shared Meetings/Minutes workflow | New | Soha | In review | #11 |
 | 2.9 | Daily digest per person (from v1 recap) | Port | Saish | In review | #4 |
 | 2.10 | Message edit and delete handling (Discord): edits replace the text, deletes erase it from the log and graph | New | Saish | In review | #4 |
 | 2.11 | Gantt timeline: milestones, dependencies, drag dates | New | Saish | In review | #3 |

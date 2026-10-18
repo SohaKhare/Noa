@@ -36,7 +36,7 @@ config :noa, Noa.Extraction, debounce_seconds: 20, utc_offset: 19_800
 
 config :noa,
   ecto_repos: [Noa.Repo],
-  ash_domains: [Noa.Accounts, Noa.Orgs, Noa.Work, Noa.Meetings],
+  ash_domains: [Noa.Accounts, Noa.Orgs, Noa.Work, Noa.Meetings, Noa.Meet],
   web_origin: "http://localhost:3000",
   api_base_url: "http://localhost:4000",
   mail_from: {"Noa", "no-reply@noa.local"},

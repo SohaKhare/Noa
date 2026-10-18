@@ -44,6 +44,12 @@ defmodule NoaWeb.FallbackController do
     meeting_source_not_enabled: {422, "Choose a consented channel mapped to this meeting's project."},
     meeting_not_recording: {409, "This meeting is not recording."},
     meeting_limit: {422, "This meeting reached the transcript size limit."},
+    consent_required: {422, "Confirm that participants have been informed and consented."},
+    invalid_meet_url: {422, "Paste a valid Google Meet URL."},
+    not_configured: {503, "The Attendee notetaker isn't configured on this server."},
+    provider_unavailable: {502, "Attendee is unavailable. Try again."},
+    transcript_pending: {409, "Attendee has not finished transcription yet."},
+    wrong_state: {409, "This notetaker session cannot be changed in its current state."},
     not_found: {404, "Not found."}
   }
 

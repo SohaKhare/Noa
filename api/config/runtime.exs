@@ -11,6 +11,11 @@ if config_env() != :test and System.get_env("GMAIL_IMAP_ENABLED") == "true" do
     port: 993
 end
 
+# Attendee hosted Google Meet bot (2.8). Server-side key only; no auto-join.
+if config_env() != :test do
+  config :noa, Noa.Meet.Attendee, api_key: System.get_env("ATTENDEE_API_KEY")
+end
+
 # WhatsApp through Kapso (1.15). Without these Noa keeps messages in a local outbox.
 if config_env() != :test do
   config :noa, Noa.WhatsApp,

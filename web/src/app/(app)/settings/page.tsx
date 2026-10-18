@@ -16,6 +16,7 @@ import { useState } from "react";
 import { FormError } from "@/components/AuthCard";
 import { Badge, Card, PageHeader } from "@/components/ui";
 import { PeopleSettings } from "@/components/PeopleSettings";
+import { MeetingNotetaker } from "@/components/MeetingNotetaker";
 import { DiscordAccount, DiscordLinkConfirmation } from "@/components/DiscordAccount";
 import {
   ApiError,
@@ -52,6 +53,7 @@ import { ago, useDirectory } from "@/lib/work";
 
 const sections = [
   "Connectors",
+  "Meetings",
   "Channels",
   "People and roles",
   "Access bundles",
@@ -108,6 +110,7 @@ export default function Settings() {
         </nav>
         <div>
           {section === "Connectors" && <Connectors />}
+          {section === "Meetings" && <MeetingNotetaker />}
           {section === "Channels" && (
             <div className="space-y-4">
               {orgAdmin && <ServerChannels />}

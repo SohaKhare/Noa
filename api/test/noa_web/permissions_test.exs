@@ -19,6 +19,11 @@ defmodule NoaWeb.PermissionsTest do
     {:post, "/invites"},
     {:delete, "/invites/:invite"},
     {:get, "/directory"},
+    {:get, "/google_meetings"},
+    {:post, "/google_meetings"},
+    {:post, "/google_meetings/:meeting/stop"},
+    {:post, "/google_meetings/:meeting/sync"},
+    {:post, "/google_meetings/:meeting/import"},
     {:get, "/meetings"},
     {:get, "/meetings/:meeting"},
     {:post, "/meetings"},
@@ -87,7 +92,11 @@ defmodule NoaWeb.PermissionsTest do
     "role" => "org_admin",
     "email" => "x@notyouridea.com",
     "question" => "what's blocking Veriq?",
-    "to_project_id" => ""
+    "to_project_id" => "",
+    "meeting_url" => "https://meet.google.com/abc-defg-hij",
+    "consent" => true,
+    "project_id" => "",
+    "channel_id" => ""
   }
 
   setup do
@@ -194,6 +203,17 @@ defmodule NoaWeb.PermissionsTest do
       conn = call(signed_in(nyi.soha), method, path(nyi.org.id, route, nyi.ids), nyi.ids)
 
       cond do
+        # Guest may see an empty Google bot-session list, but cannot dispatch or read an individual transcript.
+        route == "/google_meetings" and method == :get ->
+          assert conn.status == 200 and not leaked?(conn)
+
+        route in [
+          "/google_meetings/:meeting/stop",
+          "/google_meetings/:meeting/sync",
+          "/google_meetings/:meeting/import"
+        ] ->
+          assert conn.status in 400..499
+
         # Reading and asking are open to guests.
         method == :get or route == "/ask" ->
           assert conn.status == 200, "#{method} #{route} gave #{conn.status}"
@@ -230,6 +250,10 @@ defmodule NoaWeb.PermissionsTest do
       {:put, "/allocations"},
       {:post, "/channels"},
       {:post, "/import"},
+      {:post, "/google_meetings"},
+      {:post, "/google_meetings/:meeting/stop"},
+      {:post, "/google_meetings/:meeting/sync"},
+      {:post, "/google_meetings/:meeting/import"},
       {:put, "/connectors/discord"},
       {:post, "/connectors/github/secret"},
       {:put, "/connectors/github/token"},

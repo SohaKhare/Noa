@@ -134,6 +134,20 @@ export const getPlatformStatus = () => api<PlatformStatus>("/api/platform/status
 export const createWorkspace = (data: { name: string; domains: string; admin_email: string; admin_title?: string }) =>
   post<{ org: Org; invite: Invite; url: string }>("/api/platform/orgs", data);
 
+// Visible Google Meet bot; transcripts hand off to the shared Meetings minutes/review pipeline.
+export type MeetingLine = { speaker: string; seq: number; start_ms: number; end_ms: number; text: string };
+export type MeetingSession = {
+  id: string; status: "joining" | "running" | "stopped" | "ready" | "imported" | "failed";
+  meeting_url: string; consent_at: string; suggested_project_id: string | null;
+  transcript: MeetingLine[]; imported_meeting_id: string | null;
+  channels: { id: string; name: string; project_id: string | null; read: boolean }[];
+};
+export const getMeetings = (orgId: string) => api<{ meetings: MeetingSession[] }>(`/api/orgs/${orgId}/google_meetings`).then((r) => r.meetings);
+export const startMeeting = (orgId: string, meeting_url: string) =>
+  post<{ meeting: MeetingSession }>(`/api/orgs/${orgId}/google_meetings`, { meeting_url, consent: true }).then((r) => r.meeting);
+export const meetingAction = (orgId: string, id: string, action: "stop" | "sync" | "import", data: Record<string, string> = {}) =>
+  post<{ meeting: MeetingSession; imported_meeting_id?: string; pipeline_status?: string }>(`/api/orgs/${orgId}/google_meetings/${id}/${action}`, data);
+
 // Work (1.24)
 export type TaskStatus = "todo" | "in_progress" | "blocked" | "done";
 export type Allocation = { person_id: string; project_id: string; percent: number; role: string | null; starts_on: string; ends_on?: string | null };

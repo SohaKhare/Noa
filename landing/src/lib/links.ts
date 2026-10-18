@@ -4,6 +4,7 @@ export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000
 export const navLinks = [
   { href: "#how", label: "How it works" },
   { href: "#product", label: "Product" },
+  { href: "#agents", label: "For agents" },
   { href: "#features", label: "Features" },
   { href: "#privacy", label: "Privacy" },
   { href: "#faq", label: "FAQ" },

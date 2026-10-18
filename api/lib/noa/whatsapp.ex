@@ -108,6 +108,27 @@ defmodule Noa.WhatsApp do
 
   def configured?, do: client() == Noa.WhatsApp.Kapso
 
+  @doc """
+  Whether `phone` wrote to Noa in the last 24 hours. Inside that window WhatsApp lets Noa
+  send ordinary messages with buttons; outside it only approved templates go through.
+  """
+  def window_open?(nil), do: false
+
+  def window_open?(phone) do
+    since = DateTime.add(DateTime.utc_now(), -24 * 3600, :second)
+    digits = String.replace(phone, ~r/\D/, "")
+
+    Repo.exists?(
+      from(m in "whatsapp_messages",
+        where: m.direction == "in" and m.inserted_at >= ^since,
+        where: fragment("regexp_replace(?, '\\D', '', 'g') = ?", m.phone, ^digits)
+      )
+    )
+  end
+
+  @doc "Noa's WhatsApp number as people see it (`KAPSO_DISPLAY_NUMBER`), for the 'message Noa' link."
+  def display_number, do: Application.get_env(:noa, __MODULE__, [])[:display_number]
+
   defp client do
     config = Application.get_env(:noa, __MODULE__, [])
 

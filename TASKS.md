@@ -4,6 +4,25 @@ The build tracker, mirrored from the "Build tracker" tab of the team plan doc: h
 
 The plan doc is the main chart. This file holds the same rows so agents can read and update them inside the repo. Context for every item is in [PLAN.md](PLAN.md).
 
+## Release readiness (Oct 18, after Gmail integration)
+
+Merged `origin/main` through `c33af97` locally, preserving uncommitted WhatsApp edits. Gmail parser, Work ingestion and poller integration tests pass; oversized messages now close their unread IMAP stream before the next poll. Latest checks: 191 API tests passed, 1 load test excluded; compile, format, web TypeScript, ESLint and production web build passed. API working tree, including Gmail and Discord completion, is deployed. Live Gmail receipt is **not verified**: Gmail settings/app password are absent locally and live configuration remains pending. Email sending (1.25) remains Soha's task, separate from inbound IMAP (1.29).
+
+| Priority | Remaining | Plan items |
+| --- | --- | --- |
+| 1 | Hosted web now responds at `app.heynoa.xyz`; deploy the latest local Discord account-link UI, verify landing app URL, same-site login and team invites. Local Vercel authentication/project link is absent | 0.12, 1.2, 1.5 |
+| 2 | Connect nyi-tech as org admin, confirm consent and channel mappings; install GitHub App on intended repos and load history (API/app secrets are deployed) | 0.15, 1.28, 3.7 |
+| 3 | Set OpenAI key, verify the configured model, run extraction on 30–40 real messages and cited answers/eval questions | 0.9, 0.16, 1.17, 2.5, 2.17 |
+| 4 | Outbound Gmail SMTP is built and the app password is staged on Fly (deploy, then verify an invite arrives); separately configure IMAP and verify a new email end to end | 1.25, 1.29 (Soha) |
+| 5 | Verify Kapso production webhook; open both phones' 24-hour windows; test task buttons, lead approval, real shift, KT and pack delivery | 0.11, 1.15, 2.7, 2.21, 3.5, 3.15, 3.23 |
+| 6 | Discord completion deployed; global and nyi-tech registrations verified as `/noa` only (legacy `/tulpa` removed). Deploy link-confirmation UI, connect the server, then live-test linked admin/member clicks | 2.5, 2.6 |
+| 7 | Manual fresh-company onboarding test; check access checklist/provisioning scope; read privacy/terms; finalize schema/consent sign-off and release/security review | 0.3, 0.13, 0.15, 3.20, 4.3, 4.5, 4.6 |
+| 8 | Feature freeze, record/upload 3-minute video, finish/publish blog and README links, submit all intended tracks before 11:59 PM IST | 4.1, 4.7, 4.8, 4.9 |
+
+Optional/deferred scope is still not shipped: Tulpa history import and full-history load validation; Slack; Meet/Calendar; automated golden-set harness; slip propagation; voice notes; project-secret one-time vault; Sentry/Logfire; vector embeddings. Phase 5 remains post-event. Existing `In review` rows often refer to already merged implementation PRs, not missing code; the table above tracks live release gaps. External plan-doc tracker sync still needs authenticated access.
+
+Production incident during verification: Postgres refused connections. Restarting the existing DB machine restored all DB checks; restarting the existing API machine restored `/healthz` HTTP 200 with database and graph true. No data/volumes were deleted. Monitor recurrence; root cause is not established.
+
 ## How to keep it in sync
 
 - **Starting an item:** set its Status to `In progress` here in your branch, and in the plan doc.
@@ -64,7 +83,7 @@ Exit test: A real Discord message becomes a proposed task in the right project a
 | 1.11 | Identity: `Person` + `Identity` nodes | Port | Saish | In review | #2 |
 | 1.12 | Import Tulpa v1 history, decisions, projects, aliases, people | Import | Soha | Not started |  |
 | 1.13 | Discord ingest: privacy gate, consumer, membership, backfill | Port | Soha | In review |  |
-| 1.14 | Slack Events webhook ingest | New | Soha | Not started |  |
+| 1.14 | Slack integration modelled on Discord: Events API webhook ingest (signed), per-company workspace connect, edits/deletes, commands and DMs | New | Vedant | In progress |  |
 | 1.15 | Kapso WhatsApp send and receive | New | Saish | In review | #3 |
 | 1.16 | Project routing: channel map, aliases, thread, author's projects | New | Saish | In review | #1 |
 | 1.17 | Task extraction v1 to proposals (from v1 distiller prompt) | Port | Saish | In review | #1 |
@@ -75,11 +94,11 @@ Exit test: A real Discord message becomes a proposed task in the right project a
 | 1.22 | Reporting lines (reports-to) in org map and people settings | New | Saish | In review | #1 |
 | 1.23 | Seed loader: `mix noa.seed` loads `docs/seeds/nyi.json` (projects, channels, aliases, allocations, git handles) | New | Saish | In review | #2 |
 | 1.24 | Work API: projects, tasks and proposals as Ash resources with policies; endpoints the web app uses instead of `mock.ts` | New | Saish | In review | #2 |
-| 1.25 | Real email delivery for invites, magic links and resets (Swoosh adapter in prod) | New | Soha | In progress |  |
+| 1.25 | Real email delivery: Gmail SMTP with a Google app password (same as Tulpa v1); Resend still supported | New | Saish | In review | #7 |
 | 1.26 | Guard against removing or demoting a workspace's last admin | New | Saish | In review | #2 |
 | 1.27 | Join link: teammates ask to join with a work email; an org admin approves and the invite email follows | New | Saish | In review | #4 |
-| 1.28 | Per-company connectors: org admins connect their Discord server and GitHub (secrets encrypted) in Settings; the Noa admin runs only the platform bot and number | New | Saish | In review | #4 |
-| 1.29 | Gmail INBOX ingestion via read-only IMAP (all new mail; workspace-visible sources) | New | Soha | Done | #5 |
+| 1.28 | Per-company connectors: org admins connect Discord and GitHub in Settings (secrets encrypted). Code/tests ready; API deployed with GitHub App secrets and verified install-link generation; bot running but no company server connected; GitHub install and live test pending | New | Saish | In review | #4 |
+| 1.29 | Gmail INBOX ingestion via read-only IMAP (all new mail; workspace-visible sources). Integrated and API deployed with poller regression tests; credentials/live receipt pending | New | Soha | Done | #5 |
 
 ## Phase 2: Work loop (Oct 17, 11:00 to 20:00)
 
@@ -94,9 +113,9 @@ Exit test: NYI uses no other tracker; a developer and a non-tech teammate both r
 | 2.3 | Duplicate task matching before proposing | New | Saish | In review | #3 |
 | 2.4 | Decisions and supersession | Port | Saish | In review | #3 |
 | 2.5 | `@noa` agent with citations (ash_ai tools, audience-first rules) | Port | Saish | In review | #3 |
-| 2.6 | Approval buttons in Discord, Slack, WhatsApp | New | Soha | Not started |  |
+| 2.6 | Discord completion at Saish's request: /noa commands, verified account linking, private cited replies, task/proposal/lead approval buttons and KT Q&A; WhatsApp buttons already built, Slack deferred | New | Saish | In review | #7 |
 | 2.7 | WhatsApp "done" replies move cards | New | Saish | In review | #3 |
-| 2.8 | Google Calendar + Meet transcripts to action items | New | Unassigned | Not started |  |
+| 2.8 | Meeting notetaker: a bot joins Google Meet calls, transcribes speakers, and sends utterances to Noa as messages (then extraction to action items) | New | Soha | In progress |  |
 | 2.9 | Daily digest per person (from v1 recap) | Port | Saish | In review | #4 |
 | 2.10 | Message edit and delete handling (Discord): edits replace the text, deletes erase it from the log and graph | New | Saish | In review | #4 |
 | 2.11 | Gantt timeline: milestones, dependencies, drag dates | New | Saish | In review | #3 |
@@ -110,6 +129,7 @@ Exit test: NYI uses no other tracker; a developer and a non-tech teammate both r
 | 2.19 | Change records for shared-item edits: scope, deadline, owner, status, decision | New | Saish | In review | #3 |
 | 2.20 | Lead approval rules: deadline and scope changes wait, minor edits apply with revert | New | Saish | In review | #3 |
 | 2.21 | Change notifications to lead and owner on each person's channel: WhatsApp, Discord DM, email | New | Saish | In review | #4 |
+| 2.22 | Consented Discord voice standups and shared typed meeting minutes/transcript API for Soha's Meet bot; cited tasks/decisions remain pending review, no graph-schema change | New | Saish | In progress |  |
 
 ## Phase 3: Shifts, KT and agent packs (Oct 17, 20:00 to Oct 18, 08:00)
 

@@ -7,8 +7,8 @@ defmodule Noa.MCP do
   Transport: Streamable HTTP, one JSON-RPC message per POST, JSON responses (no
   streaming). Methods: `initialize`, `notifications/initialized`, `ping`, `tools/list`,
   `tools/call`. Every tool runs as the token's person, through the same functions and
-  policies as the web app; the one write (`update_task_status`) follows the lead rules
-  and is recorded as a change.
+  policies as the web app; writes (`update_task_status`, `assign_task`) follow the lead
+  rules and are recorded as changes, and `triage` only files Inbox proposals.
   """
   alias Noa.MCP.Tools
 
@@ -17,9 +17,11 @@ defmodule Noa.MCP do
   @instructions """
   Noa is the team's company brain. Use it for context about the projects you work on:
   start with `project_context` for the project you're in, `my_tasks` for what's assigned,
-  and `ask` for anything else (answers cite their sources). `who_knows` and
-  `how_connected` use graph algorithms over the team's work. Use `update_task_status`
-  when you start or finish a task.
+  and `ask` for anything else (answers cite their sources). `who_knows`, `how_connected`
+  and `risks` use graph algorithms over the team's work. Use `update_task_status` when
+  you start or finish a task. To get work carried: `suggest_owner` ranks who should take
+  a task (with the graph route), `assign_task` gives it to them, and `triage` (leads)
+  files owner proposals for work nobody is carrying.
   """
 
   @doc "Handles one JSON-RPC message for `user` in `org_id`. Returns a reply map, or `:accepted` for notifications."

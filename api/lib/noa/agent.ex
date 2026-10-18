@@ -43,6 +43,11 @@ defmodule Noa.Agent do
           routes = answer.citations |> Enum.map(& &1.via) |> Enum.reject(&is_nil/1) |> Enum.uniq()
           {:ok, Map.put(answer, :retrieval, %{retrieval | routes: routes})}
 
+        # The model call failed (bad key, outage, rate limit): still answer, with the
+        # cited list the extractive generator builds from the same sources.
+        {:error, _error} when generator != Extractive ->
+          ask(org_id, question, actor, Keyword.put(opts, :generator, Extractive))
+
         {:error, error} ->
           {:error, error}
       end
@@ -52,7 +57,7 @@ defmodule Noa.Agent do
   defp generator do
     cond do
       mod = Application.get_env(:noa, __MODULE__, [])[:generator] -> mod
-      System.get_env("OPENAI_API_KEY") -> Answer
+      Noa.LLM.configured?() -> Answer
       true -> Extractive
     end
   end

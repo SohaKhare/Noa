@@ -1,3 +1,4 @@
+import { AgentPack } from "@/components/AgentPack";
 import { ClosingCTA } from "@/components/ClosingCTA";
 import { FAQ } from "@/components/FAQ";
 import { Footer } from "@/components/Footer";
@@ -19,6 +20,7 @@ export default function Home() {
         <Steps />
         <Product />
         <Commands />
+        <AgentPack />
         <FeatureBento />
         <FAQ />
         <ClosingCTA />

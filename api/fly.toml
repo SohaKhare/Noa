@@ -34,6 +34,7 @@ primary_region = "sin"
   KAPSO_TEMPLATE_TASK = "noa_task"
   KAPSO_TEMPLATE_APPROVAL = "noa_approval"
   KAPSO_TEMPLATE_LANG = "en_US"
+  KAPSO_DISPLAY_NUMBER = "+1 205-341-2931"
 
 [http_service]
   internal_port = 4000

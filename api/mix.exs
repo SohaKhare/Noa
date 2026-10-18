@@ -40,6 +40,8 @@ defmodule Noa.MixProject do
       {:ecto_sql, "~> 3.14"},
       {:postgrex, ">= 0.0.0"},
       {:swoosh, "~> 1.16"},
+      # Gmail SMTP with a Google app password (same setup as Tulpa v1).
+      {:gen_smtp, "~> 1.2"},
       {:cors_plug, "~> 3.0"},
       {:ecto, "~> 3.12"},
       {:instructor_lite, "~> 1.0"},

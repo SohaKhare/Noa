@@ -2,7 +2,7 @@ defmodule Noa.Notify do
   @moduledoc """
   Sends one message to a person on the channel they chose in Settings → Notifications
   (2.15, 2.21): WhatsApp (with reply buttons), a Discord DM from Noa's bot, or email.
-  Discord and email have no buttons, so they get a link to act in the web app instead.
+  Discord carries the same permission-checked buttons; email gets a link to the web app.
   People on "in app" get nothing here; the bell shows it.
 
   Returns `{:ok, channel}`, `:skipped` (nothing to send on), or `{:error, reason}`.
@@ -15,7 +15,7 @@ defmodule Noa.Notify do
         with {:ok, _} <- Noa.WhatsApp.send(person, text, Keyword.take(opts, [:buttons, :context])), do: {:ok, :whatsapp}
 
       {:discord, _handle} ->
-        with {:ok, _} <- Noa.Ingest.Discord.dm(person, with_link(text, opts)), do: {:ok, :discord}
+        with {:ok, _} <- Noa.Ingest.Discord.dm(person, with_link(text, opts), opts), do: {:ok, :discord}
 
       {:email, email} ->
         Swoosh.Email.new()

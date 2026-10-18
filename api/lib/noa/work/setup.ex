@@ -167,13 +167,53 @@ defmodule Noa.Work.Setup do
   end
 
   defp do_create_channel(org_id, attrs, actor) do
-    with {:ok, channel} <- insert_channel(org_id, attrs, actor) do
-      # A Discord channel with its id: load its recent history in the background.
-      if ((channel.platform == :discord and channel.external_id) && channel.read) and Noa.Ingest.Discord.enabled?() do
-        %{org_id: org_id, channel_id: channel.external_id} |> Noa.Ingest.Discord.Backfill.new() |> Oban.insert()
-      end
+    {backfill, attrs} = Map.pop(attrs, :backfill, true)
 
+    with {:ok, channel} <- insert_channel(org_id, attrs, actor) do
+      # A Discord channel with its id: load its recent history in the background, unless asked not to.
+      if backfill not in [false, "false"], do: queue_backfill(channel)
       {:ok, channel}
+    end
+  end
+
+  @doc "Loads a mapped Discord channel's recent history again (Settings → Channels). Org admins."
+  def backfill_channel(org_id, channel_id, actor) do
+    with :ok <- role(org_id, actor, [:org_admin]),
+         {:ok, %{org_id: ^org_id} = channel} <- Ash.get(Channel, channel_id, authorize?: false) do
+      cond do
+        not Noa.Ingest.Discord.enabled?() -> {:error, :discord_off}
+        channel.platform != :discord or is_nil(channel.external_id) -> {:error, :not_backfillable}
+        not channel.read -> {:error, :not_backfillable}
+        true -> {:ok, queue_backfill(channel)}
+      end
+    else
+      {:ok, _other_org} -> {:error, :not_found}
+      error -> error
+    end
+  end
+
+  defp queue_backfill(%{platform: :discord, external_id: id, read: true, org_id: org_id}) when is_binary(id) do
+    if Noa.Ingest.Discord.enabled?() do
+      case %{org_id: org_id, channel_id: id} |> Noa.Ingest.Discord.Backfill.new() |> Oban.insert() do
+        {:ok, %{conflict?: true}} -> :already_queued
+        {:ok, _} -> :queued
+        _ -> :failed
+      end
+    else
+      :discord_off
+    end
+  end
+
+  defp queue_backfill(_channel), do: :skipped
+
+  @doc "Stops reading a channel and removes its mapping. Messages already recorded stay. Org admins."
+  def delete_channel(org_id, channel_id, actor) do
+    with :ok <- role(org_id, actor, [:org_admin]),
+         {:ok, %{org_id: ^org_id} = channel} <- Ash.get(Channel, channel_id, authorize?: false) do
+      Ash.destroy(channel, actor: actor)
+    else
+      {:ok, _other_org} -> {:error, :not_found}
+      error -> error
     end
   end
 
@@ -191,24 +231,67 @@ defmodule Noa.Work.Setup do
   """
   def discord_channels(org_id, actor) do
     with {:ok, mapped} <- Work.channels(org_id, actor) do
-      mapped = mapped |> Enum.filter(&(&1.platform == :discord)) |> Enum.flat_map(&[&1.external_id, &1.name])
+      mapped = Enum.filter(mapped, &(&1.platform == :discord))
+      counts = message_counts(org_id)
+      admin? = role(org_id, actor, [:org_admin]) == :ok
 
       case Noa.Ingest.Discord.guild_channels(org_id) do
         {:ok, channels} ->
-          {:ok,
-           %{
-             connected: true,
-             channels:
-               Enum.map(
-                 channels,
-                 &Map.put(&1, :mapped, &1.id in mapped or &1.name in mapped or ("#" <> &1.name) in mapped)
-               )
-           }}
+          rows =
+            Enum.map(channels, fn c ->
+              noa =
+                Enum.find(mapped, &(&1.external_id == c.id)) ||
+                  Enum.find(mapped, &(is_nil(&1.external_id) and &1.name in [c.name, "#" <> c.name]))
+
+              # A channel matched by name gets its Discord id, so its history can be loaded.
+              noa = if admin? && noa && is_nil(noa.external_id), do: attach_id(noa, c.id), else: noa
+
+              Map.merge(c, %{
+                mapped: noa != nil,
+                channel_id: noa && noa.id,
+                project_id: noa && noa.project_id,
+                split: (noa && noa.split) || false,
+                read: (noa && noa.read) || false,
+                messages: (noa && counts[noa.id]) || 0
+              })
+            end)
+
+          in_server = MapSet.new(channels, & &1.id)
+
+          # Mappings that point at no channel in the server (old or mistyped), to clean up.
+          stale =
+            mapped
+            |> Enum.reject(&(&1.external_id in in_server))
+            |> Enum.reject(fn m -> Enum.any?(rows, &(&1.channel_id == m.id)) end)
+            |> Enum.map(&%{channel_id: &1.id, name: &1.name, messages: counts[&1.id] || 0})
+
+          {:ok, %{connected: true, channels: rows, stale: stale}}
 
         _ ->
-          {:ok, %{connected: false, channels: []}}
+          {:ok, %{connected: false, channels: [], stale: []}}
       end
     end
+  end
+
+  defp attach_id(channel, discord_id) do
+    case channel |> Ash.Changeset.for_update(:update, %{external_id: discord_id}) |> Ash.update(authorize?: false) do
+      {:ok, updated} -> updated
+      _ -> channel
+    end
+  end
+
+  # Messages recorded per Noa channel id (deleted ones excluded).
+  defp message_counts(org_id) do
+    import Ecto.Query
+
+    from(e in Noa.Events.Event,
+      where: e.org_id == ^org_id and e.type == "message.received",
+      where: fragment("coalesce(?->>'deleted', '') = ''", e.data),
+      group_by: fragment("?->>'channel_id'", e.data),
+      select: {fragment("?->>'channel_id'", e.data), count(e.id)}
+    )
+    |> Noa.Repo.all()
+    |> Map.new()
   end
 
   ## A whole org map

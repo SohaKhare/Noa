@@ -37,7 +37,7 @@ defmodule Noa.Work.Extract do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"org_id" => org_id, "channel_id" => channel_id}}) do
-    if Extraction.Model.impl() == Extraction.Model.OpenAI and is_nil(System.get_env("OPENAI_API_KEY")) do
+    if Extraction.Model.impl() == Extraction.Model.OpenAI and not Noa.LLM.configured?() do
       {:cancel, :no_openai_key}
     else
       run(org_id, channel_id)

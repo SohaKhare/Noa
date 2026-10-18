@@ -23,6 +23,12 @@ defmodule NoaWeb.FallbackController do
        "That isn't a Discord server id. In Discord, turn on Developer Mode, right-click the server and Copy Server ID."},
     guild_taken: {409, "That Discord server is already connected to another workspace."},
     invalid_token: {422, "Paste a GitHub token."},
+    discord_link_invalid: {422, "That Discord link expired or was used. Run /noa link again in your connected server."},
+    discord_already_linked:
+      {409, "That Discord account is linked to another member. Unlink it from that account first."},
+    person_not_found: {422, "Ask an org admin to add your account to the org map in Settings → People."},
+    discord_off: {409, "Noa's Discord bot isn't running, so history can't be loaded right now."},
+    not_backfillable: {422, "Only a Discord channel that Noa reads can load its history."},
     not_found: {404, "Not found."}
   }
 

@@ -22,6 +22,15 @@ defmodule NoaWeb.Plugs.RateLimit do
     :ok
   end
 
+  @doc "The same per-node limiter for trusted gateway consumers, outside HTTP."
+  def allow?(name, who, limit, per \\ 60) do
+    window = div(System.system_time(:second), per)
+    key = {name, who, window}
+    count = :ets.update_counter(@table, key, 1, {key, 0})
+    if count == 1, do: prune(name, window)
+    count <= limit
+  end
+
   def init(opts), do: Map.new(opts)
 
   def call(%{method: method} = conn, opts) when method in ~w(POST PUT PATCH DELETE) do

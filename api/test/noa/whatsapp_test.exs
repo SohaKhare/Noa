@@ -256,4 +256,20 @@ defmodule Noa.WhatsAppTest do
     mine = signed_in(saish) |> get("/api/orgs/#{org.id}/whatsapp") |> json_response(200)
     assert mine["scope"] == "you" and length(mine["messages"]) == 1
   end
+
+  test "the 24-hour window is open only after the person wrote to Noa", %{org: org} do
+    refute Noa.WhatsApp.window_open?("+91 98000 00002")
+
+    Noa.WhatsApp.record(%{
+      org_id: org.id,
+      direction: "in",
+      phone: "919800000002",
+      kind: "text",
+      body: "hi",
+      status: "received"
+    })
+
+    assert Noa.WhatsApp.window_open?("+91 98000 00002")
+    refute Noa.WhatsApp.window_open?("+91 98000 00009")
+  end
 end

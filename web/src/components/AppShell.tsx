@@ -93,7 +93,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span className="font-wordmark text-[22px] leading-none">NOA</span>
         </Link>
         <button className="mx-3 mt-3 flex items-center gap-2.5 rounded-xl px-2 py-2 text-left hover:bg-bg">
-          <BrandMark size={28} />
           <span className="min-w-0 flex-1 leading-tight">
             <span className="block truncate text-[13.5px] font-semibold">{membership.org.name}</span>
             <span className="block text-[11px] text-muted">{membership.title || roleLabel[membership.role]}</span>

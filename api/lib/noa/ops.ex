@@ -39,12 +39,12 @@ defmodule Noa.Ops do
     %{
       database: match?({:ok, _}, Ecto.Adapters.SQL.query(Repo, "SELECT 1", [], timeout: 2_000)),
       graph: Noa.Graph.enabled?() and match?({:ok, "PONG"}, Redix.command(Noa.Graph.Redix, ["PING"], timeout: 1_000)),
-      openai: present?(System.get_env("OPENAI_API_KEY")),
+      openai: Noa.LLM.configured?(),
       whatsapp: present?(whatsapp[:api_key]) and present?(whatsapp[:phone_number_id]),
       whatsapp_webhook: present?(whatsapp[:webhook_secret]),
       discord: Noa.Ingest.Discord.enabled?(),
       github: Noa.GitHub.configured?() or Noa.GitHub.App.configured?(),
-      email: Application.get_env(:noa, Noa.Mailer, [])[:adapter] == Noa.Mailer.Resend
+      email: Noa.Mailer.delivering?()
     }
   end
 

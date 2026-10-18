@@ -75,4 +75,7 @@ defmodule Noa.LLM do
 
   @doc "The model name extraction and `@noa` use."
   def model, do: System.get_env("NOA_MODEL", "gpt-5.6-luna")
+
+  @doc "Whether a model key is set. An empty `OPENAI_API_KEY=` (common in .env files) counts as none."
+  def configured?, do: (System.get_env("OPENAI_API_KEY") || "") |> String.trim() != ""
 end

@@ -263,7 +263,7 @@ defmodule Noa.Packs do
         "Open tasks live in `tasks.md` and on the Noa board; Noa keeps both current from chat.",
         "Deadline and scope changes go to the lead for approval; status changes apply at once.",
         "Ask `@noa` in #{List.first(data.channels) || "the team channel"} or the web app for anything not here; answers cite their sources.",
-        "For live context, connect your agent to Noa's MCP server (`.mcp.json`; create your token on the Agent pack page). Tools: `project_context`, `my_tasks`, `ask`, `who_knows`, `how_connected`, `decisions`, `update_task_status`.",
+        "For live context, connect your agent to Noa's MCP server (`.mcp.json`; create your token on the Agent pack page). Tools: `project_context`, `my_tasks`, `ask`, `who_knows`, `how_connected`, `decisions`, `risks`, `suggest_owner`, `assign_task`, `update_task_status`.",
         "Never commit secrets. Ask the lead for one-time access instead."
       ])
     ]

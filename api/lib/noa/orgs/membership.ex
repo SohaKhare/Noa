@@ -47,6 +47,10 @@ defmodule Noa.Orgs.Membership do
   actions do
     defaults([:read, :destroy])
 
+    read :discord_authentication do
+      prepare(build(select: [:id, :org_id, :user_id]))
+    end
+
     create :create do
       accept([:role, :title, :org_id, :user_id])
       upsert?(true)
@@ -64,8 +68,12 @@ defmodule Noa.Orgs.Membership do
       authorize_if(always())
     end
 
-    policy action_type(:read) do
+    policy action(:read) do
       authorize_if(expr(exists(org.memberships, user_id == ^actor(:id))))
+    end
+
+    policy action(:discord_authentication) do
+      authorize_if(expr(id == ^actor(:discord_membership_id)))
     end
 
     policy action_type([:update, :destroy]) do

@@ -15,6 +15,7 @@ defmodule Noa.Application do
         Noa.Graph,
         projector(),
         if(Application.get_env(:noa, Noa.WhatsApp, [])[:notifier], do: Noa.WhatsApp.Notifier),
+        Noa.Ingest.Discord.Links,
         discord_children(),
         if(Application.get_env(:noa, Noa.Ingest.Gmail, [])[:enabled], do: Noa.Ingest.Gmail.Poller),
         NoaWeb.Endpoint

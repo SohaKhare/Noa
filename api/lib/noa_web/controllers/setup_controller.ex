@@ -66,7 +66,7 @@ defmodule NoaWeb.SetupController do
   def create_channel(conn, %{"org_id" => org_id} = params) do
     attrs =
       params
-      |> take(~w(name external_id project_id split read))
+      |> take(~w(name external_id project_id split read backfill))
       |> Map.put(
         :platform,
         if(params["platform"] in ~w(discord slack whatsapp meet),
@@ -79,6 +79,20 @@ defmodule NoaWeb.SetupController do
          {:ok, channel} <- Setup.create_channel(org_id, attrs, actor(conn)) do
       conn |> put_status(201) |> json(%{channel: Payload.channel(channel)})
     end
+  end
+
+  @doc "Loads a mapped Discord channel's recent history in the background."
+  def backfill_channel(conn, %{"org_id" => org_id, "id" => id}) do
+    with {:ok, state} <- Setup.backfill_channel(org_id, id, actor(conn)), do: json(conn, %{backfill: state})
+  end
+
+  def delete_channel(conn, %{"org_id" => org_id, "id" => id}) do
+    with {:ok, _} <-
+           (case Setup.delete_channel(org_id, id, actor(conn)) do
+              :ok -> {:ok, nil}
+              other -> other
+            end),
+         do: json(conn, %{ok: true})
   end
 
   def discord_channels(conn, %{"org_id" => org_id}) do

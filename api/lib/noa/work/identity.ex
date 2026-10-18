@@ -1,6 +1,6 @@
 defmodule Noa.Work.Identity do
   @moduledoc """
-  A chat or git account (a Discord user, a WhatsApp number) and the person behind it
+  A chat or git account (a Discord or Slack user, a WhatsApp number) and the person behind it
   (1.11). Ingest calls `Noa.Work.identify/4` for every author; an unknown account is
   stored with no person so an admin can link it later.
   """

@@ -4,6 +4,7 @@ config :noa, Noa.Repo,
   username: "postgres",
   password: "postgres",
   hostname: "localhost",
+  port: String.to_integer(System.get_env("POSTGRES_PORT", "5432")),
   database: "noa_test#{System.get_env("MIX_TEST_PARTITION")}",
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2
@@ -29,3 +30,11 @@ config :noa, NoaWeb.Plugs.RateLimit, enabled: false
 config :noa, Noa.WhatsApp, webhook_secret: "test-kapso-secret", notifier: false
 
 config :noa, Noa.GitHub, webhook_secret: "test-github-secret"
+
+config :noa, Noa.Ingest.Slack.Client,
+  client_id: "test-slack-client",
+  client_secret: "test-slack-secret",
+  signing_secret: "test-slack-signing-secret",
+  base_url: "https://slack.test/api"
+
+config :noa, Noa.Ingest.Slack, history_limit: 15

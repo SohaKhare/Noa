@@ -1,5 +1,12 @@
 import Config
 
+# Local tunnels may override these at runtime; production requires both below.
+if config_env() != :test do
+  config :noa,
+    web_origin: System.get_env("WEB_ORIGIN", "http://localhost:3000"),
+    api_base_url: System.get_env("API_BASE_URL", "http://localhost:4000")
+end
+
 # Gmail IMAP is an explicit opt-in, isolated to one workspace (1.27).
 if config_env() != :test and System.get_env("GMAIL_IMAP_ENABLED") == "true" do
   config :noa, Noa.Ingest.Gmail,
@@ -25,6 +32,17 @@ if config_env() != :test do
     },
     notifier: System.get_env("NOA_WHATSAPP_NOTIFIER", "true") == "true",
     display_number: System.get_env("KAPSO_DISPLAY_NUMBER")
+end
+
+# Slack OAuth and Events API (1.14). Every company installs the same app into its own workspace.
+if config_env() != :test do
+  config :noa, Noa.Ingest.Slack.Client,
+    client_id: System.get_env("SLACK_CLIENT_ID"),
+    client_secret: System.get_env("SLACK_CLIENT_SECRET"),
+    signing_secret: System.get_env("SLACK_SIGNING_SECRET"),
+    base_url: System.get_env("SLACK_API_URL", "https://slack.com/api")
+
+  config :noa, Noa.Ingest.Slack, history_limit: String.to_integer(System.get_env("SLACK_HISTORY_LIMIT", "15"))
 end
 
 # GitHub (3.7): webhook secret, and a token for backfilling private repos.

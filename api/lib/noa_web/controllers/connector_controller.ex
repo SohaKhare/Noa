@@ -1,5 +1,5 @@
 defmodule NoaWeb.ConnectorController do
-  @moduledoc "A workspace's own connectors (1.18), managed by its org admins: the Discord server, GitHub secrets."
+  @moduledoc "A workspace's own connectors, managed by org admins: Discord, Slack and GitHub."
   use NoaWeb, :controller
 
   alias Noa.Connectors
@@ -9,7 +9,8 @@ defmodule NoaWeb.ConnectorController do
          do: json(conn, %{ok: true})
   end
 
-  def disconnect(conn, %{"org_id" => org_id, "kind" => kind}) when kind in ["discord", "github", "github_app"] do
+  def disconnect(conn, %{"org_id" => org_id, "kind" => kind})
+      when kind in ["discord", "slack", "github", "github_app"] do
     with :ok <- Connectors.disconnect(org_id, kind, conn.assigns.current_user), do: json(conn, %{ok: true})
   end
 

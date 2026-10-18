@@ -169,12 +169,24 @@ defmodule Noa.Work.Setup do
   defp do_create_channel(org_id, attrs, actor) do
     {backfill, attrs} = Map.pop(attrs, :backfill, true)
 
-    with {:ok, channel} <- insert_channel(org_id, attrs, actor) do
-      # A Discord channel with its id: load its recent history in the background, unless asked not to.
+    with :ok <- validate_provider_channel(org_id, attrs),
+         {:ok, channel} <- insert_channel(org_id, attrs, actor) do
+      # A provider channel with its id loads recent history unless asked not to.
       if backfill not in [false, "false"], do: queue_backfill(channel)
       {:ok, channel}
     end
   end
+
+  defp validate_provider_channel(org_id, %{platform: :slack, external_id: external_id})
+       when is_binary(external_id) do
+    with {:ok, channels} <- Noa.Ingest.Slack.workspace_channels(org_id),
+         true <- Enum.any?(channels, &(&1.id == external_id)) || {:error, :slack_channel_unavailable} do
+      :ok
+    end
+  end
+
+  defp validate_provider_channel(_org_id, %{platform: :slack}), do: {:error, :slack_channel_unavailable}
+  defp validate_provider_channel(_org_id, _attrs), do: :ok
 
   @doc "Loads a mapped Discord channel's recent history again (Settings → Channels). Org admins."
   def backfill_channel(org_id, channel_id, actor) do
@@ -201,6 +213,14 @@ defmodule Noa.Work.Setup do
       end
     else
       :discord_off
+    end
+  end
+
+  defp queue_backfill(%{platform: :slack, external_id: id, read: true, org_id: org_id}) when is_binary(id) do
+    case %{org_id: org_id, channel_id: id} |> Noa.Ingest.Slack.Backfill.new() |> Oban.insert() do
+      {:ok, %{conflict?: true}} -> :already_queued
+      {:ok, _} -> :queued
+      _ -> :failed
     end
   end
 
@@ -269,6 +289,29 @@ defmodule Noa.Work.Setup do
 
         _ ->
           {:ok, %{connected: false, channels: [], stale: []}}
+      end
+    end
+  end
+
+  @doc "Member public/private channels in the connected Slack workspace, with mapping state."
+  def slack_channels(org_id, actor) do
+    with {:ok, mapped} <- Work.channels(org_id, actor) do
+      mapped = mapped |> Enum.filter(&(&1.platform == :slack)) |> Enum.flat_map(&[&1.external_id, &1.name])
+
+      case Noa.Ingest.Slack.workspace_channels(org_id) do
+        {:ok, channels} ->
+          {:ok,
+           %{
+             connected: true,
+             channels:
+               Enum.map(
+                 channels,
+                 &Map.put(&1, :mapped, &1.id in mapped or &1.name in mapped or ("#" <> &1.name) in mapped)
+               )
+           }}
+
+        _ ->
+          {:ok, %{connected: false, channels: []}}
       end
     end
   end

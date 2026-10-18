@@ -70,6 +70,7 @@ defmodule NoaWeb.PermissionsTest do
     {:post, "/channels/:channel/backfill"},
     {:delete, "/channels/:channel"},
     {:get, "/discord/channels"},
+    {:get, "/slack/channels"},
     {:post, "/import"},
     {:get, "/join_requests"},
     {:post, "/join_requests/:task/approve"},

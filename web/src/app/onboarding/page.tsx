@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckIcon, DiscordLogoIcon, FileArrowUpIcon, PlusIcon, UsersIcon } from "@phosphor-icons/react";
+import { CheckIcon, DiscordLogoIcon, FileArrowUpIcon, PlusIcon, SlackLogoIcon, UsersIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { FormError } from "@/components/AuthCard";
 import { BrandMark } from "@/components/BrandMark";
 import { Avatar, Badge, Button } from "@/components/ui";
-import { addMembersAsPeople, ApiError, createChannel, createPerson, createProject, getDiscordChannels, importOrgMap, setAllocation, updateProject, type WorkProject } from "@/lib/api";
+import { addMembersAsPeople, ApiError, createChannel, createPerson, createProject, getDiscordChannels, getSlackChannels, importOrgMap, setAllocation, updateProject, type WorkProject } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { currentMembership, useMe } from "@/lib/session";
 import { nameInitials, useDirectory } from "@/lib/work";
@@ -322,17 +322,21 @@ function Channels({ admin }: { admin: boolean }) {
   const dir = useDirectory();
   const refresh = useRefresh();
   const discord = useQuery({ queryKey: ["discord-channels", dir.orgId], queryFn: () => getDiscordChannels(dir.orgId!), enabled: !!dir.orgId && admin });
-  const [pick, setPick] = useState<Record<string, string>>({});
+  const slack = useQuery({ queryKey: ["slack-channels", dir.orgId], queryFn: () => getSlackChannels(dir.orgId!), enabled: !!dir.orgId && admin });
+  const [discordPick, setDiscordPick] = useState<Record<string, string>>({});
+  const [slackPick, setSlackPick] = useState<Record<string, string>>({});
+  const [platform, setPlatform] = useState<"discord" | "slack">("discord");
   const [name, setName] = useState("");
   const [externalId, setExternalId] = useState("");
   const [project, setProject] = useState("");
   const add = useMutation({
-    mutationFn: (c: { name: string; external_id?: string; project_id?: string | null; split?: boolean }) => createChannel(dir.orgId!, c),
+    mutationFn: (c: { platform?: "discord" | "slack"; name: string; external_id?: string; project_id?: string | null; split?: boolean }) => createChannel(dir.orgId!, c),
     onSuccess: () => {
       setName("");
       setExternalId("");
       refresh();
       discord.refetch();
+      slack.refetch();
     },
   });
   const target = (value: string) => (value === "split" ? { split: true, project_id: null } : { project_id: value || null });
@@ -367,8 +371,8 @@ function Channels({ admin }: { admin: boolean }) {
                 ) : (
                   <>
                     <select
-                      value={pick[c.id] ?? ""}
-                      onChange={(e) => setPick((m) => ({ ...m, [c.id]: e.target.value }))}
+                      value={discordPick[c.id] ?? ""}
+                      onChange={(e) => setDiscordPick((m) => ({ ...m, [c.id]: e.target.value }))}
                       aria-label={`Project for #${c.name}`}
                       className="rounded-lg bg-bg px-2 py-1 text-[12px] focus:outline-none"
                     >
@@ -380,7 +384,51 @@ function Channels({ admin }: { admin: boolean }) {
                       ))}
                       <option value="split">Split by message</option>
                     </select>
-                    <Button size="sm" disabled={!pick[c.id] || add.isPending} onClick={() => add.mutate({ name: `#${c.name}`, external_id: c.id, ...target(pick[c.id]) })}>
+                    <Button size="sm" disabled={!discordPick[c.id] || add.isPending} onClick={() => add.mutate({ platform: "discord", name: `#${c.name}`, external_id: c.id, ...target(discordPick[c.id]) })}>
+                      Read
+                    </Button>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="rounded-2xl p-4 ring-1 ring-line">
+          <p className="flex items-center gap-2 text-[13px] font-semibold">
+            <SlackLogoIcon size={16} className="text-accent-fg" /> Slack
+            {slack.data?.connected ? <Badge tone="good">Workspace connected</Badge> : <Badge>Not connected</Badge>}
+          </p>
+          {!slack.data?.connected && (
+            <p className="mt-2 text-[12px] text-muted">
+              Install Slack under Settings → Connectors, then return here. Only public and private channels Noa has joined will appear.
+            </p>
+          )}
+          <ul className="mt-3 space-y-1.5">
+            {(slack.data?.channels ?? []).map((c) => (
+              <li key={c.id} className="flex items-center gap-2 text-[13px]">
+                <span className="min-w-0 flex-1 truncate">{c.private ? "🔒 " : "#"}{c.name}</span>
+                {c.mapped ? (
+                  <span className="text-[12px] text-good">Reading</span>
+                ) : (
+                  <>
+                    <select
+                      value={slackPick[c.id] ?? ""}
+                      onChange={(e) => setSlackPick((m) => ({ ...m, [c.id]: e.target.value }))}
+                      aria-label={`Project for Slack #${c.name}`}
+                      className="rounded-lg bg-bg px-2 py-1 text-[12px] focus:outline-none"
+                    >
+                      <option value="">Project…</option>
+                      {dir.projects.map((p) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                      <option value="split">Split by message</option>
+                    </select>
+                    <Button
+                      size="sm"
+                      disabled={!slackPick[c.id] || add.isPending}
+                      onClick={() => add.mutate({ platform: "slack", name: `#${c.name}`, external_id: c.id, ...target(slackPick[c.id]) })}
+                    >
                       Read
                     </Button>
                   </>
@@ -395,12 +443,16 @@ function Channels({ admin }: { admin: boolean }) {
           onSubmit={(e) => {
             e.preventDefault();
             const n = name.trim();
-            if (n) add.mutate({ name: n.startsWith("#") ? n : `#${n}`, external_id: externalId.trim() || undefined, ...target(project) });
+            if (n) add.mutate({ platform, name: n.startsWith("#") ? n : `#${n}`, external_id: externalId.trim() || undefined, ...target(project) });
           }}
         >
           <p className="text-[13px] font-semibold">Add a channel by hand</p>
+          <select className={input} value={platform} onChange={(e) => setPlatform(e.target.value as "discord" | "slack")} aria-label="Channel platform">
+            <option value="discord">Discord</option>
+            <option value="slack">Slack</option>
+          </select>
           <input className={input} placeholder="#channel-name" value={name} onChange={(e) => setName(e.target.value)} aria-label="Channel name" />
-          <input className={input} placeholder="Discord channel id (optional)" value={externalId} onChange={(e) => setExternalId(e.target.value)} aria-label="Channel id" />
+          <input className={input} placeholder={`${platform === "slack" ? "Slack" : "Discord"} channel id (optional)`} value={externalId} onChange={(e) => setExternalId(e.target.value)} aria-label="Channel id" />
           <select className={input} value={project} onChange={(e) => setProject(e.target.value)} aria-label="Project">
             <option value="">Pick a project</option>
             {dir.projects.map((p) => (

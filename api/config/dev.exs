@@ -4,6 +4,7 @@ config :noa, Noa.Repo,
   username: "postgres",
   password: "postgres",
   hostname: "localhost",
+  port: String.to_integer(System.get_env("POSTGRES_PORT", "5432")),
   database: "noa_dev",
   show_sensitive_data_on_connection_error: true,
   pool_size: 10

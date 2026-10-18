@@ -71,7 +71,7 @@ Everything below runs locally against real Postgres and FalkorDB, with tests (`c
 | Area | Working | Notes |
 | --- | --- | --- |
 | Accounts and workspaces | Yes | Invite-only sign-in (password or magic link), roles, superadmin console, people and invites. [docs/auth.md](docs/auth.md) |
-| Org map and onboarding | Yes | Set up a workspace in the app (`/onboarding`): projects, people (including everyone who joined), who works where, channels (listed from Discord when the bot is connected), or import an org map JSON. Mapping also in Settings |
+| Org map and onboarding | Yes | Set up a workspace in the app (`/onboarding`): projects, people (including everyone who joined), who works where, channels listed from connected Discord and Slack workspaces, or import an org map JSON. Mapping also in Settings |
 | Event log | Yes | Every write to work is an append-only event in the same transaction; chat messages are recorded once |
 | Graph | Yes | One FalkorDB graph per workspace, kept in step by a projector and rebuildable from the log (`mix noa.graph`) |
 | Chat to proposals | Yes, with a model key | Typed extraction (tasks, status, deadlines, decisions, scope) with routing, run by an Oban job per channel. Needs `OPENAI_API_KEY` |
@@ -85,11 +85,12 @@ Everything below runs locally against real Postgres and FalkorDB, with tests (`c
 | KT brief and experts | Yes | Per-project brief with people to meet from the graph (download as `brief.md`); PageRank and bus factor in Portfolio |
 | Graph view | Yes | Each project's FalkorDB neighbourhood; click two nodes to see the shortest path between them |
 | Discord | Yes, after server connection and verified account linking | Mapped-channel ingest/backfill, `/noa` private cited replies, task/approval buttons, recaps, KT briefs and notification DMs. Explicit DM questions are answered but never ingested. [docs/discord.md](docs/discord.md) |
+| Slack | Yes, once the app is configured | Per-workspace OAuth, signed Events API ingest of mapped member channels, edits/deletes, user sync, 15-message backfill, and DM notifications. [docs/slack.md](docs/slack.md) |
 | Gmail inbox | Opt-in | Read-only IMAP poll of new mail in a configured workspace's INBOX; plain-text content enters the event log and extraction. See [docs/gmail.md](docs/gmail.md) |
 | WhatsApp | Yes, sends once Kapso is configured | Signed webhooks, reply buttons, "done" moves a card, shift links to the brief and pack. Without credentials, messages stay in a local outbox. [docs/whatsapp.md](docs/whatsapp.md) |
 | Agent pack | Yes | `CLAUDE.md`, `AGENTS.md`, `tasks.md` and `brief.md` generated from the project graph, with a day-one checklist |
 | MCP server | Yes | Coding agents connect with a personal token and get live context from the graph: project context, my tasks, cited answers, who knows what, paths, task status. [docs/mcp.md](docs/mcp.md) |
-| Notifications and digest | Yes | The bell in the app; the same items on WhatsApp (with buttons), as a Discord DM or by email, per person; quiet hours; a daily digest at each person's chosen time |
+| Notifications and digest | Yes | The bell in the app; the same items on WhatsApp (with buttons), as a Discord or Slack DM, or by email, per person; quiet hours; a daily digest at each person's chosen time |
 | Live updates | Yes | Inbox, boards and My day refresh every 10 seconds while open |
 | Triage agent | Yes | Finds work nobody is carrying and suggests owners from the graph, with the route behind each reason; "Who should own this?" on every task; MCP tools for agents. [docs/hackathon.md](docs/hackathon.md) |
 | Shared memory | Yes | People, ingest and agents write concurrently with one event order and a graph that matches Postgres. [docs/memory.md](docs/memory.md) |

@@ -326,13 +326,14 @@ defmodule Noa.Work do
   end
 
   @doc """
-  Where to reach a person (for 2.9 and 2.21): `{:whatsapp, phone}`, `{:discord, handle}`,
-  `{:email, email}` or `:in_app` when the chosen channel has no address yet.
+  Where to reach a person (for 2.9 and 2.21): WhatsApp, Discord, Slack, email, or
+  `:in_app` when the chosen channel has no address yet.
   """
   def notify_target(%Person{} = p) do
     case p.notify_via do
       :whatsapp when is_binary(p.phone) -> {:whatsapp, p.phone}
       :discord when p.handles != [] -> {:discord, hd(p.handles)}
+      :slack -> {:slack, p.id}
       :email -> if email = p.email || account_email(p), do: {:email, to_string(email)}, else: :in_app
       _ -> :in_app
     end

@@ -99,6 +99,10 @@ defmodule NoaWeb.SetupController do
     with {:ok, result} <- Setup.discord_channels(org_id, actor(conn)), do: json(conn, result)
   end
 
+  def slack_channels(conn, %{"org_id" => org_id}) do
+    with {:ok, result} <- Setup.slack_channels(org_id, actor(conn)), do: json(conn, result)
+  end
+
   def import(conn, %{"org_id" => org_id} = params) do
     with {:ok, counts} <- Setup.import(org_id, params["seed"], actor(conn)), do: json(conn, %{loaded: counts})
   end

@@ -3,7 +3,7 @@ defmodule Noa.NotifyTest do
   use NoaWeb.ConnCase, async: false
   import Swoosh.TestAssertions
 
-  alias Noa.{Events, Work}
+  alias Noa.{Events, Repo, Vault, Work}
   alias Noa.WhatsApp.Notifier
 
   @seed Path.expand("../../../docs/seeds/nyi.json", __DIR__) |> File.read!() |> Jason.decode!()
@@ -66,6 +66,54 @@ defmodule Noa.NotifyTest do
     {:ok, _} = Work.set_notifications(ctx.person.id, %{notify_via: :discord}, ctx.saish)
 
     assert [{:error, :not_connected}] = Notifier.handle(assign(ctx))
+    assert_no_email_sent()
+  end
+
+  test "slack: the new owner gets a DM with the link to act", ctx do
+    now = DateTime.utc_now()
+
+    Repo.insert_all("org_connectors", [
+      %{
+        id: Ecto.UUID.bingenerate(),
+        org_id: Ecto.UUID.dump!(ctx.org.id),
+        kind: "slack",
+        external_id: "T001",
+        token_enc: Vault.encrypt("xoxb-test"),
+        connected_by_id: Ecto.UUID.dump!(ctx.vedant.id),
+        inserted_at: now,
+        updated_at: now
+      }
+    ])
+
+    {:ok, identity} = Work.identify(ctx.org.id, :slack, "U001", ctx.person.name)
+
+    if identity.person_id != ctx.person.id do
+      {:ok, _} =
+        identity
+        |> Ash.Changeset.for_update(:update, %{person_id: ctx.person.id})
+        |> Ash.update(authorize?: false)
+    end
+
+    previous = Application.get_env(:noa, Noa.Ingest.Slack.Client)
+
+    Application.put_env(
+      :noa,
+      Noa.Ingest.Slack.Client,
+      Keyword.put(previous, :req_options, plug: {Req.Test, NotifySlackAPI})
+    )
+
+    Req.Test.stub(NotifySlackAPI, fn
+      %{request_path: "/api/conversations.open"} = conn ->
+        Req.Test.json(conn, %{"ok" => true, "channel" => %{"id" => "D001"}})
+
+      %{request_path: "/api/chat.postMessage"} = conn ->
+        Req.Test.json(conn, %{"ok" => true, "channel" => "D001", "ts" => "1.0"})
+    end)
+
+    on_exit(fn -> Application.put_env(:noa, Noa.Ingest.Slack.Client, previous) end)
+
+    {:ok, _} = Work.set_notifications(ctx.person.id, %{notify_via: :slack}, ctx.saish)
+    assert [{:ok, :slack}] = Notifier.handle(assign(ctx))
     assert_no_email_sent()
   end
 

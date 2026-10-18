@@ -3,6 +3,7 @@ defmodule Noa.Meet do
   use Ash.Domain, otp_app: :noa
   require Ash.Query
   alias Noa.Meet.{Attendee, Session}
+  alias Noa.Meetings.Utterance
 
   resources do
     resource(Session)
@@ -81,19 +82,7 @@ defmodule Noa.Meet do
          true <- session.status in [:running, :stopped],
          {:ok, %{state: "ended", transcription: "complete"}} <- provider().status(session.attendee_bot_id),
          {:ok, lines} <- provider().transcript(session.attendee_bot_id),
-         true <- length(lines) in 1..400 do
-      normalized =
-        Enum.with_index(lines, 1)
-        |> Enum.map(fn {line, seq} ->
-          %{
-            "seq" => seq,
-            "speaker" => line.speaker || "Unknown speaker",
-            "text" => line.text,
-            "start_ms" => line.start_ms,
-            "end_ms" => line.end_ms
-          }
-        end)
-
+         {:ok, normalized} <- normalize_transcript(lines) do
       Ash.update(session, %{status: :ready, transcript: %{"lines" => normalized}}, action: :advance, actor: actor)
     else
       false -> {:error, :wrong_state}
@@ -108,6 +97,7 @@ defmodule Noa.Meet do
     with {:ok, session} <- fetch(org_id, id, actor),
          :ok <- lead(org_id, actor),
          true <- session.status == :ready,
+         {:ok, lines} <- normalize_transcript(session.transcript["lines"]),
          {:ok, meeting} <-
            Noa.Meetings.import_transcript(
              org_id,
@@ -118,7 +108,7 @@ defmodule Noa.Meet do
                consent_confirmed: true,
                source: %{"channel_id" => channel_id, "provider" => "attendee", "meeting_url" => session.meeting_url}
              },
-             session.transcript["lines"],
+             lines,
              actor
            ),
          {:ok, updated} <-
@@ -129,6 +119,68 @@ defmodule Noa.Meet do
       error -> error
     end
   end
+
+  # Attendee can emit empty speech segments and timestamps based on the provider's
+  # recording clock rather than the beginning of the transcript. Validate before
+  # marking a session ready, and again at import for sessions synced before this fix.
+  defp normalize_transcript(lines) when is_list(lines) do
+    lines =
+      Enum.reject(lines, fn line ->
+        text = if is_map(line), do: Map.get(line, :text) || Map.get(line, "text"), else: nil
+        is_binary(text) and String.trim(text) == ""
+      end)
+
+    with true <- length(lines) in 1..400 and Enum.all?(lines, &is_map/1),
+         true <- Enum.all?(lines, fn line -> is_binary(Map.get(line, :text) || Map.get(line, "text")) end),
+         true <-
+           Enum.sum(Enum.map(lines, fn line -> String.length(Map.get(line, :text) || Map.get(line, "text")) end)) <=
+             120_000,
+         true <-
+           Enum.all?(lines, fn line ->
+             start_ms = Map.get(line, :start_ms) || Map.get(line, "start_ms")
+             end_ms = Map.get(line, :end_ms) || Map.get(line, "end_ms")
+             is_integer(start_ms) and is_integer(end_ms) and start_ms >= 0 and end_ms >= start_ms
+           end) do
+      first_ms =
+        Enum.min_by(lines, fn line -> Map.get(line, :start_ms) || Map.get(line, "start_ms") end)
+        |> then(fn line -> Map.get(line, :start_ms) || Map.get(line, "start_ms") end)
+
+      # Preserve already-relative offsets; rebase only provider clock values outside
+      # the shared one-hour transcript window.
+      offset =
+        if Enum.any?(lines, fn line -> (Map.get(line, :end_ms) || Map.get(line, "end_ms")) > 3_600_000 end),
+          do: first_ms,
+          else: 0
+
+      lines
+      |> Enum.with_index(1)
+      |> Enum.reduce_while({:ok, []}, fn {line, seq}, {:ok, acc} ->
+        speaker = Map.get(line, :speaker) || Map.get(line, "speaker")
+
+        utterance = %{
+          "seq" => seq,
+          "speaker" =>
+            if(is_binary(speaker) and String.trim(speaker) != "", do: String.trim(speaker), else: "Unknown speaker"),
+          "text" => String.trim(Map.get(line, :text) || Map.get(line, "text")),
+          "start_ms" => (Map.get(line, :start_ms) || Map.get(line, "start_ms")) - offset,
+          "end_ms" => (Map.get(line, :end_ms) || Map.get(line, "end_ms")) - offset
+        }
+
+        case Utterance.cast(utterance) do
+          {:ok, valid} -> {:cont, {:ok, [valid | acc]}}
+          error -> {:halt, error}
+        end
+      end)
+      |> case do
+        {:ok, valid} -> {:ok, Enum.reverse(valid)}
+        error -> error
+      end
+    else
+      false -> {:error, :invalid_transcript}
+    end
+  end
+
+  defp normalize_transcript(_), do: {:error, :invalid_transcript}
 
   defp lead(org_id, actor),
     do:

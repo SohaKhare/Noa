@@ -93,6 +93,8 @@ defmodule Noa.Work.Extract do
       from(e in Event,
         where: e.org_id == ^org_id and e.type == "message.received",
         where: fragment("?->>'channel_id' = ?", e.data, ^channel_id),
+        # Meeting commitments have their own review-only extractor.
+        where: fragment("?->>'meeting_id' IS NULL", e.data),
         where: fragment("coalesce(?->>'deleted', '') = ''", e.data)
       )
 

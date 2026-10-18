@@ -16,6 +16,9 @@ defmodule Noa.Application do
         projector(),
         if(Application.get_env(:noa, Noa.WhatsApp, [])[:notifier], do: Noa.WhatsApp.Notifier),
         Noa.Ingest.Discord.Links,
+        {Task.Supervisor, name: Noa.Meetings.Tasks},
+        Noa.Meetings.Voice.Worker,
+        Noa.Meetings.Voice,
         discord_children(),
         if(Application.get_env(:noa, Noa.Ingest.Gmail, [])[:enabled], do: Noa.Ingest.Gmail.Poller),
         NoaWeb.Endpoint

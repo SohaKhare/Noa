@@ -133,7 +133,7 @@ defmodule Noa.Ingest.Discord.CommandsTest do
   test "registration renames legacy global and guild commands without deleting unrelated commands" do
     assert :ok = Commands.register()
     assert_receive {:create_global, %{name: "noa", dm_permission: false, options: options}}
-    assert Enum.map(options, & &1.name) == ~w(ask link tasks inbox recap brief connect disconnect help)
+    assert Enum.map(options, & &1.name) == ~w(ask link tasks inbox recap brief connect disconnect help meeting)
     assert_receive {:delete_global, 1}
     refute_receive {:delete_global, 2}
     assert :ok = Commands.register(@guild)

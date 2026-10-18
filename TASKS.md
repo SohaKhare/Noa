@@ -79,7 +79,7 @@ Exit test: A real Discord message becomes a proposed task in the right project a
 | 1.26 | Guard against removing or demoting a workspace's last admin | New | Saish | In review | #2 |
 | 1.27 | Join link: teammates ask to join with a work email; an org admin approves and the invite email follows | New | Saish | In review | #4 |
 | 1.28 | Per-company connectors: org admins connect their Discord server and GitHub (secrets encrypted) in Settings; the Noa admin runs only the platform bot and number | New | Saish | In review | #4 |
-| 1.29 | Gmail INBOX ingestion via read-only IMAP (all new mail; workspace-visible sources) | New | Soha | In review | #5 |
+| 1.29 | Gmail INBOX ingestion via read-only IMAP (all new mail; workspace-visible sources) | New | Soha | Done | #5 |
 
 ## Phase 2: Work loop (Oct 17, 11:00 to 20:00)
 

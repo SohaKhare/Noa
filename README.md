@@ -9,7 +9,7 @@ NotYourIdea (NYI) runs four products with a small team that moves between them. 
 | | |
 | --- | --- |
 | **Live app** | [app.heynoa.xyz](https://app.heynoa.xyz) (invite-only workspaces) · site: [heynoa.xyz](https://heynoa.xyz) |
-| **Demo video** | _link to be added_ |
+| **Demo video** | https://www.youtube.com/watch?v=djpEx_QtBUI |
 | **Track** | **03 Company Brain** |
 | **Hackathon** | [Graph Hacks: Context for AI Agents](https://www.wemakedevs.org/hackathons/falkordb), WeMakeDevs × FalkorDB, Oct 15–18, 2026 |
 | **Team** | NotYourIdea: Saish, Soha, Vedant |

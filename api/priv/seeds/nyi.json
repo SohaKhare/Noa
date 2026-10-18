@@ -1,0 +1,245 @@
+{
+  "_about": "NYI org seed (item 0.14). Mirrors docs/org-map.md; change both together. Fields marked confirm=true are guesses to check before loading. Prathamesh (Head of AI) is not on the hackathon team, so he is left out for now; Vedant is PM / lead.",
+  "org": {
+    "name": "NotYourIdea",
+    "slug": "nyi"
+  },
+  "people": [
+    {
+      "id": "oj",
+      "name": "Ojas",
+      "title": "Co-founder, tech",
+      "role": "org_admin",
+      "reports_to": null,
+      "confirm": [
+        "role"
+      ]
+    },
+    {
+      "id": "ab",
+      "name": "Abhishek",
+      "title": "Co-founder, content",
+      "role": "org_admin",
+      "reports_to": null,
+      "confirm": [
+        "role"
+      ]
+    },
+    {
+      "id": "ve",
+      "name": "Vedant",
+      "title": "SWE, PM / lead",
+      "role": "org_admin",
+      "reports_to": "oj",
+      "git": [
+        "VedantNYI",
+        "Vedant"
+      ],
+      "confirm": [
+        "reports_to"
+      ]
+    },
+    {
+      "id": "sa",
+      "name": "Saish",
+      "title": "Intern",
+      "role": "member",
+      "reports_to": "ve",
+      "git": [
+        "Saish Korgaonkar",
+        "Saish-NYI",
+        "SaishKorgaonkar"
+      ],
+      "confirm": [
+        "reports_to"
+      ]
+    },
+    {
+      "id": "so",
+      "name": "Soha",
+      "title": "Intern",
+      "role": "member",
+      "reports_to": "ve",
+      "confirm": [
+        "reports_to"
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "id": "veriq",
+      "name": "Veriq",
+      "lead": "ve",
+      "repo": "Not-Your-Idea/veriq",
+      "about": "AI reputation reports across seven AI model families",
+      "confirm": [
+        "lead"
+      ]
+    },
+    {
+      "id": "emmarie",
+      "name": "Emmarie",
+      "lead": "ve",
+      "repo": "Not-Your-Idea/emmarie",
+      "about": "Writing-first film workspace",
+      "confirm": [
+        "lead"
+      ]
+    },
+    {
+      "id": "tulpa",
+      "name": "Tulpa",
+      "lead": "sa",
+      "repo": "Not-Your-Idea/tulpa",
+      "about": "Chat memory and decisions with sources; Noa's predecessor",
+      "confirm": [
+        "lead"
+      ]
+    },
+    {
+      "id": "video-break",
+      "name": "Video Break",
+      "lead": "ab",
+      "repo": null,
+      "about": "Research: why videos hold attention",
+      "confirm": [
+        "lead"
+      ]
+    }
+  ],
+  "allocations": [
+    {
+      "person": "sa",
+      "project": "veriq",
+      "percent": 40,
+      "confirm": true
+    },
+    {
+      "person": "sa",
+      "project": "emmarie",
+      "percent": 10,
+      "confirm": true
+    },
+    {
+      "person": "sa",
+      "project": "tulpa",
+      "percent": 50,
+      "confirm": true
+    },
+    {
+      "person": "ve",
+      "project": "emmarie",
+      "percent": 40,
+      "confirm": true
+    },
+    {
+      "person": "ve",
+      "project": "tulpa",
+      "percent": 40,
+      "confirm": true
+    },
+    {
+      "person": "so",
+      "project": "video-break",
+      "percent": 100,
+      "confirm": true
+    },
+    {
+      "person": "ab",
+      "project": "video-break",
+      "percent": 50,
+      "confirm": true
+    },
+    {
+      "person": "ve",
+      "project": "veriq",
+      "percent": 20,
+      "confirm": true
+    }
+  ],
+  "channels": [
+    {
+      "name": "#veriq",
+      "platform": "discord",
+      "project": "veriq",
+      "read": true,
+      "confirm": true
+    },
+    {
+      "name": "#emmarie",
+      "platform": "discord",
+      "project": "emmarie",
+      "read": true,
+      "confirm": true
+    },
+    {
+      "name": "#tulpa",
+      "platform": "discord",
+      "project": "tulpa",
+      "read": true,
+      "confirm": true
+    },
+    {
+      "name": "#video-break",
+      "platform": "discord",
+      "project": "video-break",
+      "read": true,
+      "confirm": true
+    },
+    {
+      "name": "#dev",
+      "platform": "discord",
+      "project": "split",
+      "read": true,
+      "confirm": true
+    },
+    {
+      "name": "#general",
+      "platform": "discord",
+      "project": "split",
+      "read": true,
+      "confirm": true
+    },
+    {
+      "name": "#random",
+      "platform": "discord",
+      "project": null,
+      "read": false,
+      "confirm": true
+    }
+  ],
+  "aliases": [
+    {
+      "alias": "reports",
+      "project": "veriq"
+    },
+    {
+      "alias": "AI rep",
+      "project": "veriq"
+    },
+    {
+      "alias": "film app",
+      "project": "emmarie"
+    },
+    {
+      "alias": "emm",
+      "project": "emmarie"
+    },
+    {
+      "alias": "v1",
+      "project": "tulpa"
+    },
+    {
+      "alias": "the old bot",
+      "project": "tulpa"
+    },
+    {
+      "alias": "reels research",
+      "project": "video-break"
+    },
+    {
+      "alias": "VB",
+      "project": "video-break"
+    }
+  ]
+}

@@ -73,4 +73,53 @@ defmodule Noa.Ingest.DiscordIngestTest do
 
     assert identity.org_id == org.id and identity.external_id == "3003"
   end
+
+  test "an edit replaces the text; a delete erases it from the log", %{org: org} do
+    {:ok, _} = Discord.ingest(gateway_message())
+
+    assert {:ok, edited} =
+             Discord.edit(gateway_message(%{content: "on it, Board report PDF export by Monday"}))
+
+    assert edited.type == "message.edited"
+    [original] = Events.since(0, org_id: org.id, limit: 1000) |> Enum.filter(&(&1.type == "message.received"))
+    assert original.data["text"] == "on it, Board report PDF export by Monday" and original.data["edited_at"]
+    assert {:ignore, :unchanged} = Discord.edit(gateway_message(%{content: "on it, Board report PDF export by Monday"}))
+
+    assert {:ok, deleted} = Discord.delete(%{id: 5_001, channel_id: 2_001, guild_id: 1_001})
+    assert deleted.type == "message.deleted"
+
+    for e <- Events.since(0, org_id: org.id, limit: 1000), e.type in ["message.received", "message.edited"] do
+      assert e.data["text"] == nil and e.data["deleted"] == true
+    end
+
+    assert {:ignore, :deleted} = Discord.delete(%{id: 5_001, channel_id: 2_001, guild_id: 1_001})
+    assert {:ignore, :unknown_message} = Discord.delete(%{id: 9_999, channel_id: 2_001, guild_id: 1_001})
+    assert {:ignore, :wrong_guild} = Discord.delete(%{id: 5_001, channel_id: 2_001, guild_id: 7})
+  end
+
+  @tag :graph
+  test "the graph's episode follows edits and loses its text on delete", %{org: org} do
+    on_exit(fn -> Noa.Graph.drop(org.id) end)
+    :ok = Noa.Graph.bootstrap(org.id)
+
+    {:ok, _} = Discord.ingest(gateway_message())
+    {:ok, _} = Discord.edit(gateway_message(%{content: "edited text"}))
+    project = fn -> for e <- Events.since(0, org_id: org.id, limit: 1000), do: :ok = Noa.Graph.Projector.project(e) end
+    project.()
+
+    {:ok, [%{"text" => "edited text"}]} =
+      Noa.Graph.ro_query(org.id, "MATCH (e:Episode {id: 'discord:5001'}) RETURN e.text AS text")
+
+    {:ok, _} = Discord.delete(%{id: 5_001, channel_id: 2_001, guild_id: 1_001})
+    project.()
+
+    {:ok, [%{"text" => nil, "deleted" => true}]} =
+      Noa.Graph.ro_query(org.id, "MATCH (e:Episode {id: 'discord:5001'}) RETURN e.text AS text, e.deleted AS deleted")
+
+    # A rebuild from the log gives the same: the text is gone from the log too.
+    {:ok, _} = Noa.Graph.Projector.rebuild(org.id)
+
+    {:ok, [%{"text" => nil}]} =
+      Noa.Graph.ro_query(org.id, "MATCH (e:Episode {id: 'discord:5001'}) RETURN e.text AS text")
+  end
 end

@@ -30,18 +30,22 @@ export function useDirectory() {
   };
 }
 
+/* Shared work refreshes every 10 seconds while the tab is visible (2.14), so Noa's proposals and other people's moves show up without a reload. */
+const LIVE = 10_000;
+
 export function useTasks(filters: { project_id?: string; owner_id?: string; open?: boolean } = {}) {
   const orgId = useOrgId();
   return useQuery({
     queryKey: ["tasks", orgId, filters],
     queryFn: () => getTasks(orgId!, filters),
     enabled: !!orgId && Object.values(filters).every((v) => v !== ""),
+    refetchInterval: LIVE,
   });
 }
 
 export function useDecisions(filters: { project_id?: string; since?: string } = {}) {
   const orgId = useOrgId();
-  return useQuery({ queryKey: ["decisions", orgId, filters], queryFn: () => getDecisions(orgId!, filters), enabled: !!orgId });
+  return useQuery({ queryKey: ["decisions", orgId, filters], queryFn: () => getDecisions(orgId!, filters), enabled: !!orgId, refetchInterval: LIVE });
 }
 
 /* Midnight today, local time, as ISO: "decided today" means since then. */
@@ -53,7 +57,7 @@ export const startOfToday = () => {
 
 export function useProposals() {
   const orgId = useOrgId();
-  return useQuery({ queryKey: ["proposals", orgId], queryFn: () => getProposals(orgId!), enabled: !!orgId });
+  return useQuery({ queryKey: ["proposals", orgId], queryFn: () => getProposals(orgId!), enabled: !!orgId, refetchInterval: LIVE });
 }
 
 /* Moves a card (board drag, My day checkbox), updating every cached task list at once. */
@@ -91,7 +95,7 @@ export function useEditTask() {
 
 export function useChanges(filters: { task_id?: string; project_id?: string; status?: WorkChange["status"] } = {}, enabled = true) {
   const orgId = useOrgId();
-  return useQuery({ queryKey: ["changes", orgId, filters], queryFn: () => getChanges(orgId!, filters), enabled: !!orgId && enabled });
+  return useQuery({ queryKey: ["changes", orgId, filters], queryFn: () => getChanges(orgId!, filters), enabled: !!orgId && enabled, refetchInterval: LIVE });
 }
 
 /* Approve, reject or revert a change record. */

@@ -28,3 +28,6 @@ _build/
 deps/
 *.ez
 erl_crash.dump
+
+# production settings for deploy/docker-compose.prod.yml
+deploy/prod.env

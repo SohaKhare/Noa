@@ -285,8 +285,18 @@ defmodule Noa.Work do
     case p.notify_via do
       :whatsapp when is_binary(p.phone) -> {:whatsapp, p.phone}
       :discord when p.handles != [] -> {:discord, hd(p.handles)}
-      :email when not is_nil(p.email) -> {:email, to_string(p.email)}
+      :email -> if email = p.email || account_email(p), do: {:email, to_string(email)}, else: :in_app
       _ -> :in_app
+    end
+  end
+
+  # Members picked email in Settings; their org-map entry may not carry one, their account does.
+  defp account_email(%Person{membership_id: nil}), do: nil
+
+  defp account_email(%Person{membership_id: id}) do
+    case Ash.get(Noa.Orgs.Membership, id, load: [:user], authorize?: false) do
+      {:ok, m} -> m.user.email
+      _ -> nil
     end
   end
 
@@ -566,6 +576,13 @@ defmodule Noa.Work do
     Task |> Ash.get!(task_id, authorize?: false) |> change_task(changes, actor, p.source)
   end
 
+  # From the triage agent (3.24): the owner change is recorded like any other edit.
+  defp apply_proposal(%{kind: :assignment, task_id: task_id} = p, actor) when not is_nil(task_id) do
+    Task
+    |> Ash.get!(task_id, authorize?: false)
+    |> change_task(%{owner_id: p.owner_id, reason: p.data["reason"]}, actor, p.source)
+  end
+
   defp apply_proposal(%{kind: :decision} = p, actor) do
     with {:ok, decision} <-
            Decision
@@ -729,6 +746,89 @@ defmodule Noa.Work do
     else
       {:error, :not_read}
     end
+  end
+
+  @doc """
+  A chat message was edited (2.10). The message's text in the log becomes the new text
+  (so `@noa`, briefs and extraction read what was last said) and `message.edited` is
+  appended for the graph and the record. Returns `{:ok, event}` or `{:ignore, reason}`.
+  """
+  def edit_message(org_id, %{platform: platform, message_id: id, text: text} = message) do
+    key = "#{platform}:#{id}"
+
+    case message_event(org_id, key) do
+      nil ->
+        {:ignore, :unknown_message}
+
+      %{data: %{"deleted" => true}} ->
+        {:ignore, :deleted}
+
+      %{data: %{"text" => ^text}} ->
+        {:ignore, :unchanged}
+
+      original ->
+        at = message[:at] || DateTime.utc_now()
+
+        Repo.transaction(fn ->
+          original
+          |> Ecto.Changeset.change(
+            data: Map.merge(original.data, %{"text" => text, "edited_at" => Noa.Events.json(at)})
+          )
+          |> Repo.update!()
+
+          case Noa.Events.append(org_id, "message.edited", %{episode_id: key, text: text, at: at}) do
+            {:ok, event} -> event
+            {:error, error} -> Repo.rollback(error)
+          end
+        end)
+        |> tap(fn
+          {:ok, _} -> Noa.Events.notify(org_id)
+          _ -> :ok
+        end)
+    end
+  end
+
+  @doc """
+  A chat message was deleted (2.10). Its text is erased from the log (the one place the
+  log is rewritten, so a deleted message is really gone), the graph's episode loses its
+  text, and readers skip it from then on. Tasks and decisions taken from it keep their
+  own quote. Returns `{:ok, event}` or `{:ignore, reason}`.
+  """
+  def delete_message(org_id, platform, id) do
+    key = "#{platform}:#{id}"
+
+    case message_event(org_id, key) do
+      nil ->
+        {:ignore, :unknown_message}
+
+      %{data: %{"deleted" => true}} ->
+        {:ignore, :deleted}
+
+      _original ->
+        import Ecto.Query
+
+        Repo.transaction(fn ->
+          from(e in Noa.Events.Event,
+            where: e.org_id == ^org_id and e.type in ["message.received", "message.edited"],
+            where: fragment("?->>'episode_id' = ?", e.data, ^key),
+            update: [set: [data: fragment(~s|jsonb_set(?, '{text}', 'null') \|\| '{"deleted": true}'::jsonb|, e.data)]]
+          )
+          |> Repo.update_all([])
+
+          case Noa.Events.append(org_id, "message.deleted", %{episode_id: key}) do
+            {:ok, event} -> event
+            {:error, error} -> Repo.rollback(error)
+          end
+        end)
+        |> tap(fn
+          {:ok, _} -> Noa.Events.notify(org_id)
+          _ -> :ok
+        end)
+    end
+  end
+
+  defp message_event(org_id, key) do
+    Repo.get_by(Noa.Events.Event, org_id: org_id, key: key, type: "message.received")
   end
 
   ## From extraction

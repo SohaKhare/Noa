@@ -1,7 +1,8 @@
 defmodule Noa.MCP.Tools do
   @moduledoc """
   The tools Noa's MCP server offers (3.6). Each one is a read of the workspace graph or
-  work data as the token's person; `update_task_status` is the only write. Results are
+  work data as the token's person; `update_task_status` and `assign_task` write, and
+  `triage` files Inbox proposals (3.24). Results are
   plain text a model reads well, with sources quoted.
   """
   alias Noa.Work
@@ -65,6 +66,38 @@ defmodule Noa.MCP.Tools do
         "A project's current decisions, newest first, with who made them and the source.",
         %{project: @project},
         ["project"]
+      ),
+      tool(
+        "suggest_owner",
+        "Suggest an owner",
+        "Who should take a task, best first, ranked from the company graph: who is on the project now (WORKS_ON), what they know of it (KNOWS_ABOUT), similar work they finished (full-text over tasks), decisions it depends on, and their open load. Each candidate comes with the graph route behind it.",
+        %{task: %{type: "string", description: "Task title (or id)"}},
+        ["task"]
+      ),
+      tool(
+        "assign_task",
+        "Assign a task",
+        "Give a task to someone. Recorded as an owner change with your reason, can be reverted, and the new owner is told. Use suggest_owner first to pick who.",
+        %{
+          task: %{type: "string", description: "Task title (or id)"},
+          person: %{type: "string", description: "Person's name"},
+          reason: %{type: "string"}
+        },
+        ["task", "person"]
+      ),
+      tool(
+        "triage",
+        "Triage open work",
+        "Find tasks nobody is really carrying (no owner, owner left the project, overdue on someone overloaded) and file an Inbox proposal for each with the best owner from the graph. Leads only. Nothing changes until a lead or the suggested person approves.",
+        %{project: @project},
+        []
+      ),
+      tool(
+        "risks",
+        "Risks in the org graph",
+        "Who the work runs through (PageRank), who connects projects (betweenness), and projects where one person holds most of the knowledge (bus factor).",
+        %{},
+        []
       ),
       tool(
         "update_task_status",
@@ -216,6 +249,85 @@ defmodule Noa.MCP.Tools do
              "- #{d.statement} (#{name[d.made_by_id] || "unknown"}, #{Date.to_iso8601(DateTime.to_date(d.inserted_at))})#{quote && "\n  source: \"#{quote}\""}"
            end)}
       end
+    end
+  end
+
+  defp run("suggest_owner", %{"task" => ref}, user, org_id) when is_binary(ref) do
+    with {:ok, task} <- task_named(ref, user, org_id),
+         {:ok, ranked} <- Noa.Agent.Triage.suggest_owners(org_id, task.id, user) do
+      case ranked do
+        [] ->
+          {:ok, "Nobody is on that task's project right now, so Noa can't suggest an owner."}
+
+        ranked ->
+          {:ok,
+           "Who should take \"#{task.title}\", best first:\n" <>
+             Enum.map_join(Enum.take(ranked, 3), "\n", fn c ->
+               "- #{c.name} (score #{c.score}): #{Enum.join(c.why, "; ")}\n  graph: #{Enum.join(c.route, " · ")}"
+             end)}
+      end
+    end
+  end
+
+  defp run("assign_task", %{"task" => ref, "person" => who} = args, user, org_id)
+       when is_binary(ref) and is_binary(who) do
+    with {:ok, task} <- task_named(ref, user, org_id),
+         {:ok, people} <- Work.people(org_id, user),
+         person when not is_nil(person) <-
+           Enum.find(people, &(String.downcase(&1.name) == String.downcase(String.trim(who)))) ||
+             {:error, "Nobody called \"#{who}\" here."},
+         {:ok, updated} <- Work.update_task(task.id, %{owner_id: person.id, reason: args["reason"]}, user) do
+      {:ok, "\"#{updated.title}\" is now #{person.name}'s. It's in the task's history and can be reverted."}
+    else
+      {:error, %Ash.Error.Forbidden{}} -> {:error, "You can't change that task."}
+      other -> other
+    end
+  end
+
+  defp run("triage", args, user, org_id) do
+    with {:ok, project} <- if(blank?(args["project"]), do: {:ok, nil}, else: project(args, user, org_id)),
+         {:ok, %{filed: filed, checked: checked}} <-
+           Noa.Agent.Triage.run(org_id, user, project_id: project && project.id) do
+      case filed do
+        [] ->
+          {:ok, "Checked #{checked} tasks that need an owner; nothing new to file."}
+
+        filed ->
+          {:ok,
+           "Filed #{length(filed)} proposals in the Inbox:\n" <>
+             Enum.map_join(
+               filed,
+               "\n",
+               &"- #{&1.summary}: #{&1.data["reason"]} Why: #{Enum.join(&1.data["why"], "; ")}"
+             )}
+      end
+    else
+      {:error, :not_a_project_lead} -> {:error, "Only workspace admins, PMs and project leads can run triage."}
+      other -> other
+    end
+  end
+
+  defp run("risks", _args, _user, org_id) do
+    with {:ok, key} <- Noa.Graph.Experts.key_people(org_id),
+         {:ok, bridges} <- Noa.Graph.Experts.bridges(org_id),
+         {:ok, bus} <- Noa.Graph.Experts.bus_factor(org_id) do
+      {:ok,
+       Enum.join(
+         [
+           "Who the work runs through (algo.pageRank): " <>
+             Enum.map_join(Enum.take(key, 5), ", ", &"#{&1.name} #{Float.round(&1.score * 1.0, 3)}"),
+           "Who connects projects (algo.betweenness): " <>
+             if(bridges == [], do: "nobody stands out", else: Enum.map_join(Enum.take(bridges, 5), ", ", & &1.name)),
+           "Bus factor (one person holds 60%+ of KNOWS_ABOUT): " <>
+             if(bus == [],
+               do: "none",
+               else: Enum.map_join(bus, ", ", &"#{&1.project} (#{&1.name}, #{round(&1.share * 100)}%)")
+             )
+         ],
+         "\n"
+       )}
+    else
+      _ -> {:error, "The graph isn't built yet, so Noa can't rank people."}
     end
   end
 

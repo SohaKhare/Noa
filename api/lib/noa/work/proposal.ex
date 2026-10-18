@@ -13,7 +13,7 @@ defmodule Noa.Work.Proposal do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
-  @kinds [:task, :status_change, :deadline_change, :decision, :scope_change]
+  @kinds [:task, :status_change, :deadline_change, :decision, :scope_change, :assignment]
   def kinds, do: @kinds
 
   postgres do

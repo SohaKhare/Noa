@@ -165,6 +165,7 @@ defmodule Noa.Work.Brief do
     Noa.Events.Event
     |> where([e], e.org_id == ^org_id and e.type == "message.received")
     |> where([e], fragment("?->>'project_id' = ?", e.data, ^project_id))
+    |> where([e], fragment("coalesce(?->>'deleted', '') = ''", e.data))
     |> order_by(desc: :id)
     |> limit(4)
     |> Noa.Repo.all()

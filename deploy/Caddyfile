@@ -1,0 +1,18 @@
+# HTTPS for Noa's three hosts. They must share a parent domain (e.g. app. and api.
+# under notyouridea.com) so the session cookie is same-site.
+{$LANDING_HOST} {
+	encode zstd gzip
+	reverse_proxy landing:3001
+}
+
+{$APP_HOST} {
+	encode zstd gzip
+	reverse_proxy web:3000
+}
+
+{$API_HOST} {
+	encode zstd gzip
+	reverse_proxy api:4000 {
+		header_up X-Real-IP {remote_host}
+	}
+}

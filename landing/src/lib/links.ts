@@ -8,3 +8,6 @@ export const navLinks = [
   { href: "#privacy", label: "Privacy" },
   { href: "#faq", label: "FAQ" },
 ];
+
+/* Where privacy and data requests go (privacy and terms pages). */
+export const LEGAL_CONTACT = "privacy@notyouridea.com";

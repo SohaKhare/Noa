@@ -125,6 +125,19 @@ defmodule NoaWeb.Router do
     post("/orgs/:org_id/proposals/:id/approve", WorkController, :approve)
     post("/orgs/:org_id/proposals/:id/reject", WorkController, :reject)
     post("/orgs/:org_id/proposals/:id/undo", WorkController, :undo)
+    post("/orgs/:org_id/triage", WorkController, :triage)
+
+    # Setup (1.18): org admins and PMs; channels and imports are admins only.
+    post("/orgs/:org_id/projects", SetupController, :create_project)
+    patch("/orgs/:org_id/projects/:id", SetupController, :update_project)
+    post("/orgs/:org_id/people", SetupController, :create_person)
+    patch("/orgs/:org_id/people/:id", SetupController, :update_person)
+    post("/orgs/:org_id/people/from_members", SetupController, :add_members)
+    put("/orgs/:org_id/allocations", SetupController, :set_allocation)
+    post("/orgs/:org_id/channels", SetupController, :create_channel)
+    get("/orgs/:org_id/discord/channels", SetupController, :discord_channels)
+    post("/orgs/:org_id/import", SetupController, :import)
+    get("/orgs/:org_id/tasks/:id/owners", WorkController, :suggest_owners)
   end
 
   scope "/api/platform", NoaWeb do
@@ -132,6 +145,7 @@ defmodule NoaWeb.Router do
 
     get("/orgs", PlatformController, :index)
     post("/orgs", PlatformController, :create)
+    get("/status", PlatformController, :status)
   end
 
   # AshAuthentication: password sign-in and reset, magic-link request and sign-in.

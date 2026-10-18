@@ -28,7 +28,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
-import { getFeed, roleLabel, signOut, type FeedItem } from "@/lib/api";
+import { getFeed, roleLabel, signOut, type ApiError, type FeedItem } from "@/lib/api";
 import { ago, useDirectory, useOrgId, useProposals } from "@/lib/work";
 import { currentMembership, initials, isOrgAdmin, useMe, useSetMe } from "@/lib/session";
 import { BrandMark } from "./BrandMark";
@@ -68,7 +68,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const setMe = useSetMe();
   const membership = currentMembership(user);
   const admin = isOrgAdmin(user);
-  const { projects } = useDirectory();
+  const { projects, error: dirError, refetch: refetchDir } = useDirectory();
   const inbox = useProposals().data?.length ?? 0;
 
   // Invite-only: signed-out people go to sign in; a superadmin with no workspace goes to the console.
@@ -178,7 +178,19 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar path={path} />
-        <main className="min-w-0 flex-1 px-5 pt-6 pb-12 sm:px-8">{children}</main>
+        <main className="min-w-0 flex-1 px-5 pt-6 pb-12 sm:px-8">
+          {dirError && (
+            <div role="alert" className="mx-auto mb-5 flex max-w-6xl flex-wrap items-center gap-3 rounded-2xl bg-bad/10 px-4 py-3 text-[13px] text-bad ring-1 ring-bad/20">
+              <span className="min-w-0 flex-1">
+                {(dirError as ApiError).status === 0 ? "Noa can't reach its server right now. Your changes won't save until it's back." : (dirError as ApiError).message}
+              </span>
+              <button onClick={() => refetchDir()} className="rounded-full bg-surface px-3 py-1 font-medium ring-1 ring-bad/20 hover:bg-bg">
+                Try again
+              </button>
+            </div>
+          )}
+          {children}
+        </main>
       </div>
     </div>
   );

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { BrandMark } from "./BrandMark";
 import { navLinks } from "@/lib/links";
 
@@ -28,6 +29,14 @@ export function Footer() {
       </div>
       <div className="mt-14 flex flex-col justify-between gap-3 border-t border-line pt-6 text-[12px] text-muted sm:flex-row">
         <p>Built by NotYourIdea for Graph Hacks 2026. Powered by FalkorDB.</p>
+        <p className="flex gap-5">
+          <Link href="/privacy" className="hover:text-ink">
+            Privacy policy
+          </Link>
+          <Link href="/terms" className="hover:text-ink">
+            Terms
+          </Link>
+        </p>
       </div>
     </footer>
   );

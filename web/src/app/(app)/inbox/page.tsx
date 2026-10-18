@@ -6,7 +6,9 @@ import {
   CheckIcon,
   FolderSimpleIcon,
   LightningIcon,
+  GraphIcon,
   QuotesIcon,
+  SparkleIcon,
   UserIcon,
   XIcon,
 } from "@phosphor-icons/react";
@@ -15,18 +17,18 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { FormError } from "@/components/AuthCard";
 import { Avatar, Badge, Button, SourceChip } from "@/components/ui";
-import { ApiError, approveProposal, getProposals, rejectProposal, undoProposal, type ApproveEdits, type WorkProposal, type WorkTask } from "@/lib/api";
+import { ApiError, approveProposal, getProposals, rejectProposal, runTriage, undoProposal, type ApproveEdits, type WorkProposal, type WorkTask } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { ago, changeText, dueLabel, nameInitials, toSource, useChanges, useDecideChange, useDirectory, useProposals, useTasks } from "@/lib/work";
 
 /* Inbox (1.19): two panes. Left: proposals with filters. Right: the source and the fields Noa extracted, editable before approval. */
 
-type Label = "New task" | "Status" | "Deadline" | "Decision" | "Scope" | "Which project?";
+type Label = "New task" | "Status" | "Deadline" | "Decision" | "Scope" | "Assign" | "Which project?";
 const label = (p: WorkProposal): Label =>
   !p.project_id && p.kind === "task"
     ? "Which project?"
-    : ({ task: "New task", status_change: "Status", deadline_change: "Deadline", decision: "Decision", scope_change: "Scope" } as const)[p.kind];
-const filters = ["All", "New task", "Status", "Deadline", "Which project?"] as const;
+    : ({ task: "New task", status_change: "Status", deadline_change: "Deadline", decision: "Decision", scope_change: "Scope", assignment: "Assign" } as const)[p.kind];
+const filters = ["All", "New task", "Status", "Deadline", "Assign", "Which project?"] as const;
 
 export default function Inbox() {
   const { orgId, project } = useDirectory();
@@ -57,6 +59,21 @@ export default function Inbox() {
 
   const resolve = (p: WorkProposal, verb: "approve" | "reject", edits?: ApproveEdits) => decide.mutate({ p, verb, edits });
 
+  /* Triage (3.24): leads ask Noa to find work nobody is carrying and suggest owners from the graph. */
+  const dir = useDirectory();
+  const me = dir.person(dir.me);
+  const canTriage = me?.role === "org_admin" || me?.role === "pm" || dir.projects.some((x) => x.lead_id === me?.id);
+  const bulk = confident.filter((p) => p.kind !== "assignment");
+  const triage = useMutation({
+    mutationFn: () => runTriage(orgId!),
+    onSuccess: (r) => {
+      const n = r.proposals.length;
+      setLog((l) => [n ? `Noa filed ${n} owner ${n === 1 ? "suggestion" : "suggestions"}` : "Every open task has an owner who is on its project", ...l].slice(0, 4));
+      if (r.proposals[0]) setSelected(r.proposals[0].id);
+      client.invalidateQueries({ queryKey: ["proposals", orgId] });
+    },
+  });
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
@@ -83,14 +100,21 @@ export default function Inbox() {
             project&rsquo;s board.
           </p>
         </div>
-        <Button disabled={confident.length === 0 || decide.isPending} onClick={() => confident.forEach((p) => resolve(p, "approve"))}>
-          <LightningIcon size={14} weight="fill" /> Approve high-confidence ({confident.length})
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {canTriage && (
+            <Button variant="ghost" disabled={triage.isPending} onClick={() => triage.mutate()}>
+              <SparkleIcon size={14} weight="fill" /> {triage.isPending ? "Looking…" : "Find unowned work"}
+            </Button>
+          )}
+          <Button disabled={bulk.length === 0 || decide.isPending} onClick={() => bulk.forEach((p) => resolve(p, "approve"))}>
+            <LightningIcon size={14} weight="fill" /> Approve high-confidence ({bulk.length})
+          </Button>
+        </div>
       </div>
 
-      {(error || decide.error) && (
+      {(error || decide.error || triage.error) && (
         <div className="mb-4">
-          <FormError>{((decide.error ?? error) as ApiError).message}</FormError>
+          <FormError>{((decide.error ?? triage.error ?? error) as ApiError).message}</FormError>
         </div>
       )}
 
@@ -178,6 +202,7 @@ function Detail({
 }) {
   const { projects, people, project, person } = useDirectory();
   const isTask = p.kind === "task";
+  const isAssign = p.kind === "assignment";
   const dueKey = p.kind === "deadline_change" ? "new_due" : "due";
   const [title, setTitle] = useState(p.data.title ?? p.summary);
   const [owner, setOwner] = useState(p.owner_id ?? "");
@@ -219,23 +244,27 @@ function Detail({
         </div>
       )}
 
-      <div className="mt-5 rounded-2xl bg-surface p-4 ring-1 ring-line">
-        <p className="flex items-center gap-1.5 text-[11.5px] font-medium text-muted">
-          <QuotesIcon size={13} /> From the conversation
-        </p>
-        <div className="mt-2.5 flex items-start gap-2.5">
-          <Avatar initials={nameInitials(p.source?.author)} size={26} />
-          <div>
-            <p className="text-[12px] font-semibold">
-              {p.source?.author ?? "Someone"} <span className="font-normal text-muted">{source.when}</span>
-            </p>
-            <p className="mt-0.5 text-[13.5px]">{p.source?.quote ?? "No message text was kept for this one."}</p>
+      {isAssign ? (
+        <Why p={p} />
+      ) : (
+        <div className="mt-5 rounded-2xl bg-surface p-4 ring-1 ring-line">
+          <p className="flex items-center gap-1.5 text-[11.5px] font-medium text-muted">
+            <QuotesIcon size={13} /> From the conversation
+          </p>
+          <div className="mt-2.5 flex items-start gap-2.5">
+            <Avatar initials={nameInitials(p.source?.author)} size={26} />
+            <div>
+              <p className="text-[12px] font-semibold">
+                {p.source?.author ?? "Someone"} <span className="font-normal text-muted">{source.when}</span>
+              </p>
+              <p className="mt-0.5 text-[13.5px]">{p.source?.quote ?? "No message text was kept for this one."}</p>
+            </div>
+          </div>
+          <div className="mt-3">
+            <SourceChip source={source} />
           </div>
         </div>
-        <div className="mt-3">
-          <SourceChip source={source} />
-        </div>
-      </div>
+      )}
 
       {lbl === "Which project?" && candidates.length > 0 && (
         <p className="mt-4 text-[12.5px] text-muted">
@@ -275,10 +304,12 @@ function Detail({
         {p.confidence != null && `Noa is ${Math.round(p.confidence * 100)}% sure. `}
         {!proj
           ? "Pick a project to approve it."
-          : p.kind === "decision"
-            ? `Approving records this decision in ${project(proj)?.name}${owner ? `, made by ${person(owner)?.name}` : ""}.`
+          : isAssign
+            ? `Approving gives it to ${person(owner)?.name ?? "nobody"} and tells them. It\u2019s recorded as an owner change and can be reverted.`
+            : p.kind === "decision"
+              ? `Approving records this decision in ${project(proj)?.name}${owner ? `, made by ${person(owner)?.name}` : ""}.`
             : `Approving ${isTask ? "adds it to" : "updates"} ${project(proj)?.name}${owner ? ` and tells ${person(owner)?.name}` : ""}${due ? `, due ${dueLabel(due)}` : ""}.`}{" "}
-        {p.kind === "decision" ? "It keeps a link to this message." : "The task keeps a link to this message."}
+        {isAssign ? null : p.kind === "decision" ? "It keeps a link to this message." : "The task keeps a link to this message."}
       </p>
 
       <div className="mt-6 flex flex-wrap gap-2">
@@ -292,6 +323,41 @@ function Detail({
           <kbd className="rounded bg-surface px-1.5 font-mono ring-1 ring-line">A</kbd> approve · <kbd className="rounded bg-surface px-1.5 font-mono ring-1 ring-line">R</kbd> dismiss · <kbd className="rounded bg-surface px-1.5 font-mono ring-1 ring-line">J</kbd>/<kbd className="rounded bg-surface px-1.5 font-mono ring-1 ring-line">K</kbd> move
         </span>
       </div>
+    </div>
+  );
+}
+
+/* Why Noa suggests this owner: the trigger, the reasons, and the graph route behind them (3.24). */
+function Why({ p }: { p: WorkProposal }) {
+  const { person } = useDirectory();
+  const others = (p.data.candidates ?? []).filter((c) => c.person_id !== p.owner_id);
+  const route = p.data.graph_route ?? [];
+  return (
+    <div className="mt-5 rounded-2xl bg-surface p-4 ring-1 ring-line">
+      <p className="flex items-center gap-1.5 text-[11.5px] font-medium text-muted">
+        <SparkleIcon size={13} /> Why Noa suggests {person(p.owner_id)?.name ?? "this"}
+      </p>
+      <p className="mt-2 text-[13.5px]">{p.data.reason}</p>
+      <ul className="mt-2.5 space-y-1">
+        {(p.data.why ?? []).map((w) => (
+          <li key={w} className="flex gap-2 text-[13px]">
+            <CheckIcon size={13} className="mt-0.5 shrink-0 text-accent" /> {w}
+          </li>
+        ))}
+      </ul>
+      {route.length > 0 && (
+        <div className="mt-3 rounded-xl bg-bg px-3 py-2.5">
+          <p className="flex items-center gap-1.5 text-[11px] font-medium text-muted">
+            <GraphIcon size={12} /> {p.data.graph ? "Graph route (FalkorDB)" : "From allocations (graph not built yet)"}
+          </p>
+          <ul className="mt-1.5 space-y-0.5 font-mono text-[11px] break-words text-muted">
+            {route.map((r) => (
+              <li key={r}>{r}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {others.length > 0 && <p className="mt-3 text-[12px] text-muted">Next best: {others.map((c) => c.name).join(", ")}. Pick someone else under Owner.</p>}
     </div>
   );
 }

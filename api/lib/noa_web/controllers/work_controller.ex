@@ -326,6 +326,27 @@ defmodule NoaWeb.WorkController do
     end
   end
 
+  @doc "Runs the triage agent (3.24): files an assignment proposal for each task that needs an owner. Body: optional project_id."
+  def triage(conn, %{"org_id" => org_id} = params) do
+    actor = conn.assigns.current_user
+    project_id = blank(params["project_id"])
+
+    with :ok <- refs_in_org(%{project_id: project_id}, org_id, actor),
+         {:ok, %{filed: filed, checked: checked}} <- Noa.Agent.Triage.run(org_id, actor, project_id: project_id) do
+      json(conn, %{proposals: Enum.map(filed, &Payload.proposal/1), checked: checked})
+    end
+  end
+
+  @doc "Who should own a task, best first, with the graph reasons (3.24). Files nothing."
+  def suggest_owners(conn, %{"org_id" => org_id, "id" => id}) do
+    actor = conn.assigns.current_user
+
+    with :ok <- in_org(Task, id, org_id, actor),
+         {:ok, ranked} <- Noa.Agent.Triage.suggest_owners(org_id, id, actor) do
+      json(conn, %{owners: ranked})
+    end
+  end
+
   def approve(conn, %{"org_id" => org_id, "id" => id} = params) do
     actor = conn.assigns.current_user
 

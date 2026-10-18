@@ -1,0 +1,19 @@
+# FalkorDB for Noa on Fly.io, private network only (no public ports).
+# `fly launch --no-deploy -c deploy/fly.graph.toml`, create the volume, set REDIS_ARGS,
+# then `fly deploy -c deploy/fly.graph.toml`. See docs/deploy.md.
+app = "noa-graph"
+primary_region = "bom"
+
+[build]
+  image = "falkordb/falkordb:v4.10.3"
+
+# REDIS_ARGS is a secret: "--bind 0.0.0.0 :: --requirepass <password> --appendonly yes"
+# (Fly's private network is IPv6, so FalkorDB must listen on :: too).
+
+[[mounts]]
+  source = "falkor_data"
+  destination = "/data"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"

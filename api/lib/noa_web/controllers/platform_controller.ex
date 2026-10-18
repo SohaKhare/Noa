@@ -1,7 +1,10 @@
 defmodule NoaWeb.PlatformController do
-  @moduledoc "Superadmin console: create a workspace and invite its first admin in one step."
+  @moduledoc "Superadmin console: workspaces (create one and invite its first admin in one step) and system status."
   use NoaWeb, :controller
   alias Noa.Orgs
+
+  @doc "Services, background jobs and event-log readers (3.14)."
+  def status(conn, _params), do: json(conn, Noa.Ops.status())
 
   def index(conn, _params) do
     actor = conn.assigns.current_user

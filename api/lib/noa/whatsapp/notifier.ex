@@ -9,14 +9,15 @@ defmodule Noa.WhatsApp.Notifier do
   - A pending change is decided: to whoever asked.
   - Someone moves projects: to them, with links to their brief and agent pack.
 
-  Only people who chose WhatsApp and gave a number get messages (2.15). Quiet hours hold
-  everything except approvals waiting on a lead.
+  Each person gets these on the channel they chose (`Noa.Notify`): WhatsApp with reply
+  buttons, a Discord DM or email with a link to act in the web app, or nothing for "in
+  app" (2.15, 2.21, 3.23). Quiet hours hold everything except approvals waiting on a lead.
   """
   use GenServer
   require Logger
   require Ash.Query
 
-  alias Noa.{Events, WhatsApp, Work}
+  alias Noa.{Events, Work}
 
   @name "whatsapp"
   @every 3_000
@@ -71,7 +72,8 @@ defmodule Noa.WhatsApp.Notifier do
 
       deliver(event, owner, "#{by || "Noa"} put you on \"#{d["title"]}\" in #{project_name(d["project_id"])}#{due}.",
         buttons: [{"start:#{d["id"]}", "Start now"}, {"done:#{d["id"]}", "Done"}, {"help:#{d["id"]}", "Need help"}],
-        context: %{"task_id" => d["id"]}
+        context: %{"task_id" => d["id"]},
+        link: "/"
       )
     else
       []
@@ -89,6 +91,7 @@ defmodule Noa.WhatsApp.Notifier do
           "#{actor_name(event) || "Someone"} wants to change the #{d["kind"]} of \"#{task.title}\": #{d["old_value"] || "none"} → #{d["new_value"] || "none"}#{d["reason"] && " (#{d["reason"]})"}.",
           buttons: [{"approve_change:#{d["id"]}", "Approve"}, {"reject_change:#{d["id"]}", "Reject"}],
           context: %{"change_id" => d["id"], "task_id" => d["task_id"]},
+          link: "/inbox",
           urgent: true
         )
       end
@@ -140,14 +143,10 @@ defmodule Noa.WhatsApp.Notifier do
 
     cond do
       to_self -> []
-      Work.notify_target(p) |> elem_or_nil(0) != :whatsapp -> []
       Work.quiet?(p) and not Keyword.get(opts, :urgent, false) -> []
-      true -> [WhatsApp.send(p, text, Keyword.take(opts, [:buttons, :context]))]
+      true -> [Noa.Notify.deliver(p, text, opts)] |> Enum.reject(&(&1 == :skipped))
     end
   end
-
-  defp elem_or_nil(t, i) when is_tuple(t), do: elem(t, i)
-  defp elem_or_nil(_, _), do: nil
 
   ## Lookups (as Noa: the events were already authorized)
 

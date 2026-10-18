@@ -24,7 +24,9 @@ defmodule Noa.Graph do
 
     %{
       id: __MODULE__,
-      start: {Redix, :start_link, [url || "redis://127.0.0.1:6379", [name: @conn, sync_connect: false]]}
+      start:
+        {Redix, :start_link,
+         [url || "redis://127.0.0.1:6379", [name: @conn, sync_connect: false, socket_opts: config(:socket_opts) || []]]}
     }
   end
 

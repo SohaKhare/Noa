@@ -45,9 +45,19 @@ export function MyDay() {
   const decidedToday = (decisions.data ?? []).filter((d) => d.status === "active" && (!d.project_id || myProjects.has(d.project_id)));
   const groups = dir.projects.map((p) => ({ p, items: mine.filter((t) => t.project_id === p.id) })).filter((g) => g.items.length);
   const loading = dir.isLoading || tasks.isLoading;
+  const empty = !dir.isLoading && !!dir.data && dir.projects.length === 0;
 
   return (
     <div className="mx-auto max-w-6xl">
+      {empty && (
+        <Link href="/onboarding" className="mb-5 flex items-center gap-3 rounded-[22px] bg-accent px-6 py-4 text-white card-shadow">
+          <span className="min-w-0 flex-1">
+            <span className="block text-[15px] font-semibold">Set up your workspace</span>
+            <span className="block text-[13px] text-white/80">Add your projects, who works where, and the channels Noa should read.</span>
+          </span>
+          <ArrowRightIcon size={18} />
+        </Link>
+      )}
       <section className="rounded-[26px] wash p-7 card-shadow">
         <p className="eyebrow text-muted">{new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</p>
         <h1 className="mt-2 text-[28px] leading-tight font-semibold tracking-[-0.03em]">

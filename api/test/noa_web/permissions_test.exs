@@ -47,7 +47,18 @@ defmodule NoaWeb.PermissionsTest do
     {:get, "/proposals"},
     {:post, "/proposals/:proposal/approve"},
     {:post, "/proposals/:proposal/reject"},
-    {:post, "/proposals/:proposal/undo"}
+    {:post, "/proposals/:proposal/undo"},
+    {:post, "/triage"},
+    {:get, "/tasks/:task/owners"},
+    {:post, "/projects"},
+    {:patch, "/projects/:project"},
+    {:post, "/people"},
+    {:patch, "/people/:person"},
+    {:post, "/people/from_members"},
+    {:put, "/allocations"},
+    {:post, "/channels"},
+    {:get, "/discord/channels"},
+    {:post, "/import"}
   ]
 
   @body %{
@@ -170,7 +181,16 @@ defmodule NoaWeb.PermissionsTest do
       {:patch, "/channels/:channel"},
       {:post, "/changes/:change/approve"},
       {:post, "/changes/:change/reject"},
-      {:post, "/shifts"}
+      {:post, "/shifts"},
+      {:post, "/triage"},
+      {:post, "/projects"},
+      {:patch, "/projects/:project"},
+      {:post, "/people"},
+      {:patch, "/people/:person"},
+      {:post, "/people/from_members"},
+      {:put, "/allocations"},
+      {:post, "/channels"},
+      {:post, "/import"}
     ]
 
     for {method, route} <- lead_only do

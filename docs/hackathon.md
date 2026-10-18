@@ -50,7 +50,7 @@ Notes on the client (falkordb 0.8.2 on FalkorDB 4.10): query options must be a m
 
 ## Other tracks
 
-Allowed and worth entering once Company Brain is finished end to end:
+All tracks are allowed. Company Brain is finished end to end; the same product enters the other two:
 
-- **01 Agents That Act on Connected Data:** the MCP server (3.6) now exposes graph queries and algorithms as tools that agents choose among; to finish, add explainable results (the graph route) to each tool's output and an agent loop that acts.
-- **02 Agent Memory and Coordination:** per-company graphs and the event log already give isolated, durable memory; needs episodic/semantic framing and concurrent writers.
+- **01 Agents That Act on Connected Data.** Noa's triage agent (`Noa.Agent.Triage`) finds work nobody is carrying (no owner, owner left the project, overdue on someone overloaded), ranks who should take it by walking the graph (`WORKS_ON`, `KNOWS_ABOUT`, full-text over finished tasks, `DECIDED → AFFECTS`, open load), and files a proposal that shows the graph route behind each reason. Approving it changes the owner under the lead rules. The same ranking is a button on every task ("Who should own this?"), and coding agents get it over MCP as `suggest_owner`, `assign_task`, `triage` and `risks`, next to `ask`, `who_knows` and `how_connected`. Tests: `test/noa/triage_test.exs`.
+- **02 Agent Memory and Coordination.** Episodic, semantic, derived and procedural memory in one per-company graph built from an append-only log; people, ingest and agents write through the same rules; concurrent writers keep one order and a consistent graph. See [memory.md](memory.md); tests: `test/noa/memory_test.exs`.

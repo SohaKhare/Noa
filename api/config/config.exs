@@ -11,7 +11,11 @@ config :ash, warn_on_transaction_hooks?: false
 config :phoenix, :filter_parameters, ["password", "token", "reset_token", "secret", "api_key", "key"]
 
 # Background jobs. Extraction runs one channel at a time per org (1.17).
-config :noa, Oban, repo: Noa.Repo, queues: [extraction: 2, whatsapp: 4]
+config :noa, Oban,
+  repo: Noa.Repo,
+  queues: [extraction: 2, whatsapp: 4],
+  # Daily digests (2.9): every 15 minutes, queue the ones that are due.
+  plugins: [{Oban.Plugins.Cron, crontab: [{"*/15 * * * *", Noa.Work.Digest.Dispatch}]}]
 
 # Proposals at or above this confidence apply themselves, with undo (2.2). nil turns it off.
 config :noa, Noa.Work, auto_apply: 0.9

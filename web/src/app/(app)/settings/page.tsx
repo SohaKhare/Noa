@@ -396,6 +396,12 @@ function NotificationPrefs() {
             />
           </label>
         )}
+        {p.notify_via === "discord" && (
+          <p className="text-[12px] text-muted">
+            Noa&rsquo;s bot DMs the Discord account you post from in a channel
+            it reads. Discord has no buttons, so messages link to the app.
+          </p>
+        )}
         <label className="block text-[12px] text-muted">
           Daily digest
           <input

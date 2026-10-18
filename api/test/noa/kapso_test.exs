@@ -73,4 +73,11 @@ defmodule Noa.KapsoTest do
 
     assert {:error, {:meta, 190, "bad key"}} = Kapso.send("919800000002", "hi", [])
   end
+
+  test "template text has no newlines, tabs or runs of spaces (Meta refuses them)" do
+    text = "Good morning, Saish. Your day in Noa:\n\nYour open tasks (2):\n• A\t(Veriq)\n•    B"
+    flat = Noa.WhatsApp.Kapso.template_text(text)
+    refute flat =~ ~r/[\n\t]|\s{5,}/
+    assert flat == "Good morning, Saish. Your day in Noa: · Your open tasks (2): · • A (Veriq) · • B"
+  end
 end

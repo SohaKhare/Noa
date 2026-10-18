@@ -92,7 +92,8 @@ defmodule Noa.Work.Extract do
     query =
       from(e in Event,
         where: e.org_id == ^org_id and e.type == "message.received",
-        where: fragment("?->>'channel_id' = ?", e.data, ^channel_id)
+        where: fragment("?->>'channel_id' = ?", e.data, ^channel_id),
+        where: fragment("coalesce(?->>'deleted', '') = ''", e.data)
       )
 
     case direction do

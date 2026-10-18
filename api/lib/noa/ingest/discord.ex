@@ -125,6 +125,26 @@ defmodule Noa.Ingest.Discord do
     _ -> nil
   end
 
+  @doc "A MESSAGE_UPDATE: the message's new text replaces the old (2.10)."
+  def edit(payload) do
+    payload = payload |> normalize_payload() |> with_channel_name()
+
+    with {:ok, message} <- normalize(payload),
+         {:ok, org_id} <- org_id_for(payload),
+         do: Work.edit_message(org_id, message)
+  end
+
+  @doc "A MESSAGE_DELETE: the message's text is erased from Noa (2.10)."
+  def delete(payload) do
+    payload = normalize_payload(payload)
+
+    cond do
+      not present?(payload["id"]) -> {:ignore, :invalid}
+      not allowed_guild?(payload["guild_id"]) -> {:ignore, :wrong_guild}
+      true -> with {:ok, org_id} <- org_id_for(payload), do: Work.delete_message(org_id, :discord, payload["id"])
+    end
+  end
+
   @doc "Links a Discord guild member to a Noa identity without ingesting a message."
   @spec ingest_member(String.t(), map()) :: {:ok, term()} | {:ignore, reason()} | {:error, term()}
   def ingest_member(org_id, payload) do
@@ -137,6 +157,56 @@ defmodule Noa.Ingest.Discord do
       not present?(user["id"]) -> {:ignore, :invalid}
       true -> Work.identify(org_id, :discord, user["id"], display_name(user))
     end
+  end
+
+  @doc "Text channels in the configured guild, for mapping in onboarding: `{:ok, [%{id, name}]}`."
+  def guild_channels do
+    guild = Application.get_env(:noa, :discord_guild_id) || System.get_env("DISCORD_GUILD_ID")
+
+    if enabled?() and present?(guild) do
+      case Nostrum.Api.Guild.channels(String.to_integer(guild)) do
+        {:ok, channels} ->
+          {:ok,
+           channels
+           |> Enum.filter(&(&1.type in [0, 5]))
+           |> Enum.sort_by(&(&1.position || 0))
+           |> Enum.map(&%{id: Integer.to_string(&1.id), name: &1.name})}
+
+        error ->
+          error
+      end
+    else
+      {:error, :not_connected}
+    end
+  rescue
+    e -> {:error, e}
+  end
+
+  @doc """
+  Sends a direct message from Noa's bot to the person's Discord account (the identity
+  Noa linked when they first wrote in a mapped channel). `{:ok, message}`, or
+  `{:error, :no_discord_account}` / `{:error, :not_connected}`.
+  """
+  def dm(%Noa.Work.Person{id: person_id}, text) do
+    identity =
+      Noa.Work.Identity
+      |> Ash.Query.filter(person_id == ^person_id and platform == :discord)
+      |> Ash.read!(authorize?: false)
+      |> Enum.find(&Regex.match?(~r/^\d+$/, &1.external_id))
+
+    cond do
+      not enabled?() ->
+        {:error, :not_connected}
+
+      is_nil(identity) ->
+        {:error, :no_discord_account}
+
+      true ->
+        with {:ok, channel} <- Nostrum.Api.User.create_dm(String.to_integer(identity.external_id)),
+             do: Nostrum.Api.Message.create(channel.id, String.slice(text, 0, 2000))
+    end
+  rescue
+    e -> {:error, e}
   end
 
   @doc "Returns whether the Discord gateway should be started in this environment."

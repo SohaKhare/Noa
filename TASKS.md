@@ -34,7 +34,7 @@ Exit test: Skeleton deploys to Fly with login; API reaches FalkorDB; graph and e
 | 0.9 | Spike: extraction prompt on 40 real NYI messages | Port | Saish | In progress |  |
 | 0.10 | Register Discord, Slack and Google apps (Internal + External testing) | New | Soha | In progress |  |
 | 0.11 | Kapso account, 3 WhatsApp templates, start Meta verification | New | Saish | In progress |  |
-| 0.12 | FalkorDB Cloud, Fly.io, Postgres, Logfire, Sentry, domain | Copy | Soha | Not started |  |
+| 0.12 | FalkorDB Cloud, Fly.io, Postgres, Logfire, Sentry, domain. Fly configs and one-server compose ready (docs/deploy.md); accounts and domain to do | Copy | Saish | In progress |  |
 | 0.13 | Privacy policy and terms text | New | Soha | Not started |  |
 | 0.14 | NYI org map: projects, people, roles, reporting lines, allocations, channel-to-project | New | Saish | In review | #1 |
 | 0.15 | Team consent for channels; export Tulpa v1 data | Import | Soha | Not started |  |
@@ -52,7 +52,7 @@ Exit test: A real Discord message becomes a proposed task in the right project a
 | # | Item | Source | Owner | Status | PR |
 | --- | --- | --- | --- | --- | --- |
 | 1.1 | New repo | Copy | Soha | Done |  |
-| 1.2 | Fly deploy: Dockerfiles, `fly.toml`, release migrations | Copy | Soha | Not started |  |
+| 1.2 | Fly deploy: Dockerfiles, `fly.toml`, release migrations | Copy | Saish | In progress |  |
 | 1.3 | Observability: Logfire/OpenTelemetry, LLM audit and usage | Copy | Saish | In review | #3 |
 | 1.4 | Auth: password, magic link, Google, reset (AshAuthentication) | Copy | Saish | In review | #1 |
 | 1.5 | Orgs, invites, access requests | Copy | Saish | In review | #1 |
@@ -68,7 +68,7 @@ Exit test: A real Discord message becomes a proposed task in the right project a
 | 1.15 | Kapso WhatsApp send and receive | New | Saish | In review | #3 |
 | 1.16 | Project routing: channel map, aliases, thread, author's projects | New | Saish | In review | #1 |
 | 1.17 | Task extraction v1 to proposals (from v1 distiller prompt) | Port | Saish | In review | #1 |
-| 1.18 | Onboarding: connect sources, map channels, add people and allocations | New | Soha | Not started |  |
+| 1.18 | Onboarding: connect sources, map channels, add people and allocations | New | Saish | In progress |  |
 | 1.19 | Inbox page (proposals) | New | Saish | In review | #2 |
 | 1.20 | Kanban board | New | Saish | In review | #2 |
 | 1.21 | Typed extraction schemas: Ecto embedded schemas to strict JSON schema, validated with InstructorLite | Port | Saish | In review | #1 |
@@ -94,19 +94,19 @@ Exit test: NYI uses no other tracker; a developer and a non-tech teammate both r
 | 2.6 | Approval buttons in Discord, Slack, WhatsApp | New | Soha | Not started |  |
 | 2.7 | WhatsApp "done" replies move cards | New | Saish | In review | #3 |
 | 2.8 | Google Calendar + Meet transcripts to action items | New | Unassigned | Not started |  |
-| 2.9 | Daily digest per person (from v1 recap) | Port | Soha | Not started |  |
+| 2.9 | Daily digest per person (from v1 recap) | Port | Saish | In progress |  |
 | 2.10 | Message edit and delete handling | New | Unassigned | Not started |  |
 | 2.11 | Gantt timeline: milestones, dependencies, drag dates | New | Saish | In review | #3 |
 | 2.12 | My day and my work (simple and detailed views) | New | Saish | In review | #2 |
 | 2.13 | Task detail: sources, history, undo | New | Saish | In review | #3 |
-| 2.14 | Live updates over Phoenix Channels | New | Soha | Not started |  |
+| 2.14 | Live updates: shared work refreshes every 10 s while the tab is open (Phoenix Channels later) | New | Saish | In progress |  |
 | 2.15 | Notification preferences: channel, digest time, quiet hours | New | Saish | In review | #3 |
 | 2.16 | Permission leakage tests in CI | New | Saish | In review | #3 |
 | 2.17 | Eval harness on the golden set | Port | Unassigned | Not started |  |
 | 2.18 | Decided today panel (per project and per person) | New | Saish | In review | #3 |
 | 2.19 | Change records for shared-item edits: scope, deadline, owner, status, decision | New | Saish | In review | #3 |
 | 2.20 | Lead approval rules: deadline and scope changes wait, minor edits apply with revert | New | Saish | In review | #3 |
-| 2.21 | Change notifications to lead and owner. WhatsApp sends from the event log; Discord and Slack still to do | New | Soha | In progress |  |
+| 2.21 | Change notifications to lead and owner on each person's channel: WhatsApp, Discord DM, email | New | Saish | In progress |  |
 
 ## Phase 3: Shifts, KT and agent packs (Oct 17, 20:00 to Oct 18, 08:00)
 
@@ -138,7 +138,9 @@ Exit test: A real NYI teammate moves projects using only Noa, gets a KT brief an
 | 3.20 | Access bundles per project: GitHub team, Discord role, Drive share; checklist for the rest | New | Soha | Not started |  |
 | 3.21 | Secrets vault: encrypted per project, one-time 24-hour links, fetch audit, revoke on shift | New | Unassigned | Not started |  |
 | 3.22 | Per-person MCP tokens: created on the pack page, shown once, hashed, revocable | New | Saish | In review | #3 |
-| 3.23 | Pack delivery: shift sends a WhatsApp/Discord link to the pack and brief (after 1.15); "add to repo" PR later | New | Soha | Not started |  |
+| 3.23 | Pack delivery: shift sends a WhatsApp/Discord link to the pack and brief (after 1.15); "add to repo" PR later | New | Saish | In progress |  |
+| 3.24 | Triage agent: finds unowned, orphaned and overloaded work, ranks owners from the graph with the route shown, files Inbox proposals; MCP `suggest_owner`, `assign_task`, `triage`, `risks` (Track 01) | New | Saish | In progress |  |
+| 3.25 | Shared memory under concurrent writers: committed-row snapshots, concurrency test, docs/memory.md (Track 02) | New | Saish | In progress |  |
 
 ## Phase 4: Harden and ship (Oct 18)
 
@@ -149,9 +151,9 @@ Exit test: A new team reaches its first proposed tasks in under 10 minutes witho
 | 4.1 | Feature freeze at noon IST | New | Saish | Not started |  |
 | 4.2 | Load test on NYI's full history | New | Saish | In review | #3 |
 | 4.3 | Security pass: tokens, webhooks, policies | New | Saish | In review | #3 |
-| 4.4 | Empty, loading and error states on every page | New | Soha | Not started |  |
-| 4.5 | Landing, privacy and terms pages (from v1 landing) | Copy | Soha | Not started |  |
-| 4.6 | Second-team onboarding test on a fresh org | New | Soha | Not started |  |
+| 4.4 | Empty, loading and error states on every page | New | Saish | In progress |  |
+| 4.5 | Landing, privacy and terms pages (privacy and terms drafted; need a read before launch) | Copy | Saish | In progress |  |
+| 4.6 | Second-team onboarding test on a fresh org (automated in setup_test; manual run to do) | New | Saish | In progress |  |
 | 4.7 | 3-minute video of real NYI use | New | Saish | Not started |  |
 | 4.8 | README with architecture and setup; blog post | New | Saish | In progress |  |
 | 4.9 | Submit on WeMakeDevs (all tracks allowed) | New | Saish | Not started |  |

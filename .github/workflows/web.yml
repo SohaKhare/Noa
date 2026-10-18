@@ -1,0 +1,26 @@
+# Web app and landing: types, lint and a production build on every push and pull request.
+name: web
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [web, landing]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter "@noa/${{ matrix.app }}..."
+      - run: npx tsc --noEmit
+        working-directory: ${{ matrix.app }}
+      - run: npx eslint src
+        working-directory: ${{ matrix.app }}
+      - run: pnpm --filter "@noa/${{ matrix.app }}" build

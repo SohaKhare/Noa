@@ -15,6 +15,8 @@ defmodule NoaWeb.FallbackController do
     not_a_lead: {403, "Only workspace admins and PMs can move people."},
     same_project: {422, "They're already on that project."},
     changed_since: {409, "This was changed again since. Change it back by hand."},
+    not_a_project_lead: {403, "Only workspace admins, PMs and project leads can run triage."},
+    invalid_org_map: {422, "Send the org map as JSON under \"seed\" (the shape of docs/seeds/nyi.json)."},
     not_found: {404, "Not found."}
   }
 

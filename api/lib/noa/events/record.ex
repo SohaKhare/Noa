@@ -25,7 +25,10 @@ defmodule Noa.Events.Record do
       type = "#{opts[:name]}.#{if changeset.action_type == :destroy, do: "deleted", else: "saved"}"
       actor = context.actor && Map.get(context.actor, :id)
 
-      case Noa.Events.append(record.org_id, type, snapshot(record), subject_id: record.id, actor_id: actor) do
+      case Noa.Events.append(record.org_id, type, snapshot(current(changeset, record)),
+             subject_id: record.id,
+             actor_id: actor
+           ) do
         {:ok, _event} -> {:ok, record}
         {:error, error} -> {:error, error}
       end
@@ -34,6 +37,18 @@ defmodule Noa.Events.Record do
 
   @impl true
   def atomic(changeset, opts, context), do: {:ok, change(changeset, opts, context)}
+
+  # An update's record is the row as this writer read it plus its own changes; another
+  # writer may have changed other fields since. Read the row again, inside this
+  # transaction, so the snapshot is the row as committed (Track 02, concurrent writers).
+  defp current(%{action_type: :update, resource: resource}, record) do
+    case Ash.get(resource, record.id, authorize?: false) do
+      {:ok, fresh} -> fresh
+      _ -> record
+    end
+  end
+
+  defp current(_changeset, record), do: record
 
   @doc "The row's public attributes as JSON values: the data of its `.saved` event."
   def snapshot(%resource{} = record) do

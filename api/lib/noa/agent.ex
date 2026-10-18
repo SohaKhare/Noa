@@ -202,6 +202,7 @@ defmodule Noa.Agent do
 
     Noa.Events.Event
     |> where([e], e.org_id == ^org_id and e.type == "message.received")
+    |> where([e], fragment("coalesce(?->>'deleted', '') = ''", e.data))
     |> order_by(desc: :id)
     |> limit(300)
     |> Noa.Repo.all()

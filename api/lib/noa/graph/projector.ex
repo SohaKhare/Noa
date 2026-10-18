@@ -271,6 +271,16 @@ defmodule Noa.Graph.Projector do
       )
   end
 
+  # Edited and deleted chat messages (2.10): the episode follows; a deleted one keeps its
+  # place (tasks still point at it) but loses its text.
+  defp statements("message.edited", d),
+    do: [
+      {"MATCH (e:Episode {id: $episode_id}) SET e.text = $text, e.edited_at = $at", params(d, ~w(episode_id text at))}
+    ]
+
+  defp statements("message.deleted", d),
+    do: [{"MATCH (e:Episode {id: $episode_id}) SET e.text = null, e.deleted = true", params(d, ~w(episode_id))}]
+
   defp statements(type, d) do
     case String.split(type, ".") do
       [thing, "deleted"] when thing in ~w(person project channel identity task decision) ->

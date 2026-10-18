@@ -1,0 +1,10 @@
+# Context for web/Dockerfile and landing/Dockerfile (built from the repo root).
+**/node_modules
+**/.next
+**/*.tsbuildinfo
+.git
+.env
+.env.*
+api
+docs
+**/.DS_Store

@@ -1,0 +1,22 @@
+# Noa landing on Fly.io. Deploy from the repo root: `fly deploy -c deploy/fly.landing.toml .`
+app = "noa-landing"
+primary_region = "bom"
+
+[build]
+  dockerfile = "../landing/Dockerfile"
+
+# Baked into the bundle at build time; change them and redeploy.
+[build.args]
+  NEXT_PUBLIC_APP_URL = "https://app.notyouridea.com"
+  NEXT_PUBLIC_CDN_URL = "https://cdn.saish.xyz"
+
+[http_service]
+  internal_port = 3001
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

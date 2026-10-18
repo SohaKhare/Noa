@@ -98,12 +98,18 @@ export const revokeInvite = (orgId: string, id: string) => api(`/api/orgs/${orgI
 
 // Platform (superadmin)
 export const getPlatformOrgs = () => api<{ orgs: PlatformOrg[] }>("/api/platform/orgs").then((r) => r.orgs);
+export type PlatformStatus = {
+  services: Record<"database" | "graph" | "openai" | "whatsapp" | "whatsapp_webhook" | "discord" | "email", boolean>;
+  readers: { name: string; label: string; running: boolean; position: number; latest: number; behind: number }[];
+  jobs: Record<string, Record<string, number>>;
+};
+export const getPlatformStatus = () => api<PlatformStatus>("/api/platform/status");
 export const createWorkspace = (data: { name: string; domains: string; admin_email: string; admin_title?: string }) =>
   post<{ org: Org; invite: Invite; url: string }>("/api/platform/orgs", data);
 
 // Work (1.24)
 export type TaskStatus = "todo" | "in_progress" | "blocked" | "done";
-export type Allocation = { person_id: string; project_id: string; percent: number; role: string | null; starts_on: string };
+export type Allocation = { person_id: string; project_id: string; percent: number; role: string | null; starts_on: string; ends_on?: string | null };
 export type WorkPerson = {
   id: string;
   key: string;
@@ -142,7 +148,7 @@ export type WorkTask = {
   done_at: string | null;
   inserted_at: string;
 };
-export type ProposalKind = "task" | "status_change" | "deadline_change" | "decision" | "scope_change";
+export type ProposalKind = "task" | "status_change" | "deadline_change" | "decision" | "scope_change" | "assignment";
 export type WorkProposal = {
   id: string;
   kind: ProposalKind;
@@ -156,6 +162,14 @@ export type WorkProposal = {
     duplicate_of?: { task_id: string; title: string };
     auto?: boolean;
     undone?: boolean;
+    /* Assignment proposals from the triage agent (3.24). */
+    trigger?: "unowned" | "moved" | "overdue";
+    reason?: string;
+    why?: string[];
+    graph_route?: string[];
+    graph?: boolean;
+    from_owner_id?: string | null;
+    candidates?: { person_id: string; name: string; score: number }[];
   };
   confidence: number | null;
   source: MessageSource | null;
@@ -201,6 +215,20 @@ export const getChanges = (orgId: string, filters: { task_id?: string; project_i
 };
 export const decideChange = (orgId: string, id: string, action: "approve" | "reject" | "revert") =>
   api<{ change: WorkChange }>(`/api/orgs/${orgId}/changes/${id}/${action}`, { method: "POST" }).then((r) => r.change);
+/* Workspace setup (1.18): org admins and PMs; channels and imports are admins only. */
+export const createProject = (orgId: string, data: { name: string; about?: string; repo?: string; lead_id?: string }) =>
+  post<{ project: WorkProject }>(`/api/orgs/${orgId}/projects`, data).then((r) => r.project);
+export const createPerson = (orgId: string, data: { name: string; title?: string; email?: string; handles?: string[] }) =>
+  post<{ person: WorkPerson }>(`/api/orgs/${orgId}/people`, data).then((r) => r.person);
+export const addMembersAsPeople = (orgId: string) => post<{ added: number }>(`/api/orgs/${orgId}/people/from_members`).then((r) => r.added);
+export const setAllocation = (orgId: string, data: { person_id: string; project_id: string; percent: number }) =>
+  api<{ allocation: Allocation | null }>(`/api/orgs/${orgId}/allocations`, { method: "PUT", body: JSON.stringify(data) }).then((r) => r.allocation);
+export const createChannel = (orgId: string, data: { name: string; external_id?: string; project_id?: string | null; split?: boolean }) =>
+  post<{ channel: Channel }>(`/api/orgs/${orgId}/channels`, data).then((r) => r.channel);
+export const getDiscordChannels = (orgId: string) =>
+  api<{ connected: boolean; channels: { id: string; name: string; mapped: boolean }[] }>(`/api/orgs/${orgId}/discord/channels`);
+export const importOrgMap = (orgId: string, seed: unknown) => post<{ loaded: Record<string, number> }>(`/api/orgs/${orgId}/import`, { seed }).then((r) => r.loaded);
+
 export const updateChannel = (orgId: string, id: string, data: Partial<Pick<Channel, "project_id" | "split" | "read">>) =>
   api<{ channel: Channel }>(`/api/orgs/${orgId}/channels/${id}`, { method: "PATCH", body: JSON.stringify(data) }).then((r) => r.channel);
 export type WorkDecision = {
@@ -327,6 +355,12 @@ export type Experts = {
 };
 export const getExperts = (orgId: string, projectId?: string) =>
   api<Experts>(`/api/orgs/${orgId}/experts${projectId ? `?project_id=${projectId}` : ""}`);
+/* Triage agent (3.24): file assignment proposals for work nobody is carrying; rank owners for one task. */
+export const runTriage = (orgId: string, projectId?: string) =>
+  post<{ proposals: WorkProposal[]; checked: number }>(`/api/orgs/${orgId}/triage`, projectId ? { project_id: projectId } : {});
+export type OwnerSuggestion = { person_id: string; name: string; score: number; why: string[]; route: string[]; graph: boolean };
+export const getOwnerSuggestions = (orgId: string, taskId: string) =>
+  api<{ owners: OwnerSuggestion[] }>(`/api/orgs/${orgId}/tasks/${taskId}/owners`).then((r) => r.owners);
 export const getProposals = (orgId: string, status: "pending" | "approved" | "rejected" = "pending") =>
   api<{ proposals: WorkProposal[] }>(`/api/orgs/${orgId}/proposals${status === "pending" ? "" : `?status=${status}`}`).then((r) => r.proposals);
 export const undoProposal = (orgId: string, id: string) =>

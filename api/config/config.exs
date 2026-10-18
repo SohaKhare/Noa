@@ -15,7 +15,10 @@ config :phoenix, :filter_parameters, [
   "secret",
   "api_key",
   "key",
-  "code"
+  "code",
+  "utterances",
+  "transcript",
+  "wav"
 ]
 
 # Background jobs. Extraction runs one channel at a time per org (1.17).
@@ -33,7 +36,7 @@ config :noa, Noa.Extraction, debounce_seconds: 20, utc_offset: 19_800
 
 config :noa,
   ecto_repos: [Noa.Repo],
-  ash_domains: [Noa.Accounts, Noa.Orgs, Noa.Work],
+  ash_domains: [Noa.Accounts, Noa.Orgs, Noa.Work, Noa.Meetings],
   web_origin: "http://localhost:3000",
   api_base_url: "http://localhost:4000",
   mail_from: {"Noa", "no-reply@noa.local"},

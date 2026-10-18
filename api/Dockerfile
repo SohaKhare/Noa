@@ -24,6 +24,11 @@ ARG DEBIAN_VERSION=trixie-20260713-slim
 ARG BUILDER_IMAGE="docker.io/hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-debian-${DEBIAN_VERSION}"
 ARG RUNNER_IMAGE="docker.io/debian:${DEBIAN_VERSION}"
 
+FROM node:24-bookworm-slim AS voice_deps
+WORKDIR /voice
+COPY priv/voice/package.json priv/voice/package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts
+
 FROM ${BUILDER_IMAGE} AS builder
 
 # install build dependencies
@@ -55,6 +60,7 @@ COPY config/config.exs config/${MIX_ENV}.exs config/
 RUN mix deps.compile
 
 COPY priv priv
+COPY --from=voice_deps /voice/node_modules priv/voice/node_modules
 
 COPY lib lib
 
@@ -91,6 +97,7 @@ ENV MIX_ENV="prod"
 
 # Only copy the final release from the build stage
 COPY --from=builder --chown=nobody:root /app/_build/${MIX_ENV}/rel/noa ./
+COPY --from=voice_deps /usr/local/bin/node /usr/local/bin/node
 
 USER nobody
 

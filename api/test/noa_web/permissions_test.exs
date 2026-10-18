@@ -19,6 +19,9 @@ defmodule NoaWeb.PermissionsTest do
     {:post, "/invites"},
     {:delete, "/invites/:invite"},
     {:get, "/directory"},
+    {:get, "/meetings"},
+    {:get, "/meetings/:meeting"},
+    {:post, "/meetings"},
     {:get, "/tasks"},
     {:post, "/tasks"},
     {:patch, "/tasks/:task"},
@@ -117,7 +120,27 @@ defmodule NoaWeb.PermissionsTest do
 
     first = fn resource -> resource |> Ash.read!(authorize?: false) |> Enum.find(&(&1.org_id == org.id)) end
 
+    source =
+      Noa.Work.Channel
+      |> Ash.read!(actor: lead)
+      |> Enum.find(&(&1.org_id == org.id and (&1.project_id == task.project_id or &1.split)))
+
+    {:ok, meeting} =
+      Noa.Meetings.create(
+        org.id,
+        %{
+          project_id: task.project_id,
+          platform: :meet,
+          external_id: Ecto.UUID.generate(),
+          title: "Standup",
+          source: %{"channel_id" => source.id},
+          participant_ids: [lead.id]
+        },
+        lead
+      )
+
     ids = %{
+      meeting: meeting.id,
       task: task.id,
       project: task.project_id,
       person: first.(Noa.Work.Person).id,

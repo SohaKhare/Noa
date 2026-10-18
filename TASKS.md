@@ -19,7 +19,7 @@ Merged `origin/main` through `c33af97` locally, preserving uncommitted WhatsApp 
 | 7 | Manual fresh-company onboarding test; check access checklist/provisioning scope; read privacy/terms; finalize schema/consent sign-off and release/security review | 0.3, 0.13, 0.15, 3.20, 4.3, 4.5, 4.6 |
 | 8 | Feature freeze, record/upload 3-minute video, finish/publish blog and README links, submit all intended tracks before 11:59 PM IST | 4.1, 4.7, 4.8, 4.9 |
 
-Optional/deferred scope is still not shipped: Tulpa history import and full-history load validation; Slack; Meet/Calendar; automated golden-set harness; slip propagation; voice notes; project-secret one-time vault; Sentry/Logfire; vector embeddings. Phase 5 remains post-event. Existing `In review` rows often refer to already merged implementation PRs, not missing code; the table above tracks live release gaps. External plan-doc tracker sync still needs authenticated access.
+Optional/deferred scope is still not shipped: Tulpa history import and full-history load validation; legacy Calendar/Meet REST spike; automated golden-set harness; slip propagation; WhatsApp voice notes; project-secret one-time vault; Sentry/Logfire; vector embeddings. Active additions: Vedant owns Slack (1.14), Soha owns the Meet notetaker (2.8), and Saish's Discord voice/shared minutes implementation (2.22, PR #8) is code-complete with live capture disabled pending deployment and acceptance. Phase 5 remains post-event. Existing `In review` rows often refer to already merged implementation PRs, not missing code; the table above tracks live release gaps. External plan-doc tracker sync still needs authenticated access.
 
 Production incident during verification: Postgres refused connections. Restarting the existing DB machine restored all DB checks; restarting the existing API machine restored `/healthz` HTTP 200 with database and graph true. No data/volumes were deleted. Monitor recurrence; root cause is not established.
 
@@ -129,7 +129,7 @@ Exit test: NYI uses no other tracker; a developer and a non-tech teammate both r
 | 2.19 | Change records for shared-item edits: scope, deadline, owner, status, decision | New | Saish | In review | #3 |
 | 2.20 | Lead approval rules: deadline and scope changes wait, minor edits apply with revert | New | Saish | In review | #3 |
 | 2.21 | Change notifications to lead and owner on each person's channel: WhatsApp, Discord DM, email | New | Saish | In review | #4 |
-| 2.22 | Consented Discord voice standups and shared typed meeting minutes/transcript API for Soha's Meet bot; cited tasks/decisions remain pending review, no graph-schema change | New | Saish | In progress |  |
+| 2.22 | Discord voice/shared minutes implementation complete; 215 API + 4 worker tests pass. Voice defaults off; deployment and real call/transcription/consent acceptance remain pending. Contract: docs/meetings.md; no graph-schema change | New | Saish | Done | #8 |
 
 ## Phase 3: Shifts, KT and agent packs (Oct 17, 20:00 to Oct 18, 08:00)
 

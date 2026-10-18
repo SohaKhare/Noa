@@ -1,5 +1,16 @@
 import Config
 
+# Gmail IMAP is an explicit opt-in, isolated to one workspace (1.27).
+if config_env() != :test and System.get_env("GMAIL_IMAP_ENABLED") == "true" do
+  config :noa, Noa.Ingest.Gmail,
+    enabled: true,
+    org_id: System.fetch_env!("GMAIL_ORG_ID"),
+    username: System.fetch_env!("GMAIL_IMAP_USERNAME"),
+    password: System.fetch_env!("GMAIL_IMAP_PASSWORD"),
+    host: "imap.gmail.com",
+    port: 993
+end
+
 # WhatsApp through Kapso (1.15). Without these Noa keeps messages in a local outbox.
 if config_env() != :test do
   config :noa, Noa.WhatsApp,

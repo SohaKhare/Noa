@@ -158,7 +158,7 @@ export type WorkProject = {
   aliases: string[];
   allocations: Allocation[];
 };
-export type Channel = { id: string; platform: "discord" | "slack" | "whatsapp"; name: string; project_id: string | null; split: boolean; read: boolean };
+export type Channel = { id: string; platform: "discord" | "slack" | "whatsapp" | "email"; name: string; project_id: string | null; split: boolean; read: boolean };
 export type Directory = { me: string | null; people: WorkPerson[]; projects: WorkProject[]; channels: Channel[] };
 export type MessageSource = { channel?: string; author?: string; at?: string; quote?: string; episode_id?: string };
 export type WorkTask = {

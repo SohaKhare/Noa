@@ -24,7 +24,7 @@ defmodule Noa.Work.Identity do
     uuid_primary_key(:id)
 
     attribute(:platform, :atom,
-      constraints: [one_of: [:discord, :slack, :whatsapp, :meet, :github]],
+      constraints: [one_of: [:discord, :slack, :whatsapp, :meet, :github, :email]],
       allow_nil?: false,
       public?: true
     )

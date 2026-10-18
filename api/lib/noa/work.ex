@@ -744,7 +744,7 @@ defmodule Noa.Work do
   end
 
   @doc """
-  Records a chat message from a mapped channel as a `message.received` event (the
+  Records a message from a mapped channel (including the consented email INBOX) as a `message.received` event (the
   Episode). Ingest (1.13, 1.15) calls this for every message it reads. `message`:
 
       %{platform: :discord, channel: "veriq", channel_id: "123", message_id: "456",

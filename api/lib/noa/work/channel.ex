@@ -1,7 +1,7 @@
 defmodule Noa.Work.Channel do
   @moduledoc """
-  A chat channel and the project it maps to (`MAPS_TO`). Noa reads only channels with
-  `read: true`, and never DMs. `split: true` routes each message on its own, for
+  A consented source and the project it maps to (`MAPS_TO`). Chat DMs are never read;
+  the explicitly configured Gmail support INBOX is a separate workspace-wide source. `split: true` routes each message on its own, for
   channels like #dev that cover several projects.
   """
   use Ash.Resource,
@@ -24,7 +24,7 @@ defmodule Noa.Work.Channel do
     uuid_primary_key(:id)
 
     attribute(:platform, :atom,
-      constraints: [one_of: [:discord, :slack, :whatsapp]],
+      constraints: [one_of: [:discord, :slack, :whatsapp, :email]],
       allow_nil?: false,
       public?: true
     )

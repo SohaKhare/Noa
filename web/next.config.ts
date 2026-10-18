@@ -5,6 +5,8 @@ import type { NextConfig } from "next";
 // auth, data and live updates all come from Phoenix.
 const nextConfig: NextConfig = {
   transpilePackages: ["@noa/theme"],
+  // Vercel supplies its own runtime output. Docker opts into a self-contained server.
+  output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
   // Trace workspace dependencies (including @noa/theme) from the repository root.
   outputFileTracingRoot: path.join(__dirname, ".."),
 };

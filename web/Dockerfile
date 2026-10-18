@@ -4,7 +4,7 @@
 FROM node:24-slim AS build
 RUN corepack enable
 WORKDIR /repo
-ENV NEXT_TELEMETRY_DISABLED=1 COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+ENV NEXT_TELEMETRY_DISABLED=1 COREPACK_ENABLE_DOWNLOAD_PROMPT=0 NEXT_OUTPUT=standalone
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages packages
 COPY web/package.json web/

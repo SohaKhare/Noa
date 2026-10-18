@@ -8,12 +8,14 @@ defmodule Noa.Extraction.Line do
   """
 
   @enforce_keys [:seq, :channel, :author, :at, :body]
-  defstruct [:id, :seq, :channel, :author, :at, :body, offset: 0, thread_project: nil]
+  # thread: the Discord thread's name when the message was in one (its topic, for the model).
+  defstruct [:id, :seq, :channel, :author, :at, :body, :thread, offset: 0, thread_project: nil]
 
   @type t :: %__MODULE__{
           id: term(),
           seq: integer(),
           channel: String.t(),
+          thread: String.t() | nil,
           author: String.t(),
           at: DateTime.t(),
           offset: integer(),

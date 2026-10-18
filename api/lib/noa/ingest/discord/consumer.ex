@@ -48,6 +48,13 @@ defmodule Noa.Ingest.Discord.Consumer do
     end
   end
 
+  # Join new threads so their messages reach Noa; most work is agreed inside threads.
+  @impl true
+  def handle_event({:THREAD_CREATE, %{id: id}, _state}) do
+    Nostrum.Api.Thread.join(id)
+    :ok
+  end
+
   @impl true
   def handle_event({:GUILD_AVAILABLE, guild, state}), do: handle_event({:GUILD_CREATE, guild, state})
 

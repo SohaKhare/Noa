@@ -40,7 +40,14 @@ export function MyDay() {
   const mine = all.filter((t) => t.owner_id === me?.id && t.status !== "done").sort(byDue);
   const doneToday = all.filter((t) => t.owner_id === me?.id && t.status === "done" && isToday(t.done_at));
   const blocked = all.filter((t) => t.status === "blocked" && myProjects.has(t.project_id));
-  const waiting = (proposals.data ?? []).filter((p) => lead || p.owner_id === me?.id);
+  // Leads approve proposals for their projects; everyone else sees what Noa thinks is theirs.
+  // Newest first: what was said this week matters more than last month.
+  const waiting = (proposals.data ?? [])
+    .filter((p) => lead || p.owner_id === me?.id)
+    .sort((a, b) => (b.source?.at ?? b.inserted_at).localeCompare(a.source?.at ?? a.inserted_at));
+  const waitingLabel = lead ? "To review" : "Waiting on you";
+  const forWhom = (ownerId: string | null) =>
+    ownerId === me?.id ? "for you" : ownerId ? `for ${dir.person(ownerId)?.name ?? "someone"}` : "no owner yet";
   const changesForMe = pendingChanges.filter((c) => lead || dir.project(c.project_id)?.lead_id === me?.id);
   const waitingText = [plural(waiting.length, "proposal"), changesForMe.length ? plural(changesForMe.length, "change") : null].filter(Boolean).join(" · ");
   const decidedToday = (decisions.data ?? []).filter((d) => d.status === "active" && (!d.project_id || myProjects.has(d.project_id)));
@@ -67,10 +74,10 @@ export function MyDay() {
         <p className="mt-1.5 text-[14.5px] text-muted">
           {loading
             ? "Getting your day ready…"
-            : `${plural(mine.length, "open task")} across ${plural(groups.length, "project")} · ${plural(waiting.length, "proposal")} waiting · ${blocked.length} blocked`}
+            : `${plural(mine.length, "open task")} across ${plural(groups.length, "project")} · ${plural(waiting.length, "proposal")} ${lead ? "to review" : "waiting"} · ${blocked.length} blocked`}
         </p>
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          <Stat Icon={TrayIcon} label="Waiting on you" value={waitingText} href="/inbox" />
+          <Stat Icon={TrayIcon} label={waitingLabel} value={waitingText} href="/inbox" />
           <Stat Icon={CheckCircleIcon} label="Done today" value={doneToday.length ? doneToday.map((t) => t.title).join(", ") : "Nothing yet"} href="#done" />
           <Stat
             Icon={WarningCircleIcon}
@@ -137,7 +144,10 @@ export function MyDay() {
           {me && me.allocations.length > 0 && <AgentPack me={me} />}
           <section className="rounded-[22px] bg-surface p-5 card-shadow">
             <p className="flex items-center justify-between text-[14px] font-semibold">
-              Waiting on you
+              <span>
+                {waitingLabel}
+                {lead && <span className="block text-[11.5px] font-normal text-muted">Noa found these in chat. Approve, edit or dismiss.</span>}
+              </span>
               <Link href="/inbox" className="text-[12px] font-normal text-muted hover:text-ink">
                 Open inbox
               </Link>
@@ -150,6 +160,9 @@ export function MyDay() {
                   <li key={pr.id}>
                     <Link href="/inbox" className="block rounded-xl bg-bg px-3 py-2.5 hover:bg-mist/50">
                       <p className="text-[13px] font-medium">{pr.summary}</p>
+                      <p className="mt-0.5 text-[11.5px] text-muted">
+                        {[pr.kind === "task" ? forWhom(pr.owner_id) : pr.kind.replace("_", " "), pr.project_id ? dir.project(pr.project_id)?.name : null].filter(Boolean).join(" · ")}
+                      </p>
                       <SourceChip source={toSource(pr.source)} />
                     </Link>
                   </li>

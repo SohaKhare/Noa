@@ -25,7 +25,8 @@ defmodule Noa.Ingest.Discord.Commands do
           option("project", "Project key (for example veriq); omit for split routing")
         ]),
         command("disconnect", "Org admins: stop reading this channel"),
-        command("help", "How to use Noa and connect your workspace")
+        command("help", "How to use Noa and connect your workspace"),
+        Noa.Ingest.Discord.Meetings.spec()
       ]
     }
   end
@@ -233,6 +234,9 @@ defmodule Noa.Ingest.Discord.Commands do
        Views.text("Noa stopped reading this channel. Existing sources remain; disconnecting does not erase history.")}
     end
   end
+
+  defp dispatch("meeting", interaction, org_id, actor),
+    do: Noa.Ingest.Discord.Meetings.dispatch(interaction, org_id, actor)
 
   defp dispatch(_, _, _, _), do: {:error, :unknown_command}
 
@@ -474,7 +478,30 @@ defmodule Noa.Ingest.Discord.Commands do
 
   defp help,
     do:
-      "Noa · your company brain\n\n/noa link — verify your account\n/noa ask question:… — private cited answer\n/noa tasks — Start / Done / Need help\n/noa inbox — proposal and lead approval buttons\n/noa recap — today's project decisions\n/noa brief — KT brief and agent pack\n/noa connect project:veriq — org admins consent to channel ingestion\n/noa disconnect — stop reading this channel\n\nAn org admin first connects this server in Noa → Settings → Connectors. Only consented, mapped channels are ingested; DMs are never ingested. Mention @Noa in a mapped channel for a private DM answer."
+      "Noa · your company brain\n\n/noa link — verify your account\n/noa ask question:… — private cited answer\n/noa tasks — Start / Done / Need help\n/noa inbox — proposal and lead approval buttons\n/noa recap — today's project decisions\n/noa brief — KT brief and agent pack\n/noa connect project:veriq — org admins consent to channel ingestion\n/noa disconnect — stop reading this channel\n/noa meeting — consented voice notes, stop and cited minutes\n\nAn org admin first connects this server in Noa → Settings → Connectors. Only consented, mapped channels are ingested; DMs are never ingested. Mention @Noa in a mapped channel for a private DM answer."
+
+  defp error_message(:voice_disabled),
+    do: "Voice notes are disabled. The Noa admin must install/enable the DAVE-capable voice worker first."
+
+  defp error_message(:llm_not_configured),
+    do: "An OpenAI key is required for transcription and typed meeting minutes. No recording was started."
+
+  defp error_message(:voice_busy), do: "Another meeting is active. Finish or cancel it first."
+
+  defp error_message(:meeting_participants_not_linked),
+    do: "Everyone in this voice channel must link their Noa account with /noa link before consenting."
+
+  defp error_message(:meeting_source_not_enabled),
+    do: "Start from a consented, project-mapped text channel while you are in the intended voice channel."
+
+  defp error_message(:meeting_consent_required),
+    do: "Every participant must explicitly consent before recording can start."
+
+  defp error_message(:meeting_not_recording), do: "This session is not active. Use /noa meeting notes to check it."
+
+  defp error_message(:voice_worker_failed),
+    do:
+      "Voice is not ready or participants changed. Check the bot's Connect permission, join the voice channel and request consent again."
 
   defp error_message(:discord_not_linked),
     do: "Use /noa link to verify your account first. Display names alone never grant Noa access."

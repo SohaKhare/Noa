@@ -15,8 +15,8 @@ const hostname = cdnHostname(cdnUrl);
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@noa/theme"],
-  // Self-contained server for the Docker image; traced from the workspace root for @noa/theme.
-  output: "standalone",
+  // Vercel uses its normal output; only Docker needs a self-contained server.
+  output: process.env.NOA_DOCKER_BUILD === "true" ? "standalone" : undefined,
   outputFileTracingRoot: path.join(__dirname, ".."),
   ...(hostname && {
     images: {

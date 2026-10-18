@@ -787,6 +787,7 @@ defmodule Noa.Work do
           person_id: identity.person_id,
           identity_id: identity.id,
           text: message.text,
+          thread: message[:thread],
           at: message[:at] || DateTime.utc_now()
         },
         key: key,
@@ -904,6 +905,10 @@ defmodule Noa.Work do
     pending = Proposal |> Ash.Query.filter(org_id == ^org_id and status == :pending) |> Ash.read!(authorize?: false)
 
     proposals
+    # Old chat is not new work (Noa.Work.History).
+    |> Enum.reject(
+      &Noa.Work.History.historical?(by_line[List.first(&1.evidence)] && by_line[List.first(&1.evidence)].at)
+    )
     |> Enum.reject(&already_pending?(&1, projects[&1.route.project], pending))
     |> Enum.map(fn %Extraction.Proposal{} = p ->
       first = by_line[List.first(p.evidence)]
@@ -1067,7 +1072,10 @@ defmodule Noa.Work do
 
   defp duplicate_of(_p, _project_id, _open), do: %{}
 
-  defp owner_name(%{type: :task, item: %{owner: owner}}, _first) when is_binary(owner), do: owner
+  # A task belongs to whoever will do it. The model names them or says it can't tell;
+  # the message's author is not a fallback: asking Soha for work doesn't make it yours.
+  # Unowned tasks go to triage, which suggests an owner from the graph.
+  defp owner_name(%{type: :task, item: %{owner: owner}}, _first), do: owner
   defp owner_name(_p, %{author: author}), do: author
   defp owner_name(_p, _), do: nil
 

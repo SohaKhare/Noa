@@ -19,7 +19,7 @@ Merged `origin/main` through `c33af97` locally, preserving uncommitted WhatsApp 
 | 7 | Manual fresh-company onboarding test; check access checklist/provisioning scope; read privacy/terms; finalize schema/consent sign-off and release/security review | 0.3, 0.13, 0.15, 3.20, 4.3, 4.5, 4.6 |
 | 8 | Feature freeze, record/upload 3-minute video, finish/publish blog and README links, submit all intended tracks before 11:59 PM IST | 4.1, 4.7, 4.8, 4.9 |
 
-Optional/deferred scope is still not shipped: Tulpa history import and full-history load validation; Slack; Meet/Calendar; automated golden-set harness; slip propagation; voice notes; project-secret one-time vault; Sentry/Logfire; vector embeddings. Phase 5 remains post-event. Existing `In review` rows often refer to already merged implementation PRs, not missing code; the table above tracks live release gaps. External plan-doc tracker sync still needs authenticated access.
+Optional/deferred scope is still not shipped: Tulpa history import and full-history load validation; legacy Calendar/Meet REST spike; automated golden-set harness; slip propagation; WhatsApp voice notes; project-secret one-time vault; Sentry/Logfire; vector embeddings. Active additions: Vedant owns Slack (1.14), Soha owns the Meet notetaker (2.8), and Saish's Discord voice/shared minutes implementation (2.22, PR #8) is code-complete with live capture disabled pending deployment and acceptance. Phase 5 remains post-event. Existing `In review` rows often refer to already merged implementation PRs, not missing code; the table above tracks live release gaps. External plan-doc tracker sync still needs authenticated access.
 
 Production incident during verification: Postgres refused connections. Restarting the existing DB machine restored all DB checks; restarting the existing API machine restored `/healthz` HTTP 200 with database and graph true. No data/volumes were deleted. Monitor recurrence; root cause is not established.
 
@@ -42,19 +42,19 @@ Exit test: Skeleton deploys to Fly with login; API reaches FalkorDB; graph and e
 
 | # | Item | Source | Owner | Status | PR |
 | --- | --- | --- | --- | --- | --- |
-| 0.1 | Confirm the tools NYI uses daily | New | Soha | Not started |  |
-| 0.2 | Ask organizers: judging, multi-track, Tulpa v1 reuse split | New | Saish | Not started |  |
+| 0.1 | Confirm the tools NYI uses daily (overtaken: Discord, WhatsApp, Gmail, GitHub, Meet are built or in progress) | New | Soha | Cut |  |
+| 0.2 | Ask organizers: judging, multi-track, Tulpa v1 reuse split (rules checked on the event page; see docs/hackathon.md) | New | Saish | Cut |  |
 | 0.3 | Freeze graph schema, extraction schemas, API contracts | New | Saish | Not started |  |
-| 0.4 | Wireframes for every page (UI and flows tab) | New | Saish | Not started |  |
+| 0.4 | Wireframes for every page (overtaken: pages built directly) | New | Saish | Cut |  |
 | 0.5 | Spike: falkordb Elixir client (vector, full-text, PageRank, paths) | New | Saish | In review | #2 |
 | 0.6 | Spike: Kapso send, receive, buttons, signed webhooks | New | Saish | In review | #3 |
-| 0.7 | Spike: Google Meet transcript API on one NYI meeting | New | Soha | Not started |  |
-| 0.8 | Spike: ash_ai tools + MCP, ash_typescript, React Gantt library | New | Saish | Not started |  |
+| 0.7 | Spike: Google Meet transcript API on one NYI meeting (replaced by the notetaker bot, 2.8) | New | Soha | Cut |  |
+| 0.8 | Spike: ash_ai tools + MCP, ash_typescript, React Gantt library (MCP built directly, 3.6) | New | Saish | Cut |  |
 | 0.9 | Spike: extraction prompt on 40 real NYI messages | Port | Saish | In progress |  |
 | 0.10 | Register Discord, Slack and Google apps (Internal + External testing) | New | Soha | In progress |  |
-| 0.11 | Kapso account, 3 WhatsApp templates, start Meta verification | New | Saish | In progress |  |
+| 0.11 | Kapso account, 3 WhatsApp templates (PENDING with Meta as of Oct 18 evening), Meta verification. Demo uses the 24-hour window; Kapso webhook points at production | New | Saish | In progress |  |
 | 0.12 | FalkorDB Cloud, Fly.io, Postgres, Logfire, Sentry, domain. Fly configs and one-server compose ready (docs/deploy.md); accounts and domain to do | Copy | Saish | In review | #4 |
-| 0.13 | Privacy policy and terms text | New | Soha | Not started |  |
+| 0.13 | Privacy policy and terms text (landing /privacy and /terms; read before launch) | New | Soha | Done |  |
 | 0.14 | NYI org map: projects, people, roles, reporting lines, allocations, channel-to-project | New | Saish | In review | #1 |
 | 0.15 | Team consent for channels; export Tulpa v1 data | Import | Soha | Not started |  |
 | 0.16 | 40-question golden set from real NYI questions | New | Soha | Not started |  |
@@ -129,7 +129,7 @@ Exit test: NYI uses no other tracker; a developer and a non-tech teammate both r
 | 2.19 | Change records for shared-item edits: scope, deadline, owner, status, decision | New | Saish | In review | #3 |
 | 2.20 | Lead approval rules: deadline and scope changes wait, minor edits apply with revert | New | Saish | In review | #3 |
 | 2.21 | Change notifications to lead and owner on each person's channel: WhatsApp, Discord DM, email | New | Saish | In review | #4 |
-| 2.22 | Consented Discord voice standups and shared typed meeting minutes/transcript API for Soha's Meet bot; cited tasks/decisions remain pending review, no graph-schema change | New | Saish | In progress |  |
+| 2.22 | Discord voice/shared minutes implementation complete; 215 API + 4 worker tests pass. Voice defaults off; deployment and real call/transcription/consent acceptance remain pending. Contract: docs/meetings.md; no graph-schema change | New | Saish | Done | #8 |
 
 ## Phase 3: Shifts, KT and agent packs (Oct 17, 20:00 to Oct 18, 08:00)
 

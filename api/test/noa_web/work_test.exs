@@ -488,6 +488,43 @@ defmodule NoaWeb.WorkTest do
     refute Similar.same?("Fix", "Update")
   end
 
+  test "work found in chat older than the history window is not filed as new work", %{org: org} do
+    old = %Noa.Extraction.Line{
+      id: "old1",
+      seq: 1,
+      channel: "#veriq",
+      author: "Saish",
+      at: DateTime.add(DateTime.utc_now(), -45 * 86_400, :second),
+      body: "on it, by Friday"
+    }
+
+    item = %Noa.Extraction.Types.TaskProposal{title: "Old export work", owner: "Saish", confidence: 0.95}
+    route = %Noa.Extraction.Routing{project: "veriq", confidence: 1.0, rule: :channel}
+    proposal = %Noa.Extraction.Proposal{type: :task, item: item, route: route, confidence: 0.95, evidence: ["old1"]}
+
+    assert [] == Noa.Work.save_proposals(org.id, [proposal], [old])
+
+    recent = %{old | id: "new1", at: DateTime.utc_now()}
+    assert [_] = Noa.Work.save_proposals(org.id, [%{proposal | evidence: ["new1"]}], [recent])
+  end
+
+  test "a task the model can't place is unowned, not the speaker's", %{org: org} do
+    line = %Noa.Extraction.Line{
+      id: "ask1",
+      seq: 1,
+      channel: "#veriq",
+      author: "Saish",
+      at: DateTime.utc_now(),
+      body: "can someone design a reliable i2v API?"
+    }
+
+    item = %Noa.Extraction.Types.TaskProposal{title: "Design a reliable i2v API", owner: nil, confidence: 0.8}
+    route = %Noa.Extraction.Routing{project: "veriq", confidence: 1.0, rule: :channel}
+    proposal = %Noa.Extraction.Proposal{type: :task, item: item, route: route, confidence: 0.8, evidence: ["ask1"]}
+
+    assert [%{owner_id: nil}] = Noa.Work.save_proposals(org.id, [proposal], [line])
+  end
+
   describe "auto-apply with undo (2.2)" do
     defp extracted(org, type, item, confidence, task_ref \\ nil) do
       line = %Noa.Extraction.Line{

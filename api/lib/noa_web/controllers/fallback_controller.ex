@@ -37,6 +37,13 @@ defmodule NoaWeb.FallbackController do
     person_not_found: {422, "Ask an org admin to add your account to the org map in Settings → People."},
     discord_off: {409, "Noa's Discord bot isn't running, so history can't be loaded right now."},
     not_backfillable: {422, "Only a Discord channel that Noa reads can load its history."},
+    meeting_consent_required: {422, "Explicit meeting consent and a nonempty, bounded transcript are required."},
+    invalid_transcript:
+      {422, "Use numbered utterances with speaker, text, start_ms and end_ms (see docs/meetings.md)."},
+    transcript_conflict: {409, "That utterance sequence already has different content."},
+    meeting_source_not_enabled: {422, "Choose a consented channel mapped to this meeting's project."},
+    meeting_not_recording: {409, "This meeting is not recording."},
+    meeting_limit: {422, "This meeting reached the transcript size limit."},
     not_found: {404, "Not found."}
   }
 

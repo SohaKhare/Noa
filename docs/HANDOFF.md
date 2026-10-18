@@ -2,7 +2,22 @@
 
 Read this first in a new session. It covers what is built, what is deployed, what is uncommitted, where the credentials are, and what to do next. Standing rules from Saish: **don't push to GitHub, don't commit (Saish commits), don't call fal.ai.** Never print credentials; they live in the gitignored files listed below.
 
-## Latest: Discord completion deployed
+## PR #8: meeting extension
+
+Saish explicitly authorized committing, pushing and merging this extension via a PR, overriding the standing no-commit/push rule for this operation only. PR: https://github.com/SohaKhare/Noa/pull/8 (`saish/2.22-meeting-minutes` → `main`). Implementation is code-complete; deployment and real voice/ASR acceptance remain pending and recording defaults off. Unrelated demo and setup-tracker edits are deliberately left uncommitted. GitHub API/voice/Next.js checks passed; image checks are being verified. Both Vercel deployments are reported blocked, also present on the pre-existing base commit; do not describe those deployments as successful.
+
+## Latest: meeting extension built locally (not deployed/enabled)
+
+- Current branch: `saish/2.22-meeting-minutes`, based on Saish's new `962c024` Discord/mail commit. Those commits/checkouts landed concurrently; meeting-specific tracked wiring was restored on top without reverting SMTP/landing/other work. The agent created no commits or pushes.
+- Item 2.22 is In review. `/noa meeting start/consent/stop/cancel/notes`, an opt-in DAVE-capable Node receiver, shared typed minutes pipeline and authenticated Meet transcript/list/detail API are implemented. Soha retains ownership of the Google Meet joining bot (2.8); send her `docs/meetings.md` for the exact transcript contract.
+- Pinned Nostrum cannot handle modern DAVE voice. A private stdin/stdout Node worker uses discord.js, @discordjs/voice 0.19.2, @snazzah/davey, @noble/ciphers and opusscript, without upgrading the text bot. The Dockerfile now includes Node and locked worker dependencies. No FFmpeg/audio files/public worker socket.
+- Voice is off unless `DISCORD_VOICE_ENABLED=true`; optional `DISCORD_VOICE_BOT_TOKEN`, otherwise the shared bot token. Needs Node >=22.12, OpenAI ASR + an available minutes model, Connect/View permissions, connected/consented text source, and verified linked accounts for all voice participants. No voice call, audio upload, real transcription or real minutes model call was performed. Do not claim live success yet.
+- Organizer must be org admin/PM. Every participant consents individually within ten minutes before the bot joins. New unconsented arrivals stop recording; any participant can stop/cancel. Accounts/memberships/channel consent are rechecked before ASR. Speaker ids map to canonical verified org-map names/keys, not Discord nicknames. Interrupted recordings are marked partial; restarts fail sessions closed.
+- New Postgres `meetings` resource/migration/Ash snapshot track state and a transcript cache; individual utterances are existing source Episodes. Strict `Noa.Meetings.Minutes` reuses current task/decision shapes. No graph labels/edges or existing extraction schemas changed. All work stays pending human approval, and the normal chat extractor excludes meeting Episodes so later chat cannot bypass meeting review.
+- Checks: **215 API tests passed, 1 load excluded**; compile warnings-as-errors, format, web TypeScript and ESLint passed. Four worker tests pass both locally and inside the built Linux release image (including DAVE/Opus/XChaCha loading). Eighteen meeting-specific tests also passed on a fresh test database. Docker release image builds successfully. No new production deployment or voice enabling was done.
+- Next: review/commit as Saish, deploy API + migration + worker, re-register commands, explicitly enable only for a consented two-person test. Verify real speaker/timestamp accuracy, jokes omitted from minutes, newcomers stop capture, citations and pending approvals. Local dev needs `mix ecto.migrate` and API restart; `cd api/priv/voice && npm ci --ignore-scripts` for worker deps. See `docs/meetings.md` for limits, retained transcript visibility and the live checklist.
+
+## Earlier: Discord completion deployed
 
 - Current branch `saish/2.6-discord-interactions`, based on `c33af97`. No new commits or pushes; all local changes remain for Saish to commit. SMTP was undone and remains Soha's task.
 - Built `/noa ask`, `link`, `tasks`, `inbox`, `recap`, `brief`, `connect`, `disconnect`, `help`; private cited mention/DM answers; task/proposal/lead-change buttons; verified notification destinations; proposal and blocker notices. Slash results are ephemeral. Explicit DM questions never become company Episodes or extraction jobs.

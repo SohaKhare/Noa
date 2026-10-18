@@ -4,19 +4,23 @@ Three minutes, recorded on NYI's real workspace after the noon freeze (4.1). One
 
 ## Before recording
 
-- [ ] API, web and FalkorDB running against the deployed workspace (or local with `mix noa.seed` plus real chat).
-- [ ] Discord bot reading `#veriq` and `#emmarie` (1.13). `OPENAI_API_KEY` set so extraction runs.
-- [ ] Soha's phone on screen share or a WhatsApp Web window for the notification (1.15, 2.21).
-- [ ] Inbox empty, so new proposals stand out. Vedant signed in on the web app; Saish in Discord.
-- [ ] Leave one task with no owner on Veriq (or move someone off a project) so "Find unowned work" has something to file.
-- [ ] Rehearse once; delete rehearsal proposals with Dismiss.
+Everything on screen is NYI's real workspace on `app.heynoa.xyz`: real channels, real commits, real people. Nothing seeded or mocked; if a scene has nothing real to show yet, make it real first (post the message, assign the task) rather than faking it.
+
+- [ ] **Model key.** `fly secrets set --app heynoa-api OPENAI_API_KEY=…` so chat becomes proposals and `@noa` writes answers. Check `/admin` → System: OpenAI on.
+- [ ] **Discord.** nyi-tech is connected. In Settings → Channels map the real channels (`#tulpa` → Tulpa, `#emmarie-video` → Emmarie, `#video-gen-edit` → Video Break, `#ai-services` → Veriq or as decided, `#core` → Split) and press **Load history** on each. Everyone appearing on camera runs `/noa link` once.
+- [ ] **WhatsApp (templates still pending with Meta, so use the 24-hour window).** Each person who receives a message on camera: Settings → Notifications → WhatsApp + their number, then sends "hi" to **+1 205-341-2931** within 24 hours of recording. The dot in Notifications turns green when the window is open. Kapso's webhook points at `https://api.heynoa.xyz/webhooks/kapso` (set Oct 18), so replies and button taps reach production.
+- [ ] **GitHub.** The app is installed and history loaded (150 commits, 90 PRs on Oct 18). Agent packs already show "Recent changes on GitHub".
+- [ ] **Email.** Gmail SMTP is on: invites, sign-in links and notifications really send from itsupport@notyouridea.com.
+- [ ] **One real piece of unowned work** on a project (someone leaves, or a new task nobody took) so "Find unowned work" has something true to file.
+- [ ] Screen: Vedant or Prathamesh signed in on the web app; Saish in Discord; a phone on WhatsApp Web for the notification shot.
+- [ ] Rehearse once; dismiss rehearsal proposals and revert rehearsal changes (every change can be reverted) so the recorded take starts clean.
 
 ## Scenes
 
 | # | Time | On screen | Narration |
 | --- | --- | --- | --- |
 | 1 | 0:00–0:15 | Landing hero, then My day for Vedant | "NotYourIdea runs four projects with five people who move between them. Noa is our company brain: it reads our chat and keeps the work in one graph." |
-| 2 | 0:15–0:45 | Discord `#veriq`: Vedant asks who can take the Board report PDF export; Saish replies "on it, by Friday". Switch to the Inbox: the proposal appears with the quote | "Nobody fills in a board. Noa read that reply, routed it to Veriq because of the channel, and proposed a task for Saish, due Friday, citing the message." |
+| 2 | 0:15–0:45 | A mapped nyi-tech channel: a real ask and a real reply ("on it, by Friday"). Switch to the Inbox: the proposal appears with the quote | "Nobody fills in a board. Noa read that reply, routed it to Veriq because of the channel, and proposed a task for Saish, due Friday, citing the message." |
 | 3 | 0:45–1:05 | Approve. Veriq board: the card lands in To do. Open the drawer: source and history | "One click and it is on the board, still linked to what was said." |
 | 4 | 1:05–1:30 | Saish (member) changes the due date to Monday with a reason. Drawer shows "Waiting for Vedant". Vedant's Inbox: "Changes waiting for you"; approve. WhatsApp to Saish | "Deadlines are shared commitments, so a member's change waits for the lead. Small edits apply at once and can be reverted." |
 | 5 | 1:30–1:55 | Ask Noa: "What's blocking Emmarie?" Answer with [1] [2] and the sources listed | "Ask anything. Answers come only from what you're allowed to see, and every claim cites where it came from." |

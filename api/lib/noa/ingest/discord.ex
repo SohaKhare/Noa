@@ -66,6 +66,7 @@ defmodule Noa.Ingest.Discord do
            guild_id: guild_id,
            channel: payload["channel_name"] || payload["channel_id"],
            channel_id: payload["channel_id"],
+           thread: payload["thread_name"],
            message_id: payload["id"],
            author_id: author["id"],
            author: author["global_name"] || author["display_name"] || author["username"],
@@ -81,7 +82,39 @@ defmodule Noa.Ingest.Discord do
   @spec ingest(String.t(), map()) :: {:ok, term()} | {:duplicate, term()} | {:ignore, reason()} | {:error, term()}
   def ingest(org_id, payload) do
     with {:ok, message} <- normalize(payload) do
-      Work.record_message(org_id, message)
+      Work.record_message(org_id, %{message | text: name_mentions(org_id, message.text, payload)})
+    end
+  end
+
+  # Discord writes a tag as `<@824574911841566740>`. Extraction needs the person, so a
+  # tag becomes `@Name`: their Noa name when their Discord account is linked, else the
+  # name Discord sent with the message. "<@soha> can you take i2v" is Soha's task.
+  defp name_mentions(org_id, text, payload) do
+    sent =
+      payload
+      |> normalize_payload()
+      |> Map.get("mentions")
+      |> List.wrap()
+      |> Enum.map(&normalize_payload/1)
+      |> Map.new(fn m -> {to_string(m["id"]), m["global_name"] || m["username"]} end)
+
+    Regex.replace(~r/<@!?(\d+)>/, text, fn tag, id ->
+      case linked_name(org_id, id) || sent[id] do
+        nil -> tag
+        name -> "@" <> name
+      end
+    end)
+  end
+
+  defp linked_name(org_id, id) do
+    Noa.Work.Identity
+    |> Ash.Query.filter(org_id == ^org_id and platform == :discord and external_id == ^id)
+    |> Ash.Query.load(:person)
+    |> Ash.read_one(authorize?: false)
+    |> case do
+      {:ok, %{person: %{name: name}}} -> name
+      {:ok, %{display_name: name}} when is_binary(name) -> name
+      _ -> nil
     end
   end
 
@@ -97,29 +130,48 @@ defmodule Noa.Ingest.Discord do
   # ask Discord once per channel and remember the answer.
   defp with_channel_name(%{"channel_name" => name} = payload) when is_binary(name), do: payload
 
+  # Most work happens in threads. A thread is its own Discord channel, so its messages
+  # are filed under the parent channel (its mapping and project apply) and keep the
+  # thread's name, which extraction reads as context.
   defp with_channel_name(%{"channel_id" => id} = payload) when is_binary(id) do
-    case channel_name(id) do
-      nil -> payload
-      name -> Map.put(payload, "channel_name", name)
+    case channel_info(id) do
+      %{parent_id: parent, name: thread} when is_binary(parent) ->
+        payload
+        |> Map.merge(%{"channel_id" => parent, "thread_id" => id, "thread_name" => thread})
+        |> Map.put("channel_name", channel_info(parent)[:name])
+
+      %{name: name} ->
+        Map.put(payload, "channel_name", name)
+
+      nil ->
+        payload
     end
   end
 
   defp with_channel_name(payload), do: payload
 
-  defp channel_name(id) do
+  @thread_types [10, 11, 12]
+
+  defp channel_info(id) do
     case :persistent_term.get({__MODULE__, :channel, id}, :unknown) do
       :unknown ->
-        name =
+        info =
           case Nostrum.Api.Channel.get(String.to_integer(id)) do
-            {:ok, %{name: name}} when is_binary(name) -> name
-            _ -> nil
+            {:ok, %{name: name, type: type, parent_id: parent}} when type in @thread_types and not is_nil(parent) ->
+              %{name: name, parent_id: to_string(parent)}
+
+            {:ok, %{name: name}} when is_binary(name) ->
+              %{name: name, parent_id: nil}
+
+            _ ->
+              nil
           end
 
-        if name, do: :persistent_term.put({__MODULE__, :channel, id}, name)
-        name
+        if info, do: :persistent_term.put({__MODULE__, :channel, id}, info)
+        info
 
-      name ->
-        name
+      info ->
+        info
     end
   rescue
     _ -> nil
@@ -277,8 +329,9 @@ defmodule Noa.Ingest.Discord do
   defp display_name(user), do: user["global_name"] || user["display_name"] || user["username"]
 
   @doc """
-  Backfills a mapped channel's recent messages (up to `:max_pages` of 100, default 5)
-  with Discord's REST API, recorded oldest first. Runs when an org admin maps a channel.
+  Backfills a mapped channel's recent messages (up to `:max_pages` of 100, default 5,
+  and only the last `Noa.Work.History.days/0`) with Discord's REST API, recorded oldest
+  first. Runs when an org admin maps a channel or presses Load history.
   """
   @spec backfill(String.t(), String.t(), keyword()) :: {:ok, non_neg_integer()} | {:error, term()}
   def backfill(org_id, channel_id, opts \\ []) do
@@ -291,11 +344,16 @@ defmodule Noa.Ingest.Discord do
         System.get_env("DISCORD_GUILD_ID")
 
     if present?(token) do
-      with {:ok, messages} <- fetch_pages(channel_id, token, limit, max_pages, nil, [], opts[:req_options] || []) do
+      req = opts[:req_options] || []
+
+      with {:ok, messages} <- fetch_pages(channel_id, token, limit, max_pages, nil, [], req) do
+        messages = messages ++ thread_messages(channel_id, guild, token, limit, req)
+
         # Discord pages newest-first; record oldest-first so the log and extraction
         # windows follow the conversation. REST messages carry no guild_id, so add it.
         results =
           messages
+          |> Enum.reject(&Noa.Work.History.historical?(&1["timestamp"]))
           |> Enum.sort_by(&String.to_integer(to_string(&1["id"])))
           |> Enum.map(&ingest(org_id, Map.put_new(&1, "guild_id", guild)))
 
@@ -304,6 +362,45 @@ defmodule Noa.Ingest.Discord do
     else
       {:error, :missing_discord_bot_token}
     end
+  end
+
+  # The channel's threads, active and recently archived, inside the history window. Their
+  # messages are filed under the channel with the thread's name. A thread the bot can't
+  # read is skipped; the channel's own history still loads.
+  defp thread_messages(channel_id, guild, token, limit, req) do
+    get = fn path, params ->
+      case Req.get(
+             "#{@discord_api}#{path}",
+             [headers: [{"authorization", "Bot #{token}"}], params: params, retry: false] ++ req
+           ) do
+        {:ok, %{status: 200, body: %{"threads" => threads}}} when is_list(threads) -> threads
+        _ -> []
+      end
+    end
+
+    active = if present?(guild), do: get.("/guilds/#{guild}/threads/active", []), else: []
+    archived = get.("/channels/#{channel_id}/threads/archived/public", limit: 50)
+
+    (active ++ archived)
+    |> Enum.filter(&(to_string(&1["parent_id"]) == to_string(channel_id)))
+    |> Enum.uniq_by(& &1["id"])
+    |> Enum.reject(&Noa.Work.History.historical?(get_in(&1, ["thread_metadata", "archive_timestamp"])))
+    |> Enum.flat_map(fn thread ->
+      case fetch_pages(to_string(thread["id"]), token, limit, 2, nil, [], req) do
+        {:ok, messages} ->
+          Enum.map(
+            messages,
+            &Map.merge(&1, %{
+              "channel_id" => to_string(channel_id),
+              "thread_id" => to_string(thread["id"]),
+              "thread_name" => thread["name"]
+            })
+          )
+
+        _ ->
+          []
+      end
+    end)
   end
 
   defp fetch_pages(_channel_id, _token, _limit, 0, _before, acc, _req), do: {:ok, acc}
@@ -319,7 +416,10 @@ defmodule Noa.Ingest.Discord do
         acc = acc ++ messages
         oldest = messages |> List.last() |> then(&(&1 && &1["id"]))
 
-        if length(messages) < limit or is_nil(oldest),
+        # Stop once a page reaches past the history window.
+        too_old = messages |> List.last() |> then(&(&1 && Noa.Work.History.historical?(&1["timestamp"])))
+
+        if length(messages) < limit or is_nil(oldest) or too_old,
           do: {:ok, acc},
           else: fetch_pages(channel_id, token, limit, pages - 1, oldest, acc, req)
 

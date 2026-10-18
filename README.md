@@ -1,51 +1,108 @@
 # Noa
 
-**A company brain that turns team conversations into managed work.**
+**A company brain that turns team conversations into managed work, built on FalkorDB.**
 
-Noa reads Discord, Slack, Google Meet and WhatsApp. It keeps tasks, owners, deadlines and decisions in one [FalkorDB](https://www.falkordb.com/) graph per company, and answers questions with sources. PMs get boards that update themselves, members get one list across all their projects, and people moving between projects get a knowledge-transfer (KT) brief and an agent-ready context pack.
+Noa reads where a team already works (Discord threads, Slack, GitHub, Google Meet and WhatsApp) and keeps people, projects, tasks, owners, deadlines and decisions in one [FalkorDB](https://www.falkordb.com/) graph per company. Leads approve what Noa proposes, boards update themselves, everyone gets their day on the web, on WhatsApp and inside their coding agent, and every answer cites the message it came from and the graph route that found it.
 
-Built by team **NotYourIdea** for [Graph Hacks: Context for AI Agents](https://www.wemakedevs.org/hackathons/falkordb) (WeMakeDevs × FalkorDB, Oct 15–18, 2026), Company Brain track. Noa is built to run NYI's real projects, not as a demo.
+NotYourIdea (NYI) runs four products with a small team that moves between them. We built Noa during the hackathon, and NYI's real work has run through it since.
 
-> Status (Oct 17): the work loop, shifts and KT run end to end on NYI's data in the web app. Chat intake from Discord and WhatsApp is being wired. See [What works today](#what-works-today).
+| | |
+| --- | --- |
+| **Live app** | [app.heynoa.xyz](https://app.heynoa.xyz) (invite-only workspaces) · site: [heynoa.xyz](https://heynoa.xyz) |
+| **Demo video** | _link to be added_ |
+| **Track** | **03 Company Brain** |
+| **Hackathon** | [Graph Hacks: Context for AI Agents](https://www.wemakedevs.org/hackathons/falkordb), WeMakeDevs × FalkorDB, Oct 15–18, 2026 |
+| **Team** | NotYourIdea: Saish, Soha, Vedant |
 
-## What it does
+![NotYourIdea's company graph in FalkorDB](docs/images/graph-production.png)
 
-- **Chat to tasks.** Messages and meeting transcripts become proposed tasks, status changes, deadlines and decisions, routed to the right project. Confident updates apply with undo; the rest wait in a one-click approval inbox.
-- **Boards that stay current.** Kanban, Gantt timeline, My day, and a portfolio view with project health, workload and risks.
-- **Decided today.** A per-project and per-person panel of decisions, each linked to the message it came from.
-- **Shared edits with oversight.** Anyone involved can edit a shared item; scope and deadline changes notify, or wait for, the person they report to.
-- **`@noa` everywhere.** Ask in Discord, Slack, WhatsApp or the web app and get cited, permission-aware answers.
-- **Shifts and KT.** Drag a person to another project. Noa drafts the handover, suggests new owners, routes questions to the previous owner, and sends a KT brief.
-- **Agent context packs.** People joining a project get `CLAUDE.md` / `AGENTS.md`, `tasks.md` and an `.mcp.json` snippet generated from the graph. Non-dev roles get their own pack: `brief.md`, `client.md`, `runbook.md` or `project-state.md`. Secrets never go in these files; they are delivered through one-time, logged links.
-- **MCP server.** Coding agents (Claude Code, Cursor) connect to Noa for live, per-person, per-project context.
+<sub>NYI's production graph, exported from FalkorDB on Oct 19, 2026 and rendered with [`docs/images/render-graph.js`](docs/images/render-graph.js). Big dots are people and projects; the clusters are the messages, commits and PRs behind them. Message text is not shown.</sub>
 
-## How it works
+## Contents
 
+- [What Noa does](#what-noa-does)
+- [Architecture](#architecture)
+- [The graph data model](#the-graph-data-model)
+- [Cypher and graph algorithms the product depends on](#cypher-and-graph-algorithms-the-product-depends-on)
+- [Why FalkorDB is central](#why-falkordb-is-central)
+- [Submission checklist](#submission-checklist)
+- [Run it locally](#run-it-locally)
+- [Deployment](#deployment)
+- [Stack](#stack)
+- [Privacy and data](#privacy-and-data)
+- [AI tools disclosure](#ai-tools-disclosure)
+
+## What Noa does
+
+**For a lead**
+
+- **Chat becomes work.** Messages, threads and meeting transcripts become proposed tasks, status changes, deadlines and decisions. Noa routes each one to a project by channel and names the person who was asked, not the person who asked. Proposals wait in an Inbox for one-click approval, each quoting its source.
+- **Boards that stay current.** Kanban (filter by this week, last 15 days or all), timeline, project overview and a Portfolio with health, workload and risks.
+- **"Who should own this?"** Every task can rank owners from the graph: who worked on the project, who finished similar work and who has room, with the graph route behind each reason. A triage agent finds work nobody is carrying.
+- **Governance.** Every change to a shared field is a change record. Members' deadline and scope changes wait for the lead, and any change can be reverted.
+- **Staffing and shifts.** Drag a person to another project. Noa moves the allocation, hands over their tasks, routes questions to the previous owner and writes a knowledge-transfer brief.
+
+**For a member**
+
+- **My day.** Open tasks across every project, with deadlines, what's waiting on you and what was decided today.
+- **WhatsApp.** "Vedant put you on … due Friday", with **Start now / Done / Need help** buttons that act on the board. Reply **tasks** for your list. When you finish, your lead hears about it.
+- **Agent packs and MCP.** `CLAUDE.md`, `AGENTS.md` and `tasks.md` for every project you're on, written from the graph, plus an MCP server so Claude Code or Cursor can read and update your work.
+
+**For everyone**
+
+- **`@noa` anywhere.** Ask in the web app, Discord (`/noa ask`), Slack or WhatsApp. Answers carry numbered citations and the graph route behind each one.
+- **Meeting minutes.** A visible Google Meet notetaker (via Attendee) or Discord voice, used only with everyone's consent. Minutes skip the small talk, and commitments and decisions land in the Inbox for approval, never automatically.
+
+## Architecture
+
+```mermaid
+flowchart TB
+  subgraph Sources["Where work happens"]
+    D[Discord<br/>channels + threads]
+    S[Slack]
+    G[GitHub App<br/>commits, PRs, CI]
+    M[Google Meet<br/>Attendee notetaker]
+    W[WhatsApp<br/>Kapso]
+  end
+
+  subgraph API["Noa API · Elixir, Phoenix, Ash, Oban (Fly.io)"]
+    I[Ingest + privacy gate<br/>mapped channels only, identity linking]
+    L[(Append-only event log<br/>Postgres)]
+    X[Typed extraction<br/>OpenAI structured outputs, Oban jobs]
+    P[Projector<br/>parameterised MERGE]
+    A[Agent: @noa, triage,<br/>KT briefs, owner suggestions]
+    N[Notifier<br/>bell, WhatsApp, Discord, Slack, email]
+    MCP[MCP server]
+  end
+
+  F[(FalkorDB<br/>one graph per company)]
+
+  subgraph Out["Where people see it"]
+    WEB[Web app · Next.js on Vercel]
+    CHAT[Discord, Slack, WhatsApp]
+    AG[Claude Code, Cursor]
+  end
+
+  D & S & G & M & W --> I --> L
+  L --> X -->|proposals, approved by a lead| L
+  L --> P --> F
+  F --> A
+  F --> MCP
+  A --> WEB & CHAT
+  L --> N --> CHAT
+  MCP --> AG
+  WEB -->|approve, assign, edit| L
 ```
-Slack · Discord · Google Meet · WhatsApp (Kapso) · GitHub
-                    │
-        Ingest + bots (privacy gate, identity)
-                    │
-        Append-only event log (Postgres)
-                    │
-     Typed extraction (strict JSON schema, async jobs)
-                    │
-     FalkorDB: one graph per company
-     Person · Project · Task · Decision · Episode
-     full-text + range indexes · PageRank · paths
-                    │
-   Work API · Notifier · Agent (@noa, KT) · MCP server
-                    │
-        Web app · chat surfaces · coding agents
-```
 
-- FalkorDB is the knowledge store: every `@noa` answer, expert lookup, KT brief, path and portfolio insight is a graph query. Postgres keeps accounts, permissions and the append-only event log the graph is built from, so the graph can always be rebuilt.
-- Every extracted item is a typed schema validated before it reaches the graph, and every item cites its source message.
-- Graph algorithms do the product work: weighted `KNOWS_ABOUT` edges, PageRank, betweenness and connected components find experts, the people work runs through, the bridges between projects, working groups and bus-factor risks. `@noa` walks the graph from what you ask about, searches full-text indexes over messages, tasks and decisions, and shows the graph route behind every source. How each FalkorDB feature is used, and how Noa meets the hackathon rules: [docs/hackathon.md](docs/hackathon.md).
+1. **Ingest.** Connectors only read channels an admin has mapped to a project. DMs are never ingested, and chat history is limited to the last 30 days, because old chat isn't new work.
+2. **Event log.** Every message and every change to work is an append-only event in Postgres, written in the same transaction as the change. Postgres also holds accounts, roles and permissions.
+3. **Extraction.** An Oban job per channel sends recent messages, with their thread context, to a model that must return strict typed JSON (tasks, status changes, deadlines, decisions, scope changes). Each item is validated and must cite the message it came from.
+4. **Projection.** The projector writes each event into the company's FalkorDB graph with parameterised `MERGE`s, within seconds of the commit. The graph can be dropped and replayed from the log at any time (`mix noa.graph`).
+5. **Reads go through the graph.** `@noa`, owner suggestions, triage, KT briefs, agent packs, the MCP tools, Portfolio insights and the Graph tab all query FalkorDB.
 
-## The graph
+## The graph data model
 
-Each company gets its own FalkorDB graph (`noa_<org id without dashes>`). The projector (`api/lib/noa/graph/projector.ex`) writes it from the event log with parameterised `MERGE`s, so it can be dropped and replayed at any time (`mix noa.graph`).
+Each company gets its own FalkorDB graph, `noa_<org id without dashes>`, so one company's knowledge is isolated from another's and can be rebuilt on its own. Schema details: [docs/schema.md](docs/schema.md).
 
 ```mermaid
 graph LR
@@ -76,7 +133,7 @@ graph LR
 | --- | --- | --- |
 | `Person` | Someone in the org map | `name`, `title`, `handles` |
 | `Project` | A product or client project | `name`, `key`, `repo`, `aliases` |
-| `Channel` | A Discord/Slack channel Noa may read | `name`, `platform`, `read` |
+| `Channel` | A Discord or Slack channel Noa may read | `name`, `platform`, `read` |
 | `Episode` | One message or meeting utterance: the evidence | `text` (full-text indexed), `at`, `author`, `platform` |
 | `Task` | Work, with its owner and deadline | `title` (full-text), `status`, `due` |
 | `Decision` | What was decided, until superseded | `statement` (full-text), `kind`, `status` |
@@ -84,15 +141,27 @@ graph LR
 | `Commit`, `PullRequest`, `CIRun` | GitHub activity per project | `message` / `title` (full-text), `state`, `url` |
 | `Identity` | A chat account linked to a person | `platform`, `external_id`, `name` |
 
-Every `Task` and `Decision` has an `EXTRACTED_FROM` edge to the message it came from, which is how every answer cites its source. `KNOWS_ABOUT` is derived: rebuilt from the graph itself (below), never written by hand.
+- **Every `Task` and `Decision` has an `EXTRACTED_FROM` edge** to the message it came from. That edge is how every answer cites its source.
+- **`KNOWS_ABOUT` is derived.** It is recomputed from the graph itself (below), never written by hand.
+- **Indexes.** Every label has a range index and a unique constraint on `id`, so replays can't create duplicates. Episodes, task titles and decision statements also have full-text indexes.
 
-NYI's production graph on Oct 18, 2026: 363 episodes, 150 commits, 90 pull requests, 51 tasks, 32 change records, 10 decisions, 6 people, 4 projects; 1,046 relationships (`IN` 363, `BELONGS_TO` 291, `AUTHORED` 84, `EXTRACTED_FROM` 61, `COMMITTED` 60, `OPENED` 58, `ASSIGNED_TO` 44, `CHANGED` 32, `WORKS_ON` 18, `KNOWS_ABOUT` 10, `AFFECTS` 10).
+### The live graph
 
-### The graph doing the work
+NYI's production graph on Oct 19, 2026 has **797 nodes** (386 episodes, 150 commits, 90 pull requests, 56 tasks, 48 identities, 42 change records, 10 decisions, 6 people, 5 channels, 4 projects) and **1,110 relationships** (`IN` 386, `BELONGS_TO` 296, `AUTHORED` 97, `EXTRACTED_FROM` 66, `COMMITTED` 60, `OPENED` 58, `ASSIGNED_TO` 51, `CHANGED` 42, `WORKS_ON` 18, `KNOWS_ABOUT` 10, `AFFECTS` 10, `HAS_IDENTITY` 7, `LEADS` 4, `MAPS_TO` 3, `DECIDED` 2).
 
-These are the queries the product depends on, from the code.
+The same graph, with only people, projects, tasks and decisions. The dashed lines are the derived `KNOWS_ABOUT` edges that "Who should own this?", KT briefs and the MCP tool `who_knows` read:
 
-**Who knows what** (`api/lib/noa/graph/experts.ex`). `KNOWS_ABOUT` weights are summed from what the graph shows each person did on a project: finished tasks ×3, active decisions ×3, merged PRs ×2, open tasks, messages in its channels and commits ×1 each. One of the six passes:
+![Who owns and knows what](docs/images/graph-owners.png)
+
+In the app, each project's **Graph** tab shows its FalkorDB neighbourhood. Click two nodes to highlight the shortest path between them.
+
+## Cypher and graph algorithms the product depends on
+
+These come from the code; each says where it runs.
+
+### Who knows what: weighted `KNOWS_ABOUT`
+
+`api/lib/noa/graph/experts.ex`. Weights are summed from what the graph shows each person did on a project: finished tasks and active decisions ×3, merged PRs ×2, and open tasks, messages in the project's channels and commits ×1 each. This is one of the six passes:
 
 ```cypher
 MATCH (x:Person)<-[:ASSIGNED_TO]-(t:Task {status: 'done'})-[:BELONGS_TO]->(p:Project)
@@ -101,9 +170,11 @@ MERGE (x)-[k:KNOWS_ABOUT]->(p)
 SET k.weight = coalesce(k.weight, 0) + n * $w
 ```
 
-Used by "Who should own this?", the triage agent, KT briefs ("people to meet"), agent packs and the MCP tools `who_knows` and `suggest_owner`.
+Used by "Who should own this?", the triage agent, KT briefs ("people to meet"), agent packs and the MCP tools `who_knows` and `suggest_owner`. A project where one person holds most of the `KNOWS_ABOUT` weight is flagged in Portfolio as a bus-factor risk.
 
-**Who the work runs through, and who connects teams** (Portfolio, `@noa`):
+### Who the work runs through, and who connects teams
+
+Portfolio and `@noa`, `api/lib/noa/graph/experts.ex`:
 
 ```cypher
 CALL algo.pageRank(NULL, NULL) YIELD node, score
@@ -118,9 +189,11 @@ YIELD node, score WITH node, score WHERE node:Person AND score > 0
 RETURN node.name AS name, score ORDER BY score DESC LIMIT 3
 ```
 
-Working groups come from `algo.WCC` over `WORKS_ON`/`LEADS`; bus-factor risk is a project where one person holds most of the `KNOWS_ABOUT` weight.
+Working groups come from `algo.WCC` (connected components) over `WORKS_ON` and `LEADS`.
 
-**Retrieval for `@noa`** (`api/lib/noa/agent/graph.ex`). A question is answered from the graph: full-text search finds the messages, tasks and decisions it mentions, then walks out to their project and source:
+### Retrieval for `@noa`
+
+`api/lib/noa/agent/graph.ex`. Full-text search over the graph finds the messages, tasks and decisions a question mentions, then walks out to their channel, project and source:
 
 ```cypher
 CALL db.idx.fulltext.queryNodes('Episode', $q) YIELD node AS e
@@ -129,114 +202,147 @@ OPTIONAL MATCH (c)-[:MAPS_TO]->(p:Project)
 RETURN e, p
 ```
 
-"How is Saish connected to Emmarie?" runs a bounded path search, `MATCH p = (a {id: $a})-[*1..5]-(b {id: $b})`, shortest first; the Graph tab highlights the same path. Each answer lists the graph route behind every source, so you can see the graph did the work. Postgres is only a fallback when the graph is down or not built yet.
+The agent also walks from the projects and people a question names (tasks → `EXTRACTED_FROM` → episodes → authors; decisions → `AFFECTS`), and calls PageRank, betweenness and paths as tools. Each answer lists the graph route behind every source.
 
-More on each FalkorDB feature and the hackathon rules: [docs/hackathon.md](docs/hackathon.md). Full schema and constraints: [docs/schema.md](docs/schema.md).
+### How two things are connected
+
+`api/lib/noa/graph/view.ex`, used by the Graph tab, `@noa` and the MCP tool `how_connected`. FalkorDB has no undirected `shortestPath`, so this is a bounded variable-length match ordered by length:
+
+```cypher
+MATCH p = (a {id: $from})-[*1..5]-(b {id: $to})
+RETURN length(p) AS hops, [n IN nodes(p) | n.id] AS ids
+ORDER BY hops
+LIMIT 1
+```
+
+### Context for coding agents
+
+`api/lib/noa/packs.ex` and `api/lib/noa/mcp/tools.ex`. Agent packs read the project's subgraph: people and experts, decisions with sources, open work and recent GitHub changes. The MCP server exposes graph queries as tools: `project_context`, `my_tasks`, `ask`, `who_knows`, `how_connected`, `suggest_owner`, `assign_task`, `update_task_status`, `triage`, `risks`, `kt_brief` and `list_projects`. Setup: [docs/mcp.md](docs/mcp.md).
+
+How each FalkorDB feature maps to the code: [docs/hackathon.md](docs/hackathon.md).
+
+## Why FalkorDB is central
+
+The rules ask that the product not still work with FalkorDB removed. Without the graph, Noa loses:
+
+- **Who should own this?** and the triage agent: both rank people by walking `WORKS_ON`, `KNOWS_ABOUT`, finished tasks and decisions.
+- **Expertise and risk:** `KNOWS_ABOUT`, PageRank, betweenness, working groups and bus factor. These exist only as graph computations.
+- **Paths and the Graph tab:** how a person, task and decision connect.
+- **KT briefs and agent packs:** their "people to meet", decisions and context come from the project subgraph.
+- **The MCP tools** that coding agents use: `who_knows`, `how_connected`, `suggest_owner`, `project_context`, `triage` and `risks`.
+- **Graph-routed answers:** `@noa` retrieves from the graph and shows its route. If FalkorDB is down, it falls back to a plain keyword list from Postgres, with no routes, experts or paths.
+
+Postgres stays the system of record for accounts, permissions and the event log, so the graph can always be rebuilt. Every read that makes Noa a brain rather than a tracker goes through FalkorDB.
+
+## Submission checklist
+
+| The rules ask for | Where |
+| --- | --- |
+| A public source-code repository | This repo, [github.com/SohaKhare/Noa](https://github.com/SohaKhare/Noa) |
+| A README with setup instructions and the graph data model | [Run it locally](#run-it-locally) and [The graph data model](#the-graph-data-model) |
+| The Cypher queries or graph algorithms the product depends on | [Cypher and graph algorithms](#cypher-and-graph-algorithms-the-product-depends-on) and [docs/hackathon.md](docs/hackathon.md) |
+| A demo video of the working project | _link to be added_ |
+| A live deployment | [app.heynoa.xyz](https://app.heynoa.xyz), API at `api.heynoa.xyz`, both on NYI's real workspace |
+| The track | 03 Company Brain |
+| FalkorDB as the primary graph database, doing real work | [Why FalkorDB is central](#why-falkordb-is-central) |
+| New work during the event | The repo and all FalkorDB code were written Oct 15–18, 2026. Tulpa v1, NYI's earlier product, contributed patterns only and never used FalkorDB. |
+| Data you're allowed to use | NYI's own team chat, repos and meetings, from channels the team opted in. See [Privacy and data](#privacy-and-data). |
+| AI assistance disclosed | [AI tools disclosure](#ai-tools-disclosure) |
+
+## Run it locally
+
+You need Docker, Elixir 1.18+ (OTP 27+), Node 22+ and pnpm.
+
+```bash
+git clone https://github.com/SohaKhare/Noa.git && cd Noa
+
+docker compose up -d postgres                 # Postgres 17
+docker compose --profile graph up -d          # FalkorDB 4.10 on :6379
+
+cd api
+mix setup                                     # deps, database, migrations
+mix noa.superadmin you@company.com --name "You"
+mix phx.server                                # API on http://localhost:4000, dev mailbox at /dev/mailbox
+```
+
+In another terminal, start the web app:
+
+```bash
+pnpm install
+pnpm dev:web                                  # app on http://localhost:3000
+pnpm dev:landing                              # marketing site on http://localhost:3001 (optional)
+```
+
+Sign in at http://localhost:3000 as the superadmin, create a workspace in the console and accept its invite. Then load an org map with sample work and build the graph:
+
+```bash
+cd api
+mix noa.seed --sample                         # NYI's org map plus sample tasks and proposals (dev only)
+mix noa.graph                                 # rebuild the workspace graph from the event log
+```
+
+Open a project's **Graph** tab, Portfolio, or **Ask Noa** to see the graph at work.
+
+**Optional keys** (in `api/.env`; see `deploy/prod.env.example`):
+
+| Key | Enables |
+| --- | --- |
+| `OPENAI_API_KEY` | Extraction and model-written `@noa` answers. Without it, extraction waits and `@noa` answers with a cited list. |
+| `DISCORD_BOT_TOKEN` | Discord ingest, `/noa` commands and DMs ([docs/discord.md](docs/discord.md)) |
+| `KAPSO_API_KEY` | WhatsApp ([docs/whatsapp.md](docs/whatsapp.md)). Without it, messages stay in a local outbox. |
+| `ATTENDEE_API_KEY` | Google Meet notetaker ([docs/meet-integration.md](docs/meet-integration.md)) |
+| GitHub App and Slack app credentials | [docs/github.md](docs/github.md), [docs/slack.md](docs/slack.md) |
+
+Tests: `cd api && mix test` (252 tests, including permission-leak tests on every route).
+
+## Deployment
+
+Production runs on Fly.io in Singapore: `heynoa-api` (Phoenix release), `heynoa-graph` (FalkorDB `falkordb/falkordb:v4.10.3` on Fly's private network) and `heynoa-db` (Postgres). The web app runs on Vercel at `app.heynoa.xyz`, and the landing page at `heynoa.xyz`. The same images also run on one server with Docker Compose and Caddy. Full guide: [docs/deploy.md](docs/deploy.md).
 
 ## Stack
 
 | Layer | Choice |
 | --- | --- |
+| Graph | FalkorDB 4.10, via the official [`falkordb`](https://hex.pm/packages/falkordb) Hex client |
 | Backend | Elixir, Phoenix, Ash 3 (AshPostgres, AshAuthentication, policies), Oban |
-| Graph | FalkorDB Cloud via the official [`falkordb`](https://hex.pm/packages/falkordb) Hex client |
-| AI | OpenAI Structured Outputs through InstructorLite; `ash_ai` for agent tools and MCP |
-| Frontend | Next.js 16 for the app (`web/`) and the marketing site (`landing/`), Tailwind v4, Motion, dnd-kit, `ash_typescript` RPC client, Phoenix Channels |
-| Connectors | Discord (Nostrum, including consented voice minutes), visible Google Meet bot via Attendee (manual transcript fetch; see [setup](docs/meet-integration.md)), Slack Events API, WhatsApp via [Kapso](https://kapso.com/) |
-| Ops | Fly.io, Postgres, Logfire / OpenTelemetry, Sentry, GitHub Actions |
-
-## Roles
-
-| Role | Lands on | Can do |
-| --- | --- | --- |
-| Superadmin | Platform console | Orgs, connectors, jobs, LLM spend |
-| Org admin | Onboarding | Sources, channel-to-project mapping, people, roles |
-| PM / lead | Portfolio | Boards, approvals, timeline, shifts, staffing, credentials |
-| Member | My day | Own tasks, approvals, `@noa` |
-| Guest | One project | Read-only timeline and decisions |
-
-## What works today
-
-Everything below runs locally against real Postgres and FalkorDB, with tests (`cd api && mix test`, 140 tests including permission-leak tests on every route).
-
-| Area | Working | Notes |
-| --- | --- | --- |
-| Accounts and workspaces | Yes | Invite-only sign-in (password or magic link), roles, superadmin console, people and invites. [docs/auth.md](docs/auth.md) |
-| Org map and onboarding | Yes | Set up a workspace in the app (`/onboarding`): projects, people (including everyone who joined), who works where, channels listed from connected Discord and Slack workspaces, or import an org map JSON. Mapping also in Settings |
-| Event log | Yes | Every write to work is an append-only event in the same transaction; chat messages are recorded once |
-| Graph | Yes | One FalkorDB graph per workspace, kept in step by a projector and rebuildable from the log (`mix noa.graph`) |
-| Chat to proposals | Yes, with a model key | Typed extraction (tasks, status, deadlines, decisions, scope) with routing, run by an Oban job per channel. Needs `OPENAI_API_KEY` |
-| Inbox | Yes | Approve, edit and dismiss; duplicates flagged; confident items apply themselves with Undo |
-| Boards | Yes | Kanban with drag and drop, read-only timeline, project overview, Projects list, Portfolio |
-| My day | Yes | Your open tasks by project or date, what waits on you, blocked work, decided today |
-| Decisions | Yes | Approved decisions with sources; a newer decision supersedes an older one |
-| Change records and lead approval | Yes | Every edit to a shared field is recorded; members' deadline and scope changes wait for a lead; other edits can be reverted |
-| `@noa` | Yes | Answers from the FalkorDB graph (walks, full-text, PageRank, betweenness, paths) with numbered citations and the route that found each; model-written with a key, a plain cited list without |
-| Shifts | Yes | Drag someone on the staffing board; Noa moves the allocation, hands over tasks and routes questions to them for two weeks |
-| KT brief and experts | Yes | Per-project brief with people to meet from the graph (download as `brief.md`); PageRank and bus factor in Portfolio |
-| Graph view | Yes | Each project's FalkorDB neighbourhood; click two nodes to see the shortest path between them |
-| Discord | Yes, after server connection and verified account linking | Mapped-channel ingest/backfill, `/noa` private cited replies, task/approval buttons, recaps, KT briefs and notification DMs. Explicit DM questions are answered but never ingested. [docs/discord.md](docs/discord.md) |
-| Slack | Yes, once the app is configured | Per-workspace OAuth, signed Events API ingest of mapped member channels, edits/deletes, user sync, 15-message backfill, and DM notifications. [docs/slack.md](docs/slack.md) |
-| Gmail inbox | Opt-in | Read-only IMAP poll of new mail in a configured workspace's INBOX; plain-text content enters the event log and extraction. See [docs/gmail.md](docs/gmail.md) |
-| WhatsApp | Yes, sends once Kapso is configured | Signed webhooks, reply buttons, "done" moves a card, shift links to the brief and pack. Without credentials, messages stay in a local outbox. [docs/whatsapp.md](docs/whatsapp.md) |
-| Agent pack | Yes | `CLAUDE.md`, `AGENTS.md`, `tasks.md` and `brief.md` generated from the project graph, with a day-one checklist |
-| MCP server | Yes | Coding agents connect with a personal token and get live context from the graph: project context, my tasks, cited answers, who knows what, paths, task status. [docs/mcp.md](docs/mcp.md) |
-| Notifications and digest | Yes | The bell in the app; the same items on WhatsApp (with buttons), as a Discord or Slack DM, or by email, per person; quiet hours; a daily digest at each person's chosen time |
-| Live updates | Yes | Inbox, boards and My day refresh every 10 seconds while open |
-| Triage agent | Yes | Finds work nobody is carrying and suggests owners from the graph, with the route behind each reason; "Who should own this?" on every task; MCP tools for agents. [docs/hackathon.md](docs/hackathon.md) |
-| Shared memory | Yes | People, ingest and agents write concurrently with one event order and a graph that matches Postgres. [docs/memory.md](docs/memory.md) |
-| Deploy | Ready | Docker images for API, web and landing; Fly.io configs or one server with Docker Compose and Caddy. [docs/deploy.md](docs/deploy.md) |
-
-## Getting started
-
-You need Docker, Elixir 1.18+ (OTP 27+), Node 22+ and pnpm.
-
-```bash
-docker compose up -d postgres                 # Postgres 17
-docker compose --profile graph up -d          # FalkorDB (the API runs without it)
-
-cd api
-mix setup                                     # deps, database, migrations
-mix noa.superadmin you@company.com --name "You"
-mix phx.server                                # http://localhost:4000, dev mailbox at /dev/mailbox
-```
-
-Sign in at http://localhost:3000 as the superadmin, create a workspace in the console and accept its invite. Then load an org map and sample work, and build the graph:
-
-```bash
-mix noa.seed --sample                         # NYI's org map plus sample tasks and proposals (dev only)
-mix noa.graph                                 # rebuild the workspace graph from the event log
-```
-
-```bash
-pnpm install
-pnpm dev:web                                  # app on http://localhost:3000
-pnpm dev:landing                              # marketing site on http://localhost:3001
-```
-
-Set `OPENAI_API_KEY` for extraction and model-written `@noa` answers. Without it Noa still runs; extraction waits and `@noa` answers with a cited list.
-
-To deploy (Fly.io, or one server with Docker Compose and Caddy), see [docs/deploy.md](docs/deploy.md).
+| AI | OpenAI structured outputs through InstructorLite; MCP server for coding agents |
+| Frontend | Next.js for the app (`web/`) and the site (`landing/`), Tailwind v4, Motion, dnd-kit |
+| Connectors | Discord (Nostrum, including consented voice minutes), Slack Events API, GitHub App, Google Meet via [Attendee](https://attendee.dev), WhatsApp via [Kapso](https://kapso.com/), Gmail (opt-in) |
+| Ops | Fly.io, Vercel, Postgres, GitHub Actions |
 
 | Path | What |
 | --- | --- |
-| `api/` | Phoenix + Ash backend: accounts, workspaces, work, event log, graph, extraction, `@noa`, shifts. [api/README.md](api/README.md) |
-| `web/` | Next.js app: My day, Inbox, project board / timeline / decisions / people / KT, Projects, Portfolio, People (staffing board), Ask Noa, Settings |
-| `landing/` | Next.js marketing site with animated feature scenes |
-| `packages/theme/` | Shared design tokens (Tailwind v4) |
-| `docs/` | [schema](docs/schema.md), [extraction](docs/extraction.md), [auth](docs/auth.md), [security](docs/security.md), [load test](docs/load.md), [org map](docs/org-map.md), [design](docs/design.md), [demo script](docs/demo.md), [hackathon compliance](docs/hackathon.md), [MCP](docs/mcp.md), [WhatsApp](docs/whatsapp.md), [memory](docs/memory.md), [deploy](docs/deploy.md) |
+| `api/` | Phoenix + Ash backend: accounts, workspaces, work, event log, graph, extraction, agent, connectors, MCP. [api/README.md](api/README.md) |
+| `web/` | Next.js app: My day, Inbox, project board / timeline / decisions / graph / KT, Portfolio, People, Ask Noa, Settings |
+| `landing/` | Marketing site |
+| `docs/` | [schema](docs/schema.md), [extraction](docs/extraction.md), [memory](docs/memory.md), [auth](docs/auth.md), [security](docs/security.md), [MCP](docs/mcp.md), [WhatsApp](docs/whatsapp.md), [Discord](docs/discord.md), [meetings](docs/meetings.md), [deploy](docs/deploy.md), [demo plan](docs/demo.md), [hackathon compliance](docs/hackathon.md) |
 
-## Build plan
+### Roles
 
-| Phase | When | Goal |
+| Role | Lands on | Can do |
 | --- | --- | --- |
-| 0. Setup | Oct 15 evening | Skeleton deploys; graph and extraction schemas frozen; design direction set |
-| 1. Chat to Kanban | Oct 16 to 17 | A Discord message becomes a proposed task in the right project and lands on the Kanban once approved |
-| 2. Work loop | Oct 17 | A developer and a non-tech teammate both run their day from Noa |
-| 3. Shifts, KT, agent packs | Oct 17 to 18 | A teammate moves projects using only Noa and gets a KT brief and agent pack |
-| 4. Harden and ship | Oct 18 | Freeze at noon, video, submit by 6 PM IST |
+| Superadmin | Platform console | Workspaces, connectors, jobs |
+| Org admin | Onboarding | Sources, channel-to-project mapping, people, roles |
+| PM / lead | Portfolio | Boards, approvals, timeline, shifts, staffing |
+| Member | My day | Own tasks, approvals, `@noa` |
+| Guest | One project | Read-only timeline and decisions |
 
-Full plan, owners, critical path and cut list: [PLAN.md](PLAN.md). Live task status: [TASKS.md](TASKS.md).
+## Privacy and data
 
-## License
+- **Our own data.** The graph holds NYI's own workspace: our team chat, our repositories and our meetings. Nothing private, paywalled or third-party is loaded.
+- **Opt-in sources.** Noa reads only channels an admin has mapped. DMs are never ingested; a DM to Noa is answered and then discarded.
+- **Consented meetings.** The organizer must confirm that everyone consented before the visible notetaker joins.
+- **One graph per company.** Every query is scoped to the caller's workspace and permissions, and each route has a permission-leak test.
+- **No secrets in packs.** Agent packs never contain secrets, and credentials live only in deployment secrets.
 
-To be decided.
+More: [docs/security.md](docs/security.md).
+
+## AI tools disclosure
+
+As the rules require, we disclose that we used AI coding assistants (Anthropic's Claude Code and OpenAI's Codex) to write and review code, tests and docs. The team designed the product, the graph model and the queries, verified the work (252 tests, plus running it on our own workspace) and can explain each part. Our reasoning is written down in `docs/` and `PLAN.md`.
+
+Inside the product, Noa uses OpenAI models for extraction and for writing `@noa` answers. The graph decides what the model reads, and every extracted item is validated against a typed schema before it reaches the graph.
+
+## Team
+
+**NotYourIdea**: Saish, Soha, Vedant.

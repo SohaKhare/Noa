@@ -11,8 +11,8 @@ Checked against the rules on [wemakedevs.org/hackathons/falkordb](https://www.we
 | "The submission and its main FalkorDB implementation must be new work completed during the event." | The repo and all FalkorDB code were written Oct 15 to 18. Tulpa v1 (NYI's earlier product) contributed only patterns: the extraction prompt and windowing, the event-log shape, and the answer generator's rules, each rewritten (see PLAN.md, "Reusing Tulpa v1"). Tulpa v1 never used FalkorDB. |
 | "Enter on your own or with up to three others." | Three people: Saish, Soha, Vedant. |
 | Coding assistants allowed; you must be able to explain what was built and why. | Design decisions are written down in `docs/` (schema, extraction, security, load test) and PLAN.md. |
-| Live deployment preferred; otherwise complete local setup and a working demo video. | Fly deploy in progress (0.12, 1.2). Local setup in README.md; demo script in docs/demo.md. |
-| Deadline 11:59 PM IST, Oct 18. | Target 6 PM IST. |
+| Live deployment preferred; otherwise complete local setup and a working demo video. | Live at app.heynoa.xyz (API, FalkorDB and Postgres on Fly.io; web on Vercel). Local setup in README.md; demo plan in docs/demo.md. |
+| AI coding assistants must be disclosed. | Disclosed in README.md, "AI tools disclosure". |
 
 ## FalkorDB features in use
 

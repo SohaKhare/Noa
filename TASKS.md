@@ -83,7 +83,7 @@ Exit test: A real Discord message becomes a proposed task in the right project a
 | 1.11 | Identity: `Person` + `Identity` nodes | Port | Saish | In review | #2 |
 | 1.12 | Import Tulpa v1 history, decisions, projects, aliases, people | Import | Soha | Not started |  |
 | 1.13 | Discord ingest: privacy gate, consumer, membership, backfill | Port | Soha | In review |  |
-| 1.14 | Slack integration modelled on Discord: signed Events API ingest, per-company workspace connect, edits/deletes and DMs | New | Soha | In progress |  |
+| 1.14 | Slack integration modelled on Discord: signed Events API ingest, per-company workspace connect, edits/deletes and DMs | New | Soha | In review | #9 |
 | 1.15 | Kapso WhatsApp send and receive | New | Saish | In review | #3 |
 | 1.16 | Project routing: channel map, aliases, thread, author's projects | New | Saish | In review | #1 |
 | 1.17 | Task extraction v1 to proposals (from v1 distiller prompt) | Port | Saish | In review | #1 |

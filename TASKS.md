@@ -6,7 +6,7 @@ The plan doc is the main chart. This file holds the same rows so agents can read
 
 ## Current rollout (Oct 18, Slack + Attendee)
 
-Saish authorized reviewing/committing all pending changes and redeploying. Slack PR #9 and Attendee Meet PR #11 are merged into main. The three Slack app credentials and Attendee API key are staged on Fly without changing existing OpenAI/database secrets. Pending WhatsApp task-list/completion notifications and README/demo updates are included in this release. Validation: 249 API tests pass (1 load excluded), four voice-worker tests pass, compile/format and web/landing type/lint checks pass. API deployment and post-deploy verification are in progress; no real Slack workspace install or consented meeting test is claimed. Vercel reports both projects deployed on base commit `cacda07`; local CLI authentication is unavailable for a forced frontend redeploy.
+Saish authorized reviewing/committing all pending changes and deploying the API; Soha handles frontend redeployment. Slack #9, Attendee Meet #11, and pending WhatsApp task-list/completion notifications are deployed in Fly image `release-cd22820` (PR #12). Migrations succeeded; exactly one API machine runs, with health/db/graph passing. All three Slack app credentials and the Attendee API key are Deployed; existing OpenAI/database settings were preserved. The signed Slack challenge passes HTTP 200 and Attendee's authenticated read returns HTTP 200. Discord voice remains disabled; no real Slack workspace install, Meet recording or transcription-quality acceptance is claimed. Validation: 249 API tests pass (1 load excluded), four voice tests, compile/format and web/landing types/lint pass; all GitHub code/image checks passed. Vercel CLI access is unavailable and PR deployment checks are blocked; Soha must redeploy the frontends. Both projects previously reported completed on `cacda07`.
 
 ## Earlier release readiness (Oct 18, after Gmail integration)
 
@@ -75,7 +75,7 @@ Exit test: A real Discord message becomes a proposed task in the right project a
 | # | Item | Source | Owner | Status | PR |
 | --- | --- | --- | --- | --- | --- |
 | 1.1 | New repo | Copy | Soha | Done |  |
-| 1.2 | Fly release rollout: Slack + Attendee credentials, merged integrations and pending WhatsApp/docs changes; preserve singleton API and verify migrations/health | Copy | Saish | In progress | #4 |
+| 1.2 | API deployed as release-cd22820: Slack + Attendee settings active, migrations/health verified, one machine. Frontend redeployment handed to Soha | Copy | Saish | Done | #4, #12 |
 | 1.3 | Observability: Logfire/OpenTelemetry, LLM audit and usage | Copy | Saish | In review | #3 |
 | 1.4 | Auth: password, magic link, Google, reset (AshAuthentication) | Copy | Saish | In review | #1 |
 | 1.5 | Orgs, invites, access requests | Copy | Saish | In review | #1 |
@@ -133,7 +133,7 @@ Exit test: NYI uses no other tracker; a developer and a non-tech teammate both r
 | 2.19 | Change records for shared-item edits: scope, deadline, owner, status, decision | New | Saish | In review | #3 |
 | 2.20 | Lead approval rules: deadline and scope changes wait, minor edits apply with revert | New | Saish | In review | #3 |
 | 2.21 | Change notifications to lead and owner on each person's channel: WhatsApp, Discord DM, email | New | Saish | In review | #4 |
-| 2.22 | Discord voice/shared minutes implementation complete; 215 API + 4 worker tests pass. Voice defaults off; deployment and real call/transcription/consent acceptance remain pending. Contract: docs/meetings.md; no graph-schema change | New | Saish | Done | #8 |
+| 2.22 | Discord voice/shared minutes implementation complete; 215 API + 4 worker tests pass. API/worker deployed in release-cd22820; voice remains off and real call/transcription/consent acceptance is pending. Contract: docs/meetings.md; no graph-schema change | New | Saish | Done | #8 |
 
 ## Phase 3: Shifts, KT and agent packs (Oct 17, 20:00 to Oct 18, 08:00)
 

@@ -345,4 +345,4 @@ Inside the product, Noa uses OpenAI models for extraction and for writing `@noa`
 
 ## Team
 
-**NotYourIdea**: Saish, Soha, Vedant.
+**BayalisLabs**: Saish, Soha, Vedant.

@@ -42,11 +42,5 @@ defmodule Noa.Ingest.Discord.Consumer do
     end
   end
 
-  defp configured_org(guild_id) do
-    case Application.get_env(:noa, :discord_org_id) || System.get_env("DISCORD_ORG_ID") do
-      nil -> {:ignore, :unknown_workspace}
-      "" -> {:ignore, :unknown_workspace}
-      org_id -> if Discord.guild_allowed?(guild_id), do: {:ok, org_id}, else: {:ignore, :wrong_guild}
-    end
-  end
+  defp configured_org(guild_id), do: Discord.org_for_guild(guild_id)
 end

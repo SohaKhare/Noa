@@ -97,9 +97,35 @@ export const createInvite = (orgId: string, data: { email: string; role: Role; t
 export const revokeInvite = (orgId: string, id: string) => api(`/api/orgs/${orgId}/invites/${id}`, { method: "DELETE" });
 
 // Platform (superadmin)
+export type Connectors = {
+  discord: { connected: boolean; bot: boolean; guild_id: string | null; invite_url: string | null; channels: number };
+  whatsapp: { connected: boolean; webhook: string };
+  github: {
+    connected: boolean;
+    app: boolean;
+    installed: boolean;
+    install_url: string | null;
+    secret_set: boolean;
+    token_set: boolean;
+    webhook: string;
+    repos: { project: string; repo: string }[];
+  };
+  email: { connected: boolean };
+  openai: { connected: boolean };
+};
+export const getConnectors = (orgId: string) => api<Connectors>(`/api/orgs/${orgId}/connectors`);
+export const connectDiscord = (orgId: string, guildId: string) =>
+  api<{ ok: true }>(`/api/orgs/${orgId}/connectors/discord`, { method: "PUT", body: JSON.stringify({ guild_id: guildId }) });
+export const getGithubRepos = (orgId: string) => api<{ repos: string[]; error?: string }>(`/api/orgs/${orgId}/connectors/github/repos`);
+export const disconnectConnector = (orgId: string, kind: "discord" | "github" | "github_app") => api<{ ok: true }>(`/api/orgs/${orgId}/connectors/${kind}`, { method: "DELETE" });
+export const rotateGithubSecret = (orgId: string) => post<{ secret: string; webhook: string }>(`/api/orgs/${orgId}/connectors/github/secret`);
+export const setGithubToken = (orgId: string, token: string) =>
+  api<{ ok: true }>(`/api/orgs/${orgId}/connectors/github/token`, { method: "PUT", body: JSON.stringify({ token }) });
+export const backfillGithub = (orgId: string) =>
+  post<{ results: { project: string; recorded?: number; error?: string }[] }>(`/api/orgs/${orgId}/connectors/github/backfill`);
 export const getPlatformOrgs = () => api<{ orgs: PlatformOrg[] }>("/api/platform/orgs").then((r) => r.orgs);
 export type PlatformStatus = {
-  services: Record<"database" | "graph" | "openai" | "whatsapp" | "whatsapp_webhook" | "discord" | "email", boolean>;
+  services: Record<"database" | "graph" | "openai" | "whatsapp" | "whatsapp_webhook" | "discord" | "github" | "email", boolean>;
   readers: { name: string; label: string; running: boolean; position: number; latest: number; behind: number }[];
   jobs: Record<string, Record<string, number>>;
 };
@@ -218,6 +244,8 @@ export const decideChange = (orgId: string, id: string, action: "approve" | "rej
 /* Workspace setup (1.18): org admins and PMs; channels and imports are admins only. */
 export const createProject = (orgId: string, data: { name: string; about?: string; repo?: string; lead_id?: string }) =>
   post<{ project: WorkProject }>(`/api/orgs/${orgId}/projects`, data).then((r) => r.project);
+export const updateProject = (orgId: string, id: string, data: { name?: string; about?: string | null; repo?: string | null; lead_id?: string | null }) =>
+  api<{ project: WorkProject }>(`/api/orgs/${orgId}/projects/${id}`, { method: "PATCH", body: JSON.stringify(data) }).then((r) => r.project);
 export const createPerson = (orgId: string, data: { name: string; title?: string; email?: string; handles?: string[] }) =>
   post<{ person: WorkPerson }>(`/api/orgs/${orgId}/people`, data).then((r) => r.person);
 export const addMembersAsPeople = (orgId: string) => post<{ added: number }>(`/api/orgs/${orgId}/people/from_members`).then((r) => r.added);
@@ -306,7 +334,7 @@ export type Pack = {
 };
 export const getPack = (orgId: string, projectId: string, personId?: string | null) =>
   api<Pack>(`/api/orgs/${orgId}/projects/${projectId}/pack${personId ? `?person_id=${personId}` : ""}`);
-export type FeedItem = { id: string; kind: "approval" | "change" | "decision" | "shift"; text: string; at: string; href: string | null };
+export type FeedItem = { id: string; kind: "approval" | "change" | "decision" | "shift" | "pack"; text: string; at: string; href: string | null };
 export const getFeed = (orgId: string) => api<{ items: FeedItem[] }>(`/api/orgs/${orgId}/feed`).then((r) => r.items);
 export type McpToken = { id: string; name: string; inserted_at: string; last_used_at: string | null };
 export const getMcpTokens = (orgId: string) => api<{ tokens: McpToken[]; url: string }>(`/api/orgs/${orgId}/mcp_tokens`);
@@ -369,4 +397,11 @@ export const approveProposal = (orgId: string, id: string, edits: ApproveEdits =
   post<{ proposal: WorkProposal; task: WorkTask | null }>(`/api/orgs/${orgId}/proposals/${id}/approve`, edits);
 export const rejectProposal = (orgId: string, id: string) => post<{ proposal: WorkProposal }>(`/api/orgs/${orgId}/proposals/${id}/reject`);
 
+/* Joining from the workspace's shared link (1.5): ask with a work email; an org admin approves. */
+export type JoinRequest = { id: string; email: string; name: string; note: string | null; inserted_at: string };
+export const getJoinInfo = (slug: string) => api<{ org: { name: string; slug: string; domains: string[] } }>(`/api/join/${slug}`).then((r) => r.org);
+export const requestToJoin = (slug: string, data: { name: string; email: string; note?: string }) => post<{ ok: true }>(`/api/join/${slug}`, data);
+export const getJoinRequests = (orgId: string) => api<{ requests: JoinRequest[] }>(`/api/orgs/${orgId}/join_requests`).then((r) => r.requests);
+export const approveJoinRequest = (orgId: string, id: string, role: Role) => post<{ url: string }>(`/api/orgs/${orgId}/join_requests/${id}/approve`, { role });
+export const rejectJoinRequest = (orgId: string, id: string) => post<{ ok: true }>(`/api/orgs/${orgId}/join_requests/${id}/reject`);
 export const roleLabel: Record<Role, string> = { org_admin: "Admin · lead", pm: "PM / lead", member: "Member", guest: "Guest" };

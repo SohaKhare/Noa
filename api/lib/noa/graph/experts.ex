@@ -4,7 +4,8 @@ defmodule Noa.Graph.Experts do
 
   `refresh/1` writes `KNOWS_ABOUT` edges from each person to each project, weighted by
   what the graph shows they did there: tasks they finished (3), decisions they made (3),
-  tasks they own (1) and messages they wrote in its channels (1). `experts/2` ranks
+  tasks they own (1), messages they wrote in its channels (1), commits to its repo (1)
+  and pull requests of theirs that were merged there (2). `experts/2` ranks
   people on one project; `key_people/1` runs PageRank over the whole work graph; `bus_factor/1` flags projects where one person holds most of the knowledge,
   `groups/1` finds working groups (WCC) and `bridges/1` the people who connect them
   (betweenness).
@@ -18,7 +19,9 @@ defmodule Noa.Graph.Experts do
     {"MATCH (x:Person)<-[:ASSIGNED_TO]-(t:Task {status: 'done'})-[:BELONGS_TO]->(p:Project)", 3},
     {"MATCH (x:Person)-[:DECIDED]->(d:Decision {status: 'active'})-[:AFFECTS]->(p:Project)", 3},
     {"MATCH (x:Person)<-[:ASSIGNED_TO]-(t:Task)-[:BELONGS_TO]->(p:Project) WHERE t.status <> 'done'", 1},
-    {"MATCH (x:Person)-[:AUTHORED]->(:Episode)-[:IN]->(:Channel)-[:MAPS_TO]->(p:Project)", 1}
+    {"MATCH (x:Person)-[:AUTHORED]->(:Episode)-[:IN]->(:Channel)-[:MAPS_TO]->(p:Project)", 1},
+    {"MATCH (x:Person)-[:COMMITTED]->(:Commit)-[:BELONGS_TO]->(p:Project)", 1},
+    {"MATCH (x:Person)-[:OPENED]->(:PullRequest {state: 'merged'})-[:BELONGS_TO]->(p:Project)", 2}
   ]
 
   @doc "Recomputes every `KNOWS_ABOUT` edge in the org's graph."

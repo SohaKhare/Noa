@@ -43,6 +43,13 @@ defmodule NoaWeb.SetupTest do
       |> json_response(201)
 
     assert rocket["key"] == "rocket-site"
+
+    %{"project" => with_repo} =
+      api(ada, :patch, "#{base}/projects/#{rocket["id"]}", %{repo: "https://github.com/acme/rocket-site.git"})
+      |> json_response(200)
+
+    assert with_repo["repo"] == "acme/rocket-site"
+    assert Noa.GitHub.project_for("Acme/Rocket-Site").id == rocket["id"]
     %{"project" => again} = api(ada, :post, "#{base}/projects", %{name: "Rocket Site"}) |> json_response(201)
     assert again["key"] == "rocket-site-2"
 
@@ -83,7 +90,7 @@ defmodule NoaWeb.SetupTest do
   end
 
   test "an admin imports a whole org map", %{org: org, ada: ada} do
-    assert %{"loaded" => %{"projects" => 4, "people" => 5}} =
+    assert %{"loaded" => %{"projects" => 4, "people" => 6}} =
              api(ada, :post, "/api/orgs/#{org.id}/import", %{seed: @seed}) |> json_response(200)
 
     assert api(ada, :post, "/api/orgs/#{org.id}/import", %{seed: "nope"}) |> json_response(422)

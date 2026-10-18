@@ -6,6 +6,7 @@ defmodule Noa.Release do
       bin/noa rpc  'Noa.Release.superadmin("you@co.com", "You")'
       bin/noa rpc  'Noa.Release.seed("notyouridea")'           # org map from priv/seeds/nyi.json
       bin/noa rpc  'Noa.Release.graph("notyouridea")'          # rebuild the workspace's graph
+      bin/noa rpc  'Noa.Release.github("notyouridea")'         # load recent commits and PRs
 
   These use `rpc`, so they run inside the live node (next to the projector) instead of
   booting a second copy of the app. `superadmin` generates a password and prints it
@@ -19,7 +20,12 @@ defmodule Noa.Release do
     load_app()
 
     for repo <- repos() do
-      {:ok, _, _} = Ecto.Migrator.with_repo(repo, &Ecto.Migrator.run(&1, :up, all: true))
+      try do
+        {:ok, _, _} = Ecto.Migrator.with_repo(repo, &Ecto.Migrator.run(&1, :up, all: true))
+      catch
+        # The migrations ran; only closing the pool afterwards was slow. Not a failure.
+        :exit, {:timeout, {GenServer, :stop, _}} -> :ok
+      end
     end
   end
 
@@ -74,6 +80,16 @@ defmodule Noa.Release do
 
     with {:ok, count} <- Noa.Graph.Projector.rebuild(org.id),
          do: {:ok, %{backfilled: backfilled, replayed: count}}
+  end
+
+  @doc "Loads recent commits and pull requests from GitHub for every project with a repo (needs GITHUB_TOKEN for private repos)."
+  def github(slug) do
+    org = org!(slug)
+
+    Noa.Work.Project
+    |> Ash.Query.filter(org_id == ^org.id and not is_nil(repo))
+    |> Ash.read!(authorize?: false)
+    |> Map.new(fn p -> {p.name, Noa.GitHub.backfill(p)} end)
   end
 
   defp org!(slug) do

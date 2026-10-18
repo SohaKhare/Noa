@@ -3,6 +3,7 @@
 import {
   ArrowsLeftRightIcon,
   AtIcon,
+  RobotIcon,
   BellIcon,
   CaretDownIcon,
   ChartBarIcon,
@@ -270,6 +271,7 @@ const notifIcon: Record<FeedItem["kind"], Icon> = {
   change: AtIcon,
   shift: ArrowsLeftRightIcon,
   decision: CheckCircleIcon,
+  pack: RobotIcon,
 };
 
 const SEEN = "noa.feed.seen";

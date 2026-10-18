@@ -29,6 +29,13 @@ defmodule NoaWeb.PermissionsTest do
     {:get, "/shifts"},
     {:get, "/feed"},
     {:get, "/whatsapp"},
+    {:get, "/connectors"},
+    {:put, "/connectors/discord"},
+    {:post, "/connectors/github/secret"},
+    {:put, "/connectors/github/token"},
+    {:post, "/connectors/github/backfill"},
+    {:get, "/connectors/github/repos"},
+    {:delete, "/connectors/:task"},
     {:get, "/mcp_tokens"},
     {:post, "/mcp_tokens"},
     {:delete, "/mcp_tokens/:task"},
@@ -58,7 +65,10 @@ defmodule NoaWeb.PermissionsTest do
     {:put, "/allocations"},
     {:post, "/channels"},
     {:get, "/discord/channels"},
-    {:post, "/import"}
+    {:post, "/import"},
+    {:get, "/join_requests"},
+    {:post, "/join_requests/:task/approve"},
+    {:post, "/join_requests/:task/reject"}
   ]
 
   @body %{
@@ -190,7 +200,11 @@ defmodule NoaWeb.PermissionsTest do
       {:post, "/people/from_members"},
       {:put, "/allocations"},
       {:post, "/channels"},
-      {:post, "/import"}
+      {:post, "/import"},
+      {:put, "/connectors/discord"},
+      {:post, "/connectors/github/secret"},
+      {:put, "/connectors/github/token"},
+      {:post, "/connectors/github/backfill"}
     ]
 
     for {method, route} <- lead_only do

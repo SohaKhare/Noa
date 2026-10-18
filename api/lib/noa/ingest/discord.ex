@@ -159,9 +159,11 @@ defmodule Noa.Ingest.Discord do
     end
   end
 
-  @doc "Text channels in the configured guild, for mapping in onboarding: `{:ok, [%{id, name}]}`."
-  def guild_channels do
-    guild = Application.get_env(:noa, :discord_guild_id) || System.get_env("DISCORD_GUILD_ID")
+  @doc "Text channels in the workspace's connected server, for mapping in onboarding: `{:ok, [%{id, name}]}`."
+  def guild_channels(org_id \\ nil) do
+    guild =
+      (org_id && Noa.Connectors.guild_for(org_id)) || Application.get_env(:noa, :discord_guild_id) ||
+        System.get_env("DISCORD_GUILD_ID")
 
     if enabled?() and present?(guild) do
       case Nostrum.Api.Guild.channels(String.to_integer(guild)) do
@@ -209,6 +211,17 @@ defmodule Noa.Ingest.Discord do
     e -> {:error, e}
   end
 
+  @doc "The workspace a server belongs to: connected in Settings, or the platform setting."
+  def org_for_guild(guild_id) do
+    configured = Application.get_env(:noa, :discord_org_id) || System.get_env("DISCORD_ORG_ID")
+
+    cond do
+      org = Noa.Connectors.org_for_guild(guild_id) -> {:ok, org}
+      present?(configured) and allowed_by_env?(guild_id) -> {:ok, configured}
+      true -> {:ignore, :unknown_workspace}
+    end
+  end
+
   @doc "Returns whether the Discord gateway should be started in this environment."
   def enabled?, do: present?(Application.get_env(:noa, :discord_bot_token) || System.get_env("DISCORD_BOT_TOKEN"))
 
@@ -237,10 +250,14 @@ defmodule Noa.Ingest.Discord do
   defp normalize_value(value) when is_list(value), do: Enum.map(value, &normalize_value/1)
   defp normalize_value(value), do: value
 
+  # The workspace whose org admin connected this server (Settings → Connectors), then the
+  # platform's single-server setting, then a channel mapped by its Discord id.
   defp org_id_for(payload) do
     configured_org = Application.get_env(:noa, :discord_org_id) || System.get_env("DISCORD_ORG_ID")
+    connected_org = Noa.Connectors.org_for_guild(payload["guild_id"])
 
     cond do
+      connected_org -> {:ok, connected_org}
       present?(configured_org) and allowed_guild?(payload["guild_id"]) -> {:ok, configured_org}
       present?(payload["channel_id"]) -> org_id_for_channel(payload["channel_id"])
       true -> {:ignore, :unknown_workspace}
@@ -260,49 +277,52 @@ defmodule Noa.Ingest.Discord do
 
   defp display_name(user), do: user["global_name"] || user["display_name"] || user["username"]
 
-  @doc "Backfills mapped Discord channel messages, oldest first, with Discord's REST API."
+  @doc """
+  Backfills a mapped channel's recent messages (up to `:max_pages` of 100, default 5)
+  with Discord's REST API, recorded oldest first. Runs when an org admin maps a channel.
+  """
   @spec backfill(String.t(), String.t(), keyword()) :: {:ok, non_neg_integer()} | {:error, term()}
   def backfill(org_id, channel_id, opts \\ []) do
     token = opts[:token] || token()
     limit = opts |> Keyword.get(:limit, @default_limit) |> min(@max_limit) |> max(1)
-    max_pages = Keyword.get(opts, :max_pages, :infinity)
+    max_pages = Keyword.get(opts, :max_pages, 5)
+
+    guild =
+      Noa.Connectors.guild_for(org_id) || Application.get_env(:noa, :discord_guild_id) ||
+        System.get_env("DISCORD_GUILD_ID")
 
     if present?(token) do
-      do_backfill(org_id, channel_id, token, limit, max_pages, nil, 0)
+      with {:ok, messages} <- fetch_pages(channel_id, token, limit, max_pages, nil, [], opts[:req_options] || []) do
+        # Discord pages newest-first; record oldest-first so the log and extraction
+        # windows follow the conversation. REST messages carry no guild_id, so add it.
+        results =
+          messages
+          |> Enum.sort_by(&String.to_integer(to_string(&1["id"])))
+          |> Enum.map(&ingest(org_id, Map.put_new(&1, "guild_id", guild)))
+
+        {:ok, Enum.count(results, &accepted_result?/1)}
+      end
     else
       {:error, :missing_discord_bot_token}
     end
   end
 
-  defp do_backfill(_org_id, _channel_id, _token, _limit, 0, _before, count), do: {:ok, count}
+  defp fetch_pages(_channel_id, _token, _limit, 0, _before, acc, _req), do: {:ok, acc}
 
-  defp do_backfill(org_id, channel_id, token, limit, max_pages, before, count) do
+  defp fetch_pages(channel_id, token, limit, pages, before, acc, req) do
     params = [limit: limit] |> maybe_before(before)
 
-    case Req.get("#{@discord_api}/channels/#{channel_id}/messages",
-           headers: [{"authorization", "Bot #{token}"}],
-           params: params
+    case Req.get(
+           "#{@discord_api}/channels/#{channel_id}/messages",
+           [headers: [{"authorization", "Bot #{token}"}], params: params, retry: false] ++ req
          ) do
       {:ok, %{status: 200, body: messages}} when is_list(messages) ->
-        # Discord returns newest-first; replay oldest-first so the event log and
-        # extraction windows follow the conversation's natural order.
-        results = messages |> Enum.reverse() |> Enum.map(&ingest(org_id, &1))
-        next_before = messages |> List.last() |> then(&if &1, do: &1["id"], else: nil)
-        pages = if max_pages == :infinity, do: :infinity, else: max_pages - 1
+        acc = acc ++ messages
+        oldest = messages |> List.last() |> then(&(&1 && &1["id"]))
 
-        if length(messages) < limit or is_nil(next_before) do
-          {:ok, count + Enum.count(results, &accepted_result?/1)}
-        else
-          do_backfill(
-            org_id,
-            channel_id,
-            token,
-            limit,
-            pages,
-            next_before,
-            count + Enum.count(results, &accepted_result?/1)
-          )
-        end
+        if length(messages) < limit or is_nil(oldest),
+          do: {:ok, acc},
+          else: fetch_pages(channel_id, token, limit, pages - 1, oldest, acc, req)
 
       {:ok, %{status: status, body: body}} ->
         {:error, {:discord_api, status, body}}
@@ -320,6 +340,10 @@ defmodule Noa.Ingest.Discord do
   defp accepted_result?(_), do: false
 
   defp allowed_guild?(guild_id) do
+    if Noa.Connectors.org_for_guild(guild_id), do: true, else: allowed_by_env?(guild_id)
+  end
+
+  defp allowed_by_env?(guild_id) do
     case Application.get_env(:noa, :discord_guild_id) || System.get_env("DISCORD_GUILD_ID") do
       nil -> true
       "" -> true
@@ -342,4 +366,18 @@ defmodule Noa.Ingest.Discord do
   end
 
   defp timestamp(_), do: DateTime.utc_now()
+
+  defmodule Backfill do
+    @moduledoc "Loads a newly mapped Discord channel's recent history (2.10, 1.18)."
+    use Oban.Worker, queue: :extraction, max_attempts: 3, unique: [period: 3600, keys: [:org_id, :channel_id]]
+
+    @impl Oban.Worker
+    def perform(%Oban.Job{args: %{"org_id" => org_id, "channel_id" => channel_id}}) do
+      case Noa.Ingest.Discord.backfill(org_id, channel_id) do
+        {:ok, _n} -> :ok
+        {:error, :missing_discord_bot_token} -> :ok
+        error -> error
+      end
+    end
+  end
 end

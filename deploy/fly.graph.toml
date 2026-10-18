@@ -1,8 +1,8 @@
 # FalkorDB for Noa on Fly.io, private network only (no public ports).
 # `fly launch --no-deploy -c deploy/fly.graph.toml`, create the volume, set REDIS_ARGS,
 # then `fly deploy -c deploy/fly.graph.toml`. See docs/deploy.md.
-app = "noa-graph"
-primary_region = "bom"
+app = "heynoa-graph"
+primary_region = "sin"
 
 [build]
   image = "falkordb/falkordb:v4.10.3"

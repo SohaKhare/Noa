@@ -1,6 +1,6 @@
 # Noa web on Fly.io. Deploy from the repo root: `fly deploy -c deploy/fly.web.toml .`
 app = "noa-web"
-primary_region = "bom"
+primary_region = "sin"
 
 [build]
   dockerfile = "../web/Dockerfile"

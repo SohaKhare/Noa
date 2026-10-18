@@ -42,6 +42,10 @@ config :noa, Noa.Mailer, adapter: Swoosh.Adapters.Local
 config :swoosh, :api_client, false
 
 config :nostrum,
+  # Noa reads and writes text only: no voice, so no ffmpeg or youtube-dl.
+  ffmpeg: nil,
+  youtubedl: nil,
+  streamlink: nil,
   token: System.get_env("DISCORD_BOT_TOKEN"),
   gateway_intents: [:guilds, :guild_messages, :guild_members, :message_content]
 

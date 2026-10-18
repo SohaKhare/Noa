@@ -8,6 +8,7 @@ Three minutes, recorded on NYI's real workspace after the noon freeze (4.1). One
 - [ ] Discord bot reading `#veriq` and `#emmarie` (1.13). `OPENAI_API_KEY` set so extraction runs.
 - [ ] Soha's phone on screen share or a WhatsApp Web window for the notification (1.15, 2.21).
 - [ ] Inbox empty, so new proposals stand out. Vedant signed in on the web app; Saish in Discord.
+- [ ] Leave one task with no owner on Veriq (or move someone off a project) so "Find unowned work" has something to file.
 - [ ] Rehearse once; delete rehearsal proposals with Dismiss.
 
 ## Scenes
@@ -20,8 +21,9 @@ Three minutes, recorded on NYI's real workspace after the noon freeze (4.1). One
 | 4 | 1:05–1:30 | Saish (member) changes the due date to Monday with a reason. Drawer shows "Waiting for Vedant". Vedant's Inbox: "Changes waiting for you"; approve. WhatsApp to Saish | "Deadlines are shared commitments, so a member's change waits for the lead. Small edits apply at once and can be reverted." |
 | 5 | 1:30–1:55 | Ask Noa: "What's blocking Emmarie?" Answer with [1] [2] and the sources listed | "Ask anything. Answers come only from what you're allowed to see, and every claim cites where it came from." |
 | 6 | 1:55–2:30 | People board: drag Soha from Video Break to Emmarie. Popover: her open task, Abhishek suggested. Confirm. Emmarie KT tab: brief, people to meet. Agent pack page: her `CLAUDE.md` from the graph | "Moving someone is a drag. Noa hands over her tasks, keeps routing Video Break questions to her for two weeks, and gives her a brief built from the project graph." |
-| 7 | 2:30–2:50 | Portfolio: who the work runs through (PageRank), bus-factor risk. Then the project's Graph tab: click Soha, then a decision, and the path lights up | "Under the hood it's a FalkorDB graph per company, rebuilt from an append-only event log. PageRank over it finds who the work depends on and where one person is a single point of failure." |
-| 8 | 2:50–3:00 | My day again, Decided today | "That's Noa. It ran our hackathon." |
+| 7 | 2:30–2:45 | Portfolio: who the work runs through (PageRank), bus-factor risk. Then the project's Graph tab: click Soha, then a decision, and the path lights up | "Under the hood it's a FalkorDB graph per company, rebuilt from an append-only event log. PageRank over it finds who the work depends on and where one person is a single point of failure." |
+| 8 | 2:45–2:55 | Inbox: "Find unowned work". Open one suggestion: the reasons and the graph route (WORKS_ON, KNOWS_ABOUT, similar finished work). Approve | "Noa also acts on the graph. It finds work nobody is carrying and says who should take it, and why, from what the graph shows. Coding agents get the same tools over MCP." |
+| 9 | 2:55–3:00 | My day again, Decided today | "That's Noa. It ran our hackathon." |
 
 ## Fallbacks
 

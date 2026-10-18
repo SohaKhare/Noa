@@ -1,6 +1,6 @@
 # Noa landing on Fly.io. Deploy from the repo root: `fly deploy -c deploy/fly.landing.toml .`
 app = "noa-landing"
-primary_region = "bom"
+primary_region = "sin"
 
 [build]
   dockerfile = "../landing/Dockerfile"

@@ -66,7 +66,7 @@ Slack · Discord · Google Meet · WhatsApp (Kapso) · GitHub
 
 ## What works today
 
-Everything below runs locally against real Postgres and FalkorDB, with tests (`cd api && mix test`, 137 tests including permission-leak tests on every route).
+Everything below runs locally against real Postgres and FalkorDB, with tests (`cd api && mix test`, 140 tests including permission-leak tests on every route).
 
 | Area | Working | Notes |
 | --- | --- | --- |

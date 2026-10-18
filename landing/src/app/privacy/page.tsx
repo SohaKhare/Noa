@@ -17,6 +17,7 @@ export default function Privacy() {
       <ul>
         <li>Messages in the chat channels a workspace admin maps to a project. Nothing else in the server or workspace.</li>
         <li>Never direct messages between people. Noa ignores them at the door, before anything is stored.</li>
+        <li>When someone edits a message, Noa keeps the new text. When they delete it, Noa erases its text too.</li>
         <li>WhatsApp messages you send to Noa&rsquo;s own number. These are commands and questions to Noa, not team chat, and are not turned into work.</li>
       </ul>
 

@@ -43,6 +43,7 @@ defmodule Noa.Ops do
       whatsapp: present?(whatsapp[:api_key]) and present?(whatsapp[:phone_number_id]),
       whatsapp_webhook: present?(whatsapp[:webhook_secret]),
       discord: Noa.Ingest.Discord.enabled?(),
+      github: Noa.GitHub.configured?() or Noa.GitHub.App.configured?(),
       email: Application.get_env(:noa, Noa.Mailer, [])[:adapter] == Noa.Mailer.Resend
     }
   end

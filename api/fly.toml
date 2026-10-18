@@ -1,8 +1,13 @@
-# Noa API on Fly.io. Deploy from api/: `fly deploy` (see docs/deploy.md).
+# Noa API on Fly.io. Deploy from api/: `fly deploy --ha=false` (see docs/deploy.md).
 # Run exactly one machine: the projector, WhatsApp notifier and Discord gateway are
-# singletons, so `fly deploy --ha=false` and never scale past 1.
-app = "noa-api"
-primary_region = "bom"
+# singletons, so never scale past 1.
+#
+# Secrets (fly secrets set): SECRET_KEY_BASE, TOKEN_SIGNING_SECRET, FALKORDB_URL
+# (the heynoa-graph app), and optionally OPENAI_API_KEY, RESEND_API_KEY, KAPSO_API_KEY,
+# KAPSO_PHONE_NUMBER_ID, KAPSO_WEBHOOK_SECRET, DISCORD_BOT_TOKEN, DISCORD_GUILD_ID,
+# DISCORD_ORG_ID. `fly postgres attach` sets DATABASE_URL.
+app = "heynoa-api"
+primary_region = "sin"
 
 [build]
   dockerfile = "Dockerfile"
@@ -14,14 +19,17 @@ primary_region = "bom"
 [env]
   PHX_SERVER = "true"
   PORT = "4000"
+  # Fly Postgres is reached over Fly's private network, which is IPv6.
   ECTO_IPV6 = "true"
+  # The graph is a FalkorDB app on Fly's private network (deploy/fly.graph.toml), also
+  # IPv6. Set this to "false" for FalkorDB Cloud.
   FALKORDB_IPV6 = "true"
   CLIENT_IP_HEADER = "fly-client-ip"
   POOL_SIZE = "10"
-  WEB_ORIGIN = "https://app.notyouridea.com"
-  API_BASE_URL = "https://api.notyouridea.com"
+  WEB_ORIGIN = "https://app.heynoa.xyz"
+  API_BASE_URL = "https://api.heynoa.xyz"
   MAIL_FROM_NAME = "Noa"
-  MAIL_FROM_EMAIL = "noa@notyouridea.com"
+  MAIL_FROM_EMAIL = "noa@heynoa.xyz"
   KAPSO_TEMPLATE_UPDATE = "noa_update"
   KAPSO_TEMPLATE_TASK = "noa_task"
   KAPSO_TEMPLATE_APPROVAL = "noa_approval"

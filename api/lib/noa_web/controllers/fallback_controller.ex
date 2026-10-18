@@ -17,6 +17,12 @@ defmodule NoaWeb.FallbackController do
     changed_since: {409, "This was changed again since. Change it back by hand."},
     not_a_project_lead: {403, "Only workspace admins, PMs and project leads can run triage."},
     invalid_org_map: {422, "Send the org map as JSON under \"seed\" (the shape of docs/seeds/nyi.json)."},
+    invalid_join: {422, "Give your name and your work email."},
+    invalid_guild:
+      {422,
+       "That isn't a Discord server id. In Discord, turn on Developer Mode, right-click the server and Copy Server ID."},
+    guild_taken: {409, "That Discord server is already connected to another workspace."},
+    invalid_token: {422, "Paste a GitHub token."},
     not_found: {404, "Not found."}
   }
 

@@ -18,6 +18,8 @@ defmodule Noa.Work.Setup do
   end
 
   defp do_create_project(org_id, attrs, actor) do
+    attrs = normalize_repo(attrs)
+
     attrs = Map.put_new_lazy(attrs, :key, fn -> unique_key(Project, org_id, attrs[:name]) end)
 
     Project
@@ -27,9 +29,24 @@ defmodule Noa.Work.Setup do
 
   def update_project(id, attrs, actor) do
     with {:ok, project} <- Ash.get(Project, id, actor: actor) do
-      project |> Ash.Changeset.for_update(:update, attrs, actor: actor) |> Ash.update()
+      project |> Ash.Changeset.for_update(:update, normalize_repo(attrs), actor: actor) |> Ash.update()
     end
   end
+
+  # "https://github.com/Owner/name.git" and "Owner/name" both become "Owner/name", the
+  # form GitHub webhooks name the repository in.
+  defp normalize_repo(%{repo: repo} = attrs) when is_binary(repo) do
+    clean =
+      repo
+      |> String.trim()
+      |> String.replace(~r{^(https?://)?(www\.)?github\.com/}i, "")
+      |> String.replace(~r{\.git$}, "")
+      |> String.trim("/")
+
+    %{attrs | repo: if(clean == "", do: nil, else: clean)}
+  end
+
+  defp normalize_repo(attrs), do: attrs
 
   ## People
 
@@ -150,6 +167,17 @@ defmodule Noa.Work.Setup do
   end
 
   defp do_create_channel(org_id, attrs, actor) do
+    with {:ok, channel} <- insert_channel(org_id, attrs, actor) do
+      # A Discord channel with its id: load its recent history in the background.
+      if ((channel.platform == :discord and channel.external_id) && channel.read) and Noa.Ingest.Discord.enabled?() do
+        %{org_id: org_id, channel_id: channel.external_id} |> Noa.Ingest.Discord.Backfill.new() |> Oban.insert()
+      end
+
+      {:ok, channel}
+    end
+  end
+
+  defp insert_channel(org_id, attrs, actor) do
     Channel
     |> Ash.Changeset.for_create(:create, Map.merge(%{platform: :discord, read: true}, Map.put(attrs, :org_id, org_id)),
       actor: actor
@@ -165,7 +193,7 @@ defmodule Noa.Work.Setup do
     with {:ok, mapped} <- Work.channels(org_id, actor) do
       mapped = mapped |> Enum.filter(&(&1.platform == :discord)) |> Enum.flat_map(&[&1.external_id, &1.name])
 
-      case Noa.Ingest.Discord.guild_channels() do
+      case Noa.Ingest.Discord.guild_channels(org_id) do
         {:ok, channels} ->
           {:ok,
            %{

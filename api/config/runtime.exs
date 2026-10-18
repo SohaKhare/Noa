@@ -15,6 +15,18 @@ if config_env() != :test do
     notifier: System.get_env("NOA_WHATSAPP_NOTIFIER", "true") == "true"
 end
 
+# GitHub (3.7): webhook secret, and a token for backfilling private repos.
+if config_env() != :test do
+  config :noa, Noa.GitHub,
+    webhook_secret: System.get_env("GITHUB_WEBHOOK_SECRET"),
+    token: System.get_env("GITHUB_TOKEN"),
+    # Noa's GitHub App, registered by the Noa admin; companies install it from Settings.
+    app_id: System.get_env("GITHUB_APP_ID"),
+    slug: System.get_env("GITHUB_APP_SLUG"),
+    private_key: System.get_env("GITHUB_APP_PRIVATE_KEY"),
+    app_webhook_secret: System.get_env("GITHUB_APP_WEBHOOK_SECRET")
+end
+
 if config_env() == :prod do
   config :noa, Noa.Repo,
     url: System.fetch_env!("DATABASE_URL"),

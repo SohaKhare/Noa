@@ -122,4 +122,46 @@ defmodule Noa.Ingest.DiscordIngestTest do
     {:ok, [%{"text" => nil}]} =
       Noa.Graph.ro_query(org.id, "MATCH (e:Episode {id: 'discord:5001'}) RETURN e.text AS text")
   end
+
+  test "backfill loads a mapped channel's history oldest first", %{org: org} do
+    veriq =
+      Noa.Work.Channel |> Ash.read!(authorize?: false) |> Enum.find(&(&1.org_id == org.id and &1.name == "#veriq"))
+
+    {:ok, _} = veriq |> Ash.Changeset.for_update(:update, %{external_id: "2001"}) |> Ash.update(authorize?: false)
+
+    msg = fn id, text ->
+      %{
+        "id" => to_string(id),
+        "channel_id" => "2001",
+        "content" => text,
+        "timestamp" => "2026-10-17T04:30:00Z",
+        "author" => %{"id" => "3001", "username" => "saish"}
+      }
+    end
+
+    Req.Test.stub(DiscordAPI, fn conn ->
+      conn = Plug.Conn.fetch_query_params(conn)
+
+      case conn.query_params["before"] do
+        nil -> Req.Test.json(conn, [msg.(103, "third"), msg.(102, "second")])
+        "102" -> Req.Test.json(conn, [msg.(101, "first")])
+      end
+    end)
+
+    assert {:ok, 3} =
+             Discord.backfill(org.id, "2001", token: "t", limit: 2, req_options: [plug: {Req.Test, DiscordAPI}])
+
+    texts =
+      Events.since(0, org_id: org.id, limit: 1000)
+      |> Enum.filter(&(&1.type == "message.received"))
+      |> Enum.map(& &1.data["text"])
+
+    assert texts == ["first", "second", "third"]
+
+    # Running it again records nothing new.
+    assert {:ok, 3} =
+             Discord.backfill(org.id, "2001", token: "t", limit: 2, req_options: [plug: {Req.Test, DiscordAPI}])
+
+    assert 3 == Events.since(0, org_id: org.id, limit: 1000) |> Enum.count(&(&1.type == "message.received"))
+  end
 end

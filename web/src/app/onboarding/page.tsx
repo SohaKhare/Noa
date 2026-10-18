@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { FormError } from "@/components/AuthCard";
 import { BrandMark } from "@/components/BrandMark";
 import { Avatar, Badge, Button } from "@/components/ui";
-import { addMembersAsPeople, ApiError, createChannel, createPerson, createProject, getDiscordChannels, importOrgMap, setAllocation } from "@/lib/api";
+import { addMembersAsPeople, ApiError, createChannel, createPerson, createProject, getDiscordChannels, importOrgMap, setAllocation, updateProject, type WorkProject } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { currentMembership, useMe } from "@/lib/session";
 import { nameInitials, useDirectory } from "@/lib/work";
@@ -110,11 +110,13 @@ function Projects() {
   const [name, setName] = useState("");
   const [about, setAbout] = useState("");
   const [leadId, setLeadId] = useState("");
+  const [repo, setRepo] = useState("");
   const add = useMutation({
-    mutationFn: () => createProject(dir.orgId!, { name: name.trim(), about: about.trim() || undefined, lead_id: leadId || undefined }),
+    mutationFn: () => createProject(dir.orgId!, { name: name.trim(), about: about.trim() || undefined, lead_id: leadId || undefined, repo: repo.trim() || undefined }),
     onSuccess: () => {
       setName("");
       setAbout("");
+      setRepo("");
       refresh();
     },
   });
@@ -132,6 +134,7 @@ function Projects() {
                 {p.about ?? "No description"}
                 {p.lead_id && ` · lead ${dir.person(p.lead_id)?.name}`}
               </p>
+              <RepoField project={p} />
             </li>
           ))}
           {dir.projects.length === 0 && <li className="text-[13px] text-muted">No projects yet. Add your first one.</li>}
@@ -147,6 +150,7 @@ function Projects() {
         <p className="text-[13px] font-semibold">Add a project</p>
         <input className={input} placeholder="Name, e.g. Rocket Site" value={name} onChange={(e) => setName(e.target.value)} aria-label="Project name" />
         <input className={input} placeholder="What it is, in one line" value={about} onChange={(e) => setAbout(e.target.value)} aria-label="About" />
+        <input className={input} placeholder="GitHub repo, e.g. acme/rocket-site (optional)" value={repo} onChange={(e) => setRepo(e.target.value)} aria-label="GitHub repo" />
         <select className={input} value={leadId} onChange={(e) => setLeadId(e.target.value)} aria-label="Lead">
           <option value="">No lead yet</option>
           {dir.people.map((p) => (
@@ -161,6 +165,38 @@ function Projects() {
         </Button>
       </form>
     </div>
+  );
+}
+
+/* A project's GitHub repo (3.7): commits, PRs and CI from it go into the graph and the agent pack. */
+function RepoField({ project }: { project: WorkProject }) {
+  const dir = useDirectory();
+  const refresh = useRefresh();
+  const [value, setValue] = useState(project.repo ?? "");
+  const save = useMutation({ mutationFn: () => updateProject(dir.orgId!, project.id, { repo: value.trim() || null }), onSuccess: refresh });
+  const dirty = value.trim() !== (project.repo ?? "");
+  return (
+    <form
+      className="mt-2 flex gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (dirty) save.mutate();
+      }}
+    >
+      <input
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="GitHub repo (owner/name)"
+        aria-label={`GitHub repo for ${project.name}`}
+        className="min-w-0 flex-1 rounded-lg bg-surface px-2.5 py-1.5 font-mono text-[12px] ring-1 ring-line focus:outline-none"
+      />
+      {dirty && (
+        <button disabled={save.isPending} className="rounded-full px-3 text-[12px] font-medium ring-1 ring-line hover:bg-surface">
+          Save
+        </button>
+      )}
+      {save.error && <FormError>{(save.error as ApiError).message}</FormError>}
+    </form>
   );
 }
 

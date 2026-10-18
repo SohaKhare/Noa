@@ -72,9 +72,14 @@ defmodule Noa.Graph do
     "CREATE INDEX FOR (n:Episode) ON (n.id)",
     "CREATE INDEX FOR (n:Decision) ON (n.id)",
     "CREATE INDEX FOR (n:Topic) ON (n.id)",
+    "CREATE INDEX FOR (n:Commit) ON (n.id)",
+    "CREATE INDEX FOR (n:PullRequest) ON (n.id)",
+    "CREATE INDEX FOR (n:CIRun) ON (n.id)",
     "CALL db.idx.fulltext.createNodeIndex('Episode', 'text')",
     "CALL db.idx.fulltext.createNodeIndex('Task', 'title')",
-    "CALL db.idx.fulltext.createNodeIndex('Decision', 'statement')"
+    "CALL db.idx.fulltext.createNodeIndex('Decision', 'statement')",
+    "CALL db.idx.fulltext.createNodeIndex('PullRequest', 'title')",
+    "CALL db.idx.fulltext.createNodeIndex('Commit', 'message')"
   ]
 
   @doc """
@@ -85,7 +90,7 @@ defmodule Noa.Graph do
     with :ok <- indexes(org_id), do: constraints(org_id)
   end
 
-  @unique ~w(Person Identity Project Channel Task Episode Decision)
+  @unique ~w(Person Identity Project Channel Task Episode Decision Commit PullRequest CIRun)
 
   # One node per id, enforced by FalkorDB itself, so a replay can never duplicate a node.
   # Sent as a raw command: falkordb 0.8.2's constraint_create puts the graph name before

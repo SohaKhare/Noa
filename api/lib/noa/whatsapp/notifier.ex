@@ -8,6 +8,8 @@ defmodule Noa.WhatsApp.Notifier do
   - A deadline or scope change waits for a lead: to the project lead, buttons Approve / Reject.
   - A pending change is decided: to whoever asked.
   - Someone moves projects: to them, with links to their brief and agent pack.
+  - Someone is put on a project another way (onboarding, a task assigned to them): to
+    them, saying their agent pack now covers it.
 
   Each person gets these on the channel they chose (`Noa.Notify`): WhatsApp with reply
   buttons, a Discord DM or email with a link to act in the web app, or nothing for "in
@@ -132,7 +134,34 @@ defmodule Noa.WhatsApp.Notifier do
     deliver(event, person(d["person_id"]), text, context: %{"shift_id" => d["id"]})
   end
 
+  # Someone is put on a project (onboarding, the People board, or a task assigned to them):
+  # their agent pack now covers it. A shift says the same in its own message.
+  def handle(%{type: "allocation.saved", data: d} = event) do
+    if is_nil(previous(event)) and not from_shift?(d) do
+      project = project_name(d["project_id"])
+      web = Application.fetch_env!(:noa, :web_origin)
+      why = if d["role"] == "contributor", do: "You have a task there now, so ", else: ""
+
+      deliver(
+        event,
+        person(d["person_id"]),
+        "#{actor_name(event) || "Noa"} put you on #{project} (#{d["percent"]}%). #{why}your agent pack and brief now cover #{project}: #{web}/pack. Connect your coding agent from that page to give it the context.",
+        context: %{"allocation_id" => d["id"]},
+        link: "/pack"
+      )
+    else
+      []
+    end
+  end
+
   def handle(_event), do: []
+
+  defp from_shift?(d) do
+    Work.Shift
+    |> Ash.Query.filter(person_id == ^d["person_id"] and to_project_id == ^d["project_id"])
+    |> Ash.Query.filter(starts_on == ^Date.from_iso8601!(d["starts_on"]))
+    |> Ash.exists?(authorize?: false)
+  end
 
   ## Delivery
 

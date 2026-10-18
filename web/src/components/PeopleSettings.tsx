@@ -1,11 +1,14 @@
 "use client";
 
-import { CheckIcon, CopyIcon, PaperPlaneTiltIcon, XIcon } from "@phosphor-icons/react";
+import { CheckIcon, CopyIcon, LinkSimpleIcon, PaperPlaneTiltIcon, XIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import {
   ApiError,
+  approveJoinRequest,
   createInvite,
+  getJoinRequests,
+  rejectJoinRequest,
   getInvites,
   getMembers,
   revokeInvite,
@@ -44,6 +47,7 @@ export function PeopleSettings() {
 
   return (
     <div className="space-y-5">
+      {admin && <JoinRequests orgId={orgId} slug={membership.org.slug} domains={domains} />}
       {admin && <InviteForm orgId={orgId} domains={domains} />}
 
       <Card className="p-0">
@@ -277,6 +281,85 @@ function InviteForm({ orgId, domains }: { orgId: string; domains: string[] }) {
           </button>
         </div>
       )}
+    </Card>
+  );
+}
+
+/* The shared join link and the requests waiting on an admin (1.5). Approving sends the invite email. */
+function JoinRequests({ orgId, slug, domains }: { orgId: string; slug: string; domains: string[] }) {
+  const client = useQueryClient();
+  const requests = useQuery({ queryKey: ["join-requests", orgId], queryFn: () => getJoinRequests(orgId), refetchInterval: 15_000 });
+  const [roles, setRoles] = useState<Record<string, Role>>({});
+  const [copied, setCopied] = useState(false);
+  const link = `${window.location.origin}/join/${slug}`;
+  const decide = useMutation({
+    mutationFn: async ({ id, approve }: { id: string; approve: boolean }): Promise<void> => {
+      if (approve) await approveJoinRequest(orgId, id, roles[id] ?? "member");
+      else await rejectJoinRequest(orgId, id);
+    },
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: ["join-requests", orgId] });
+      client.invalidateQueries({ queryKey: ["invites", orgId] });
+    },
+  });
+  const list = requests.data ?? [];
+
+  return (
+    <Card>
+      <p className="flex items-center gap-1.5 text-[14px] font-semibold">
+        <LinkSimpleIcon size={15} /> Join link
+      </p>
+      <p className="mt-0.5 text-[12.5px] text-muted">
+        Share it with your team. Anyone with an {domains.map((d) => `@${d}`).join(" or ")} email can ask to join; you approve them here and they get an invite email.
+      </p>
+      <button
+        onClick={() => {
+          navigator.clipboard.writeText(link);
+          setCopied(true);
+        }}
+        className="mt-3 flex w-full items-center gap-2 rounded-xl bg-bg px-3 py-2 text-left font-mono text-[12px] ring-1 ring-line hover:bg-mist/50"
+      >
+        <span className="min-w-0 flex-1 truncate">{link}</span>
+        {copied ? <CheckIcon size={14} className="text-good" /> : <CopyIcon size={14} />}
+      </button>
+
+      {list.length > 0 && (
+        <div className="mt-4">
+          <p className="text-[12px] font-semibold text-muted">Waiting for you ({list.length})</p>
+          <ul className="mt-2 divide-y divide-line">
+            {list.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center gap-3 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-medium">{r.name}</p>
+                  <p className="text-[12px] text-muted">
+                    {r.email}
+                    {r.note && ` · “${r.note}”`}
+                  </p>
+                </div>
+                <select
+                  value={roles[r.id] ?? "member"}
+                  onChange={(e) => setRoles((m) => ({ ...m, [r.id]: e.target.value as Role }))}
+                  aria-label={`Role for ${r.name}`}
+                  className="rounded-lg bg-bg px-2 py-1.5 text-[12.5px] focus:outline-none"
+                >
+                  {(Object.keys(roleLabel) as Role[]).map((role) => (
+                    <option key={role} value={role}>
+                      {roleLabel[role]}
+                    </option>
+                  ))}
+                </select>
+                <Button size="sm" disabled={decide.isPending} onClick={() => decide.mutate({ id: r.id, approve: true })}>
+                  <CheckIcon size={13} weight="bold" /> Approve
+                </Button>
+                <Button size="sm" variant="ghost" disabled={decide.isPending} onClick={() => decide.mutate({ id: r.id, approve: false })}>
+                  <XIcon size={13} /> Decline
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {decide.error && <FormError>{(decide.error as ApiError).message}</FormError>}
     </Card>
   );
 }

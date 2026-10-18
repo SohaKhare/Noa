@@ -110,9 +110,56 @@ defmodule Noa.Work do
   ## Tasks
 
   def create_task(org_id, attrs, actor) do
-    Task
-    |> Ash.Changeset.for_create(:create, Map.merge(attrs, %{org_id: org_id, created_by_id: actor.id}), actor: actor)
-    |> Ash.create()
+    Repo.transaction(fn ->
+      with {:ok, task} <-
+             Task
+             |> Ash.Changeset.for_create(:create, Map.merge(attrs, %{org_id: org_id, created_by_id: actor.id}),
+               actor: actor
+             )
+             |> Ash.create(),
+           :ok <- ensure_on_project(task) do
+        task
+      else
+        {:error, error} -> Repo.rollback(error)
+      end
+    end)
+  end
+
+  @doc """
+  Puts a task's owner on its project if they aren't on it yet: a 10% "contributor"
+  allocation from today. Who works where, the graph, triage and the owner's agent pack
+  then all include the project, and the notifier tells them their pack changed.
+  """
+  def ensure_on_project(%{owner_id: nil}), do: :ok
+  def ensure_on_project(%{project_id: nil}), do: :ok
+
+  def ensure_on_project(%{org_id: org_id, owner_id: person_id, project_id: project_id}) do
+    today = Date.utc_today()
+
+    on? =
+      Allocation
+      |> Ash.Query.filter(
+        person_id == ^person_id and project_id == ^project_id and (is_nil(ends_on) or ends_on >= ^today)
+      )
+      |> Ash.exists?(authorize?: false)
+
+    if on? do
+      :ok
+    else
+      Allocation
+      |> Ash.Changeset.for_create(:create, %{
+        percent: 10,
+        role: "contributor",
+        org_id: org_id,
+        person_id: person_id,
+        project_id: project_id
+      })
+      |> Ash.create(authorize?: false)
+      |> case do
+        {:ok, _} -> :ok
+        error -> error
+      end
+    end
   end
 
   # Task fields that are shared items (2.19), and the change kind each one records.
@@ -151,7 +198,8 @@ defmodule Noa.Work do
       with {:ok, updated} <-
              if(rest == %{}, do: {:ok, task}, else: Ash.update(task, rest, action: :update, actor: actor)),
            :ok <- record(task, applied, :applied, reason, source, actor),
-           :ok <- record(task, held, :pending, reason, source, actor) do
+           :ok <- record(task, held, :pending, reason, source, actor),
+           :ok <- if(Enum.any?(applied, &(elem(&1, 0) == :owner_id)), do: ensure_on_project(updated), else: :ok) do
         updated
       else
         {:error, error} -> Repo.rollback(error)
@@ -561,6 +609,10 @@ defmodule Noa.Work do
       created_by_id: actor.id
     })
     |> Ash.create(authorize?: false)
+    |> then(fn
+      {:ok, task} -> with(:ok <- ensure_on_project(task), do: {:ok, task})
+      error -> error
+    end)
   end
 
   # Status and deadline changes follow the lead rules: a member approving their own
